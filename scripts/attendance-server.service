@@ -1,0 +1,27 @@
+[Unit]
+Description=Employee Attendance Kiosk Python Backend Server
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=simple
+User=attendance
+Group=attendance
+WorkingDirectory=/opt/employee-attendance
+ExecStart=/opt/employee-attendance/venv/bin/python3 /opt/employee-attendance/server.py
+
+# Restart policy: otomatis nyalakan ulang jika terjadi crash/kill
+Restart=always
+RestartSec=3
+
+# Resource and security limits
+ProtectSystem=full
+PrivateTmp=true
+
+# Standard logging diarahkan ke journalctl & logs/app.log
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=attendance-server
+
+[Install]
+WantedBy=multi-user.target

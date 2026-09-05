@@ -1,0 +1,104 @@
+[
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T22:31:55",
+    "image_path": "captures/2026/09/05/EMP001_20260905_223155.png",
+    "attendance_status": "SUCCESS"
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-05T22:32:54",
+    "image_path": "captures/2026/09/05/EMP002_20260905_223254.png",
+    "attendance_status": "SUCCESS"
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-05T22:33:59",
+    "image_path": "captures/2026/09/05/EMP002_20260905_223359.png",
+    "attendance_status": "SUCCESS"
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T23:00:49",
+    "image_path": "captures/2026/09/05/EMP001_20260905_230049.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T23:43:37",
+    "image_path": "captures/2026/09/05/EMP001_20260905_234337.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T23:45:22",
+    "image_path": "captures/2026/09/05/EMP001_20260905_234522.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-05T23:45:22",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T23:53:11",
+    "image_path": "captures/2026/09/05/EMP001_20260905_235311.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-05T23:53:11",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T23:56:35",
+    "image_path": "captures/2026/09/05/EMP001_20260905_235635.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-05T23:56:35",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T23:57:12",
+    "image_path": "captures/2026/09/05/EMP001_20260905_235712.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-05T23:57:12",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-05T23:59:52",
+    "image_path": "captures/2026/09/05/EMP001_20260905_235952.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-05T23:59:52",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": true
+  }
+]
