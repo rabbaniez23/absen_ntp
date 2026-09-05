@@ -46,3 +46,7 @@ logs/*.log
 # Sensitive environment variables
 .env
 .env.local
+
+# Private presentation guide (Local only)
+PANDUAN_DEMO_DAN_PENJELASAN.txt
+
