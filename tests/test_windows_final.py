@@ -21,14 +21,14 @@ import config
 import db
 
 
-class TestWindowsFinalKiosk(unittest.TestCase):
-    """End-to-End Verification Test Suite for Windows Kiosk Attendance System."""
+class TestWindowsFinalAbsenNtp(unittest.TestCase):
+    """End-to-End Verification Test Suite for absen_ntp Attendance System."""
 
     @classmethod
     def setUpClass(cls):
         cls.server_url = f"http://127.0.0.1:{config.PORT}"
         print("\n" + "=" * 65)
-        print("  WINDOWS FINAL TEST SUITE - TASK 16 VERIFICATION")
+        print("  WINDOWS FINAL TEST SUITE - ABSEN_NTP VERIFICATION")
         print("=" * 65)
 
     def test_01_server_running_and_html_accessible(self):
@@ -48,7 +48,7 @@ class TestWindowsFinalKiosk(unittest.TestCase):
         with urllib.request.urlopen(req, timeout=5) as response:
             self.assertEqual(response.status, 200)
             content = response.read().decode("utf-8")
-            self.assertIn(".kiosk-container", content)
+            self.assertIn(".absen-ntp-container", content)
             self.assertIn("#webcamVideo", content)
             print("  [PASS] 02. CSS stylesheet loaded (HTTP 200, Content-Type: text/css)")
 

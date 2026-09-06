@@ -1,6 +1,7 @@
 :root {
     --bg-main: #0a0d13;
-    --bg-kiosk: #10141d;
+    --bg-absen-ntp: #10141d;
+    --bg-kiosk: var(--bg-absen-ntp);
     --card-bg: #161c28;
     --card-border: #242e42;
     --card-hover: #1c2434;
@@ -33,12 +34,13 @@ html, body {
     align-items: center;
 }
 
-/* Fullscreen Kiosk Container */
+/* Fullscreen Container (absen_ntp) */
+.absen-ntp-container,
 .kiosk-container {
     width: 96vw;
     max-width: 1400px;
     height: 94vh;
-    background: var(--bg-kiosk);
+    background: var(--bg-absen-ntp);
     border: 1px solid var(--card-border);
     border-radius: 18px;
     padding: 24px;
@@ -119,6 +121,7 @@ html, body {
 }
 
 /* Header Action Buttons */
+.absen-ntp-toggle-btn,
 .kiosk-toggle-btn,
 .fullscreen-toggle-btn {
     background: var(--card-bg);
@@ -136,6 +139,7 @@ html, body {
     gap: 6px;
 }
 
+.absen-ntp-toggle-btn:hover,
 .kiosk-toggle-btn:hover,
 .fullscreen-toggle-btn:hover {
     background: #1c2434;
@@ -144,6 +148,7 @@ html, body {
     box-shadow: 0 0 10px var(--accent-glow);
 }
 
+.absen-ntp-toggle-btn.active,
 .kiosk-toggle-btn.active {
     border-color: #388bfd;
     color: #79c0ff;
@@ -159,7 +164,7 @@ html, body {
     min-height: 0; /* Prevents overflow in flex children */
 }
 
-/* Kiosk Cards */
+/* absen_ntp Cards */
 .card {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
@@ -399,6 +404,7 @@ html, body {
     font-size: 3.5rem;
 }
 
+.absen-ntp-retry-btn,
 .kiosk-retry-btn {
     background: #238636;
     border: 1px solid #2ea043;
@@ -415,6 +421,7 @@ html, body {
     gap: 8px;
 }
 
+.absen-ntp-retry-btn:hover,
 .kiosk-retry-btn:hover {
     background: #2ea043;
     box-shadow: 0 0 16px rgba(46, 160, 67, 0.5);
@@ -601,6 +608,7 @@ html, body {
     opacity: 0.7;
 }
 
+.absen-ntp-input,
 .kiosk-input {
     width: 100%;
     background: #0a0e14;
@@ -614,11 +622,13 @@ html, body {
     transition: all 0.2s ease;
 }
 
+.absen-ntp-input:focus,
 .kiosk-input:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+.absen-ntp-input:disabled,
 .kiosk-input:disabled {
     opacity: 0.4;
     cursor: not-allowed;
@@ -646,6 +656,7 @@ html, body {
         height: auto;
         overflow-y: auto;
     }
+    .absen-ntp-container,
     .kiosk-container {
         height: auto;
         width: 98vw;

@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Employee Attendance System - Task 18: Chromium Kiosk Launcher Script
-# Launches full-screen dedicated kiosk browser on Debian with auto-allowed webcam
+# Employee Attendance System - absen_ntp Launcher Script
+# Launches full-screen dedicated browser for absen_ntp with auto-allowed webcam
 # ==============================================================================
 
-# URL server kiosk lokal
-KIOSK_URL="http://localhost:8000"
+# URL server absen_ntp lokal
+SERVER_URL="http://localhost:8000"
 
 # Tunggu hingga server Python aktif merespons
-echo "[Kiosk] Menunggu server Python di ${KIOSK_URL} aktif..."
-until curl -s --head "${KIOSK_URL}" | grep "200 OK" > /dev/null; do
+echo "[absen_ntp] Menunggu server Python di ${SERVER_URL} aktif..."
+until curl -s --head "${SERVER_URL}" | grep "200 OK" > /dev/null; do
     sleep 1
 done
-echo "[Kiosk] Server terdeteksi aktif! Membuka Chromium Kiosk..."
+echo "[absen_ntp] Server terdeteksi aktif! Membuka browser absen_ntp..."
 
 # Matikan screen saver dan manajemen daya layar jika berjalan di X11
 xset s off 2>/dev/null || true
 xset -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
 
-# Luncurkan Chromium dalam mode Kiosk penuh
+# Luncurkan Chromium dalam mode fullscreen tanpa gangguan UI
 chromium \
     --kiosk \
     --noerrdialogs \
@@ -32,4 +32,4 @@ chromium \
     --autoplay-policy=no-user-gesture-required \
     --use-fake-ui-for-media-stream \
     --check-for-update-interval=31536000 \
-    "${KIOSK_URL}"
+    "${SERVER_URL}"

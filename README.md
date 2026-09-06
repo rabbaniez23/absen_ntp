@@ -1,6 +1,6 @@
-# 🏢 Sistem Absensi Kiosk Karyawan (absen_ntp)
+# 🏢 Sistem Absensi Karyawan (absen_ntp)
 
-Sistem Absensi Kiosk Otomatis berbasis **WebRTC**, **USB Smart Card RFID**, dan arsitektur **Micro-Server Python** (tanpa framework eksternal). Sistem ini dirancang khusus untuk terminal kiosk industri/perkantoran yang responsif, berkecepatan tinggi, dan dapat berjalan secara mandiri (*standalone*) di Linux (Debian/Ubuntu/Mint) maupun Windows.
+Sistem Absensi Otomatis berbasis **WebRTC**, **USB Smart Card RFID**, dan arsitektur **Micro-Server Python** (tanpa framework eksternal). Sistem ini dirancang untuk sistem absensi (absen_ntp) yang responsif, berkecepatan tinggi, dan dapat berjalan secara mandiri (*standalone*) di Linux (Debian/Ubuntu/Mint) maupun Windows.
 
 ---
 
@@ -24,10 +24,10 @@ Sistem Absensi Kiosk Otomatis berbasis **WebRTC**, **USB Smart Card RFID**, dan 
 - **Struktur Filesystem Terorganisir**:
   - Foto disimpan berpartisi berdasarkan tanggal: `captures/TAHUN/BULAN/TANGGAL/`.
   - Database hanya menyimpan *relatif path* untuk menjaga bobot database tetap ringan dan cepat.
-- **Kiosk Mode & Autostart Linux**:
+- **Autostart & Standalone Linux (absen_ntp)**:
   - Skrip deployment otomatis ke `/opt/employee-attendance`.
   - Systemd service unit (`attendance-server.service`) dengan auto-restart.
-  - XDG Desktop Entry (`attendance-kiosk.desktop`) untuk meluncurkan Chromium fullscreen kiosk saat boot.
+  - XDG Desktop Entry (`attendance-kiosk.desktop`) untuk meluncurkan Chromium fullscreen saat boot.
 
 ---
 
@@ -44,15 +44,15 @@ absen_ntp/
 ├── migrate_json_to_db.py      # Skrip migrasi data riwayat JSON ke MariaDB
 ├── requirements.txt           # Dependensi Python murni (pymysql)
 │
-├── static/                    # Frontend Web Kiosk
-│   ├── index.html             # Antarmuka Kiosk Absensi
-│   ├── style.css              # Styling Modern Kiosk Glassmorphism
+├── static/                    # Frontend Web (absen_ntp)
+│   ├── index.html             # Antarmuka Absensi (absen_ntp)
+│   ├── style.css              # Styling Modern Glassmorphism
 │   └── app.js                 # State machine, WebRTC kamera, & RFID event listener
 │
 ├── scripts/                   # Skrip Otomatisasi & Deployment Linux
 │   ├── debian_setup.sh        # Setup user & paket sistem Linux
 │   ├── deploy_debian.sh       # Skrip deploy file ke /opt/
-│   ├── launch_kiosk.sh        # Dedicated Chromium Kiosk launcher
+│   ├── launch_kiosk.sh        # Dedicated Chromium launcher (fullscreen)
 │   ├── setup_autostart.sh     # Konfigurasi systemd & autostart desktop
 │   ├── attendance-server.service # Unit file systemd
 │   └── attendance-kiosk.desktop  # Shortcut autostart browser
@@ -112,7 +112,7 @@ absen_ntp/
    ```bash
    sudo bash scripts/deploy_debian.sh
    ```
-3. Pasang autostart kiosk:
+3. Pasang autostart absen_ntp:
    ```bash
    sudo bash scripts/setup_autostart.sh
    ```
@@ -133,7 +133,7 @@ python tests/test_windows_final.py
 
 | Method | Endpoint | Keterangan | Parameter / Body |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | Menampilkan antarmuka web kiosk | - |
+| `GET` | `/` | Menampilkan antarmuka web absen_ntp | - |
 | `GET` | `/api/employee?id={ID_OR_RFID}` | Mencari data karyawan berdasarkan ID / UID RFID | Query param `id` |
 | `POST` | `/api/upload` | Mengunggah foto absensi (.PNG) dan mencatat ke database | `multipart/form-data`: `employee_id`, `image` |
 
@@ -151,4 +151,4 @@ python tests/test_windows_final.py
 ---
 
 ## 📄 Lisensi
-Proyek ini dikembangkan untuk kebutuhan operasional sistem absensi kiosk cerdas.
+Proyek ini dikembangkan untuk kebutuhan operasional sistem absensi cerdas (absen_ntp).

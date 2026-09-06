@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Employee Attendance Kiosk</title>
+    <title>Employee Attendance (absen_ntp)</title>
     <link rel="stylesheet" href="/style.css?v=2">
 </head>
 <body>
-    <div class="kiosk-container">
+    <div class="absen-ntp-container kiosk-container">
         <!-- Header -->
         <header class="app-header">
             <div class="logo-area">
                 <span class="status-dot"></span>
                 <div>
                     <h1>EMPLOYEE ATTENDANCE</h1>
-                    <span class="subtitle">AUTOMATED BIOMETRIC KIOSK SYSTEM</span>
+                    <span class="subtitle">AUTOMATED BIOMETRIC ATTENDANCE SYSTEM (absen_ntp)</span>
                 </div>
             </div>
 
@@ -24,7 +24,7 @@
                     <span class="separator">|</span>
                     <span id="liveTime">--:--:--</span>
                 </div>
-                <button id="mirrorToggleBtn" class="kiosk-toggle-btn" type="button" title="Ubah Arah Kamera (Mirror / Normal)">
+                <button id="mirrorToggleBtn" class="absen-ntp-toggle-btn kiosk-toggle-btn" type="button" title="Ubah Arah Kamera (Mirror / Normal)">
                     <span class="btn-icon">🪞</span> <span id="mirrorStatusText">MIRROR: OFF</span>
                 </button>
                 <button id="fullscreenBtn" class="fullscreen-toggle-btn" type="button" title="Mode Layar Penuh">
@@ -33,7 +33,7 @@
             </div>
         </header>
 
-        <!-- Main Kiosk Layout -->
+        <!-- Main Layout (absen_ntp) -->
         <main class="main-grid">
             <!-- Left Panel: Large Camera Viewport -->
             <section class="card camera-section">
@@ -52,7 +52,7 @@
                     <div class="camera-overlay" id="cameraOverlay">
                         <div class="camera-icon" id="cameraIcon">📷</div>
                         <p id="cameraMessage">Menghubungkan kamera...</p>
-                        <button id="retryCameraBtn" class="kiosk-retry-btn hidden" type="button">🔄 Hubungkan Ulang Kamera</button>
+                        <button id="retryCameraBtn" class="absen-ntp-retry-btn kiosk-retry-btn hidden" type="button">🔄 Hubungkan Ulang Kamera</button>
                     </div>
 
                     <!-- Biometric Face Oval Guide -->
@@ -110,7 +110,7 @@
 
                     <!-- Prominent Status Banner -->
                     <div class="status-banner state-idle" id="statusBanner">
-                        <div class="status-label">STATUS KIOSK</div>
+                        <div class="status-label">STATUS ABSEN_NTP</div>
                         <div class="status-text" id="statusText">TEMPELKAN KARTU RFID DI READER</div>
                     </div>
 
@@ -119,7 +119,7 @@
                         <label for="rfidInput">SENSOR RFID CARD READER</label>
                         <div class="input-wrapper">
                             <span class="input-icon">💳</span>
-                            <input type="text" id="rfidInput" class="kiosk-input" placeholder="Dekatkan kartu RFID ke sensor reader (UID)..." autocomplete="off" autofocus>
+                            <input type="text" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Dekatkan kartu RFID ke sensor reader (UID)..." autocomplete="off" autofocus>
                         </div>
                     </div>
                 </div>

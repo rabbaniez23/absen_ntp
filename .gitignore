@@ -43,6 +43,10 @@ Thumbs.db
 logs/*.log
 !logs/.gitkeep
 
+# Uploaded captures (Keep directory, ignore captured images)
+captures/*
+!captures/.gitkeep
+
 # Sensitive environment variables
 .env
 .env.local

@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Employee Attendance Kiosk
-Comment=Autostart Attendance Kiosk Browser on Debian Desktop Boot
+Name=Employee Attendance (absen_ntp)
+Comment=Autostart absen_ntp Browser on Debian Desktop Boot
 Exec=/opt/employee-attendance/launch_kiosk.sh
 Terminal=false
 Hidden=false

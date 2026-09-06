@@ -1,5 +1,5 @@
 [Unit]
-Description=Employee Attendance Kiosk Python Backend Server
+Description=Employee Attendance (absen_ntp) Python Backend Server
 After=network.target mariadb.service
 Wants=mariadb.service
 

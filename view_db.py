@@ -123,7 +123,7 @@ def show_attendance():
 
 def main():
     print("\n" + "#" * 70)
-    print("      SISTEM ABSENSI - VIEWER DATABASE & DATA KIOSK")
+    print("      SISTEM ABSENSI NTP (absen_ntp) - VIEWER DATABASE & DATA")
     print("#" * 70)
     show_employees()
     show_attendance()

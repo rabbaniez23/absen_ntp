@@ -787,7 +787,7 @@ function setMirrorMode(mirrored) {
         }
     }
     try {
-        localStorage.setItem("kiosk_camera_mirrored", isMirrored ? "1" : "0");
+        localStorage.setItem("absen_ntp_camera_mirrored", isMirrored ? "1" : "0");
     } catch (e) {}
 }
 
@@ -800,7 +800,8 @@ function initializeMirrorHandler() {
     // Load persisted user preference; default is FALSE (Normal / Non-Mirrored)
     let saved = false;
     try {
-        saved = localStorage.getItem("kiosk_camera_mirrored") === "1";
+        const val = localStorage.getItem("absen_ntp_camera_mirrored") ?? localStorage.getItem("kiosk_camera_mirrored");
+        saved = val === "1";
     } catch (e) {}
     setMirrorMode(saved);
 

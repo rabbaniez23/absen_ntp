@@ -93,7 +93,7 @@ systemctl enable ssh
 systemctl start ssh
 
 ufw allow 22/tcp comment "SSH Remote Management"
-ufw allow 8000/tcp comment "Attendance Kiosk Web Server"
+ufw allow 8000/tcp comment "Attendance absen_ntp Web Server"
 # Enable UFW if not enabled (promptless)
 echo "y" | ufw enable || true
 

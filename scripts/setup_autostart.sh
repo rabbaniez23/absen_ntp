@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Employee Attendance System - Task 19: Autostart Configuration Script
-# Configures Systemd Service for Python Server and XDG Desktop Autostart for Kiosk
-# Target OS: Debian Linux
+# Employee Attendance System - Autostart Configuration Script (absen_ntp)
+# Configures Systemd Service for Python Server and XDG Desktop Autostart for absen_ntp
+# Target OS: Debian / Ubuntu / Linux Mint
 # Run as root / with sudo: sudo bash setup_autostart.sh
 # ==============================================================================
 
@@ -14,11 +14,11 @@ DESKTOP_NAME="attendance-kiosk.desktop"
 TARGET_DIR="/opt/employee-attendance"
 
 echo "======================================================================"
-echo "    CONFIGURING AUTOSTART SYSTEMD & DESKTOP KIOSK FOR DEBIAN"
+echo "    CONFIGURING AUTOSTART SYSTEMD & DESKTOP FOR ABSEN_NTP"
 echo "======================================================================"
 
 # 1. Pastikan file service dan launch_kiosk ada di /opt/employee-attendance
-echo "[1/4] Menyalin file service dan skrip peluncur kiosk..."
+echo "[1/4] Menyalin file service dan skrip peluncur..."
 cp "${SCRIPT_DIR}/launch_kiosk.sh" "${TARGET_DIR}/" 2>/dev/null || true
 chmod +x "${TARGET_DIR}/launch_kiosk.sh"
 chown attendance:attendance "${TARGET_DIR}/launch_kiosk.sh"
@@ -38,8 +38,8 @@ systemctl enable "${SERVICE_NAME}"
 echo "  -> Menjalankan service sekarang (systemctl start)..."
 systemctl restart "${SERVICE_NAME}"
 
-# 3. Konfigurasi Autostart Browser Kiosk di Desktop
-echo "[3/4] Mengonfigurasi autostart browser Chromium Kiosk saat user login..."
+# 3. Konfigurasi Autostart Browser di Desktop
+echo "[3/4] Mengonfigurasi autostart browser absen_ntp saat user login..."
 # Buat direktori autostart global dan user
 mkdir -p /etc/xdg/autostart
 mkdir -p /home/attendance/.config/autostart
@@ -57,7 +57,7 @@ systemctl is-active --quiet "${SERVICE_NAME}" && echo "  -> [OK] ${SERVICE_NAME}
 
 echo "======================================================================"
 echo "  AUTOSTART BERHASIL DIKONFIGURASI!"
-echo "  Alur Booting Mesin Kiosk:"
-echo "    1. Debian Boot -> MariaDB aktif -> attendance-server.service aktif"
-echo "    2. Desktop Login -> Chromium Kiosk terbuka otomatis di http://localhost:8000"
+echo "  Alur Booting Mesin Absen NTP:"
+echo "    1. OS Boot -> MariaDB aktif -> attendance-server.service aktif"
+echo "    2. Desktop Login -> Browser terbuka otomatis di http://localhost:8000"
 echo "======================================================================"
