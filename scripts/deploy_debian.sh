@@ -62,7 +62,10 @@ fi
 
 # 3. Setup Python Virtual Environment
 echo "[3/6] Memasang paket Python (PyMySQL) di Virtual Environment..."
-if [ ! -d "${TARGET_DIR}/venv" ]; then
+if [ ! -f "${TARGET_DIR}/venv/bin/pip" ]; then
+    echo "  -> Menyiapkan lingkungan virtual Python..."
+    rm -rf "${TARGET_DIR}/venv"
+    apt update -y && apt install -y python3-venv python3.12-venv 2>/dev/null || true
     python3 -m venv "${TARGET_DIR}/venv"
 fi
 "${TARGET_DIR}/venv/bin/pip" install --upgrade pip
