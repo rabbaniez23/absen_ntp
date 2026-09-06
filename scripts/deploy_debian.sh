@@ -103,8 +103,13 @@ echo "[6/6] Melakukan uji sintaks Python pada direktori produksi..."
     "${TARGET_DIR}/db.py" \
     "${TARGET_DIR}/config.py"
 
+# 7. Otomatis restart service jika ada
+if systemctl is-active --quiet attendance-server 2>/dev/null; then
+    echo "  -> Me-restart attendance-server service otomatis..."
+    systemctl restart attendance-server
+fi
+
 echo "======================================================================"
 echo "  DEPLOYMENT SELESAI DENGAN SUKSES!"
-echo "  Untuk menjalankan server di Debian:"
-echo "    sudo -u attendance ${TARGET_DIR}/venv/bin/python3 ${TARGET_DIR}/server.py"
+echo "  Server aktif di background dan siap diakses di port 8000."
 echo "======================================================================"
