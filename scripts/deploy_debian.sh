@@ -20,6 +20,13 @@ echo "======================================================================"
 echo "    DEPLOYING EMPLOYEE ATTENDANCE SYSTEM TO DEBIAN (/opt)"
 echo "======================================================================"
 
+# 0. Pastikan user 'attendance' ada di sistem
+if ! id "attendance" &>/dev/null; then
+    echo "  -> Menyiapkan user sistem 'attendance'..."
+    useradd -m -s /bin/bash attendance
+    usermod -a -G video,dialout attendance 2>/dev/null || true
+fi
+
 # 1. Pastikan direktori tujuan ada dan berizin tepat
 echo "[1/6] Menyiapkan struktur direktori di ${TARGET_DIR}..."
 mkdir -p "${TARGET_DIR}/static"

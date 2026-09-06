@@ -17,11 +17,18 @@ echo "======================================================================"
 echo "    CONFIGURING AUTOSTART SYSTEMD & DESKTOP FOR ABSEN_NTP"
 echo "======================================================================"
 
+# 0. Pastikan user 'attendance' ada di sistem
+if ! id "attendance" &>/dev/null; then
+    echo "  -> Menyiapkan user sistem 'attendance'..."
+    useradd -m -s /bin/bash attendance
+    usermod -a -G video,dialout attendance 2>/dev/null || true
+fi
+
 # 1. Pastikan file service dan launch_kiosk ada di /opt/employee-attendance
 echo "[1/4] Menyalin file service dan skrip peluncur..."
 cp "${SCRIPT_DIR}/launch_kiosk.sh" "${TARGET_DIR}/" 2>/dev/null || true
 chmod +x "${TARGET_DIR}/launch_kiosk.sh"
-chown attendance:attendance "${TARGET_DIR}/launch_kiosk.sh"
+chown attendance:attendance "${TARGET_DIR}/launch_kiosk.sh" 2>/dev/null || true
 
 # 2. Pasang Systemd Service
 echo "[2/4] Memasang systemd service (${SERVICE_NAME})..."
