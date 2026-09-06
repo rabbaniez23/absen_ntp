@@ -48,10 +48,6 @@ cp "${SOURCE_DIR}/requirements.txt" "${TARGET_DIR}/"
 [ -f "${SOURCE_DIR}/sql/schema.sql" ] && cp "${SOURCE_DIR}/sql/schema.sql" "${TARGET_DIR}/" || cp "${SOURCE_DIR}/schema.sql" "${TARGET_DIR}/"
 [ -f "${SOURCE_DIR}/sql/import_data.sql" ] && cp "${SOURCE_DIR}/sql/import_data.sql" "${TARGET_DIR}/" || cp "${SOURCE_DIR}/import_data.sql" "${TARGET_DIR}/" 2>/dev/null || true
 
-# Scripts
-[ -f "${SCRIPT_DIR}/launch_kiosk.sh" ] && cp "${SCRIPT_DIR}/launch_kiosk.sh" "${TARGET_DIR}/" || cp "${SOURCE_DIR}/scripts/launch_kiosk.sh" "${TARGET_DIR}/" 2>/dev/null || true
-
-
 # Salin data JSON jika ada (untuk sinkronisasi awal)
 if [ -f "${SOURCE_DIR}/data/employees.json" ]; then
     cp "${SOURCE_DIR}/data/employees.json" "${TARGET_DIR}/data/"
@@ -94,7 +90,6 @@ chmod -R 755 "${TARGET_DIR}"
 chmod -R 775 "${TARGET_DIR}/captures"
 chmod -R 775 "${TARGET_DIR}/logs"
 chmod -R 775 "${TARGET_DIR}/data"
-chmod +x "${TARGET_DIR}/launch_kiosk.sh" 2>/dev/null || true
 
 # 6. Uji jalan backend Python
 echo "[6/6] Melakukan uji sintaks Python pada direktori produksi..."
