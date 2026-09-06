@@ -250,3 +250,158 @@ def record_attendance(employee_id: str, captured_at: datetime.datetime, image_pa
         logger.error(f"[Storage] Error writing backup attendance.json: {e}")
 
     return True
+
+
+def get_all_employees() -> list:
+    """
+    Retrieves all active employees from MariaDB with JSON fallback.
+    Returns list of dicts: [{'employee_id', 'name', 'rfid_uid', 'is_active', 'source'}]
+    """
+    employees = []
+
+    # 1. Try MariaDB
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                sql = "SELECT employee_id, name, rfid_uid, is_active FROM employees WHERE is_active = 1 ORDER BY employee_id ASC;"
+                cursor.execute(sql)
+                rows = cursor.fetchall()
+                for r in rows:
+                    employees.append({
+                        "employee_id": r["employee_id"],
+                        "name": r["name"],
+                        "rfid_uid": r.get("rfid_uid") or "-",
+                        "is_active": bool(r.get("is_active", 1)),
+                        "source": "mariadb"
+                    })
+                return employees
+        except Exception as err:
+            logger.warning(f"[Database] Error in get_all_employees: {err}")
+        finally:
+            conn.close()
+
+    # 2. Fallback to data/employees.json
+    if config.EMPLOYEES_FILE.exists():
+        try:
+            with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for key, val in data.items():
+                    emp_id = val.get("employee_id", key)
+                    name = val.get("name", "Unknown")
+                    rfid = key if key != emp_id else val.get("rfid_uid", key)
+                    employees.append({
+                        "employee_id": emp_id,
+                        "name": name,
+                        "rfid_uid": rfid,
+                        "is_active": True,
+                        "source": "json"
+                    })
+        except Exception as err:
+            logger.error(f"[Fallback] Error reading employees.json: {err}")
+
+    return employees
+
+
+def add_employee(employee_id: str, name: str, rfid_uid: str) -> tuple:
+    """
+    Adds a new employee into MariaDB and keeps local employees.json synchronized.
+    Returns (success: bool, message: str).
+    """
+    emp_id = employee_id.strip().upper()
+    emp_name = name.strip()
+    rfid = rfid_uid.strip()
+
+    if not emp_id or not emp_name or not rfid:
+        return False, "Semua bidang (Employee ID, Nama, RFID UID) wajib diisi."
+
+    # 1. Insert into MariaDB
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                # Check for uniqueness
+                cursor.execute(
+                    "SELECT employee_id, rfid_uid FROM employees WHERE employee_id = %s OR rfid_uid = %s LIMIT 1;",
+                    (emp_id, rfid)
+                )
+                existing = cursor.fetchone()
+                if existing:
+                    if existing.get("employee_id") == emp_id:
+                        return False, f"Employee ID '{emp_id}' sudah terdaftar!"
+                    if existing.get("rfid_uid") == rfid:
+                        return False, f"Nomor RFID UID '{rfid}' sudah digunakan oleh karyawan lain!"
+
+                cursor.execute(
+                    "INSERT INTO employees (employee_id, name, rfid_uid, is_active) VALUES (%s, %s, %s, 1);",
+                    (emp_id, emp_name, rfid)
+                )
+                logger.info(f"[Database] Employee added to MariaDB: {emp_name} ({emp_id})")
+        except Exception as err:
+            logger.warning(f"[Database] Error adding employee to MariaDB: {err}")
+        finally:
+            conn.close()
+
+    # 2. Always synchronize with data/employees.json
+    try:
+        data = {}
+        if config.EMPLOYEES_FILE.exists():
+            with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
+                try:
+                    data = json.load(f)
+                except Exception:
+                    data = {}
+
+        data[rfid] = {
+            "employee_id": emp_id,
+            "name": emp_name
+        }
+
+        with open(config.EMPLOYEES_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        logger.info(f"[Storage] Synchronized employees.json with new employee: {emp_name} ({emp_id})")
+    except Exception as e:
+        logger.error(f"[Storage] Error syncing employees.json: {e}")
+
+    return True, f"Karyawan '{emp_name}' ({emp_id}) berhasil disimpan ke database!"
+
+
+def delete_employee(employee_id: str) -> tuple:
+    """
+    Deletes an employee from MariaDB and employees.json.
+    Returns (success: bool, message: str).
+    """
+    emp_id = employee_id.strip().upper()
+    if not emp_id:
+        return False, "Employee ID tidak valid."
+
+    # 1. Delete from MariaDB
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("DELETE FROM employees WHERE employee_id = %s;", (emp_id,))
+                logger.info(f"[Database] Employee deleted from MariaDB: {emp_id}")
+        except Exception as err:
+            logger.warning(f"[Database] Error deleting employee from MariaDB: {err}")
+        finally:
+            conn.close()
+
+    # 2. Delete from data/employees.json
+    try:
+        if config.EMPLOYEES_FILE.exists():
+            with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            keys_to_remove = [k for k, v in data.items() if v.get("employee_id") == emp_id or k == emp_id]
+            for k in keys_to_remove:
+                del data[k]
+
+            with open(config.EMPLOYEES_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"[Storage] Removed employee {emp_id} from employees.json")
+    except Exception as e:
+        logger.error(f"[Storage] Error removing from employees.json: {e}")
+
+    return True, f"Karyawan '{emp_id}' berhasil dihapus."
+

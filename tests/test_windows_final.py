@@ -170,6 +170,57 @@ class TestWindowsFinalAbsenNtp(unittest.TestCase):
             self.assertEqual(emp["employee_id"], emp_id)
         print("  [PASS] 09. Multiple consecutive attendance sequence verified")
 
+    def test_10_employee_management_crud(self):
+        """Checklist 12: Employee management API (GET, POST, DELETE) and web admin page."""
+        # 1. Check employees.html accessibility
+        req = urllib.request.Request(f"{self.server_url}/employees.html")
+        with urllib.request.urlopen(req, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+            content = response.read().decode("utf-8")
+            self.assertIn("MANAJEMEN DATA KARYAWAN", content)
+
+        # 2. Test GET /api/employees
+        req = urllib.request.Request(f"{self.server_url}/api/employees")
+        with urllib.request.urlopen(req, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+            data = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(data.get("success"))
+            self.assertIsInstance(data.get("employees"), list)
+
+        # 3. Test POST /api/employees
+        payload = json.dumps({
+            "employee_id": "TESTEMP99",
+            "name": "Testing Employee",
+            "rfid_uid": "998877665"
+        }).encode("utf-8")
+        post_req = urllib.request.Request(
+            f"{self.server_url}/api/employees",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urllib.request.urlopen(post_req, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+            res = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(res.get("success"))
+
+        # Verify new employee is found
+        emp = db.lookup_employee("998877665")
+        self.assertIsNotNone(emp)
+        self.assertEqual(emp["name"], "Testing Employee")
+
+        # 4. Test DELETE /api/employees
+        del_req = urllib.request.Request(
+            f"{self.server_url}/api/employees?id=TESTEMP99",
+            method="DELETE"
+        )
+        with urllib.request.urlopen(del_req, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+            res = json.loads(response.read().decode("utf-8"))
+            self.assertTrue(res.get("success"))
+
+        print("  [PASS] 10. Employee management web admin & CRUD API verified")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

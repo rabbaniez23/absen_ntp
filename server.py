@@ -82,6 +82,8 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         if parsed_url.path == "/api/employee":
             self.handle_get_employee(parsed_url)
+        elif parsed_url.path == "/api/employees":
+            self.handle_get_employees()
         else:
             super().do_GET()
 
@@ -91,12 +93,96 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         if parsed_url.path == "/api/upload":
             self.handle_post_upload()
+        elif parsed_url.path == "/api/employees":
+            self.handle_post_employee()
+        elif parsed_url.path == "/api/employees/delete":
+            self.handle_delete_employee()
         else:
             logger.warning(f"ENDPOINT NOT FOUND: {parsed_url.path}")
             self.send_json(404, {
                 "success": False,
                 "message": f"Endpoint not found: {parsed_url.path}"
             })
+
+    def do_DELETE(self):
+        """Routes DELETE requests to API endpoints."""
+        parsed_url = urlparse(self.path)
+        if parsed_url.path == "/api/employees":
+            self.handle_delete_employee(parsed_url)
+        else:
+            self.send_json(404, {
+                "success": False,
+                "message": f"Endpoint not found: {parsed_url.path}"
+            })
+
+    def handle_get_employees(self):
+        """Returns full list of employees from MariaDB or JSON fallback."""
+        logger.info("API: GET /api/employees")
+        employees = db.get_all_employees()
+        self.send_json(200, {
+            "success": True,
+            "count": len(employees),
+            "employees": employees
+        })
+
+    def handle_post_employee(self):
+        """Adds a new employee into MariaDB and employees.json."""
+        logger.info("API: POST /api/employees")
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(content_length).decode("utf-8")
+            payload = json.loads(raw_body)
+        except Exception as e:
+            logger.warning(f"INVALID JSON: {e}")
+            self.send_json(400, {"success": False, "message": f"Payload JSON tidak valid: {str(e)}"})
+            return
+
+        emp_id = payload.get("employee_id", "").strip()
+        name = payload.get("name", "").strip()
+        rfid = payload.get("rfid_uid", "").strip()
+
+        if not emp_id or not name or not rfid:
+            self.send_json(400, {
+                "success": False,
+                "message": "Semua bidang (Employee ID, Nama, RFID UID) wajib diisi."
+            })
+            return
+
+        success, msg = db.add_employee(emp_id, name, rfid)
+        status_code = 200 if success else 400
+        self.send_json(status_code, {
+            "success": success,
+            "message": msg,
+            "employee": {"employee_id": emp_id, "name": name, "rfid_uid": rfid} if success else None
+        })
+
+    def handle_delete_employee(self, parsed_url=None):
+        """Deletes an employee by ID."""
+        logger.info("API: DELETE /api/employees")
+        emp_id = None
+        if parsed_url:
+            query_params = parse_qs(parsed_url.query)
+            emp_id = query_params.get("id", [""])[0].strip()
+
+        if not emp_id:
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+                if content_length > 0:
+                    raw_body = self.rfile.read(content_length).decode("utf-8")
+                    payload = json.loads(raw_body)
+                    emp_id = payload.get("employee_id", "").strip()
+            except Exception:
+                pass
+
+        if not emp_id:
+            self.send_json(400, {"success": False, "message": "Parameter ID karyawan tidak ditemukan."})
+            return
+
+        success, msg = db.delete_employee(emp_id)
+        self.send_json(200 if success else 400, {
+            "success": success,
+            "message": msg
+        })
 
     def handle_get_employee(self, parsed_url):
         """Lookup employee via MariaDB parameterized query with JSON fallback."""

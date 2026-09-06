@@ -133,8 +133,12 @@ python tests/test_windows_final.py
 
 | Method | Endpoint | Keterangan | Parameter / Body |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/` | Menampilkan antarmuka web absen_ntp | - |
+| `GET` | `/` | Menampilkan antarmuka mesin absensi utama | - |
+| `GET` | `/employees.html` | Halaman web manajemen & pendaftaran karyawan | - |
 | `GET` | `/api/employee?id={ID_OR_RFID}` | Mencari data karyawan berdasarkan ID / UID RFID | Query param `id` |
+| `GET` | `/api/employees` | Mengambil daftar seluruh karyawan terdaftar | - |
+| `POST` | `/api/employees` | Mendaftarkan karyawan baru ke database | JSON: `employee_id`, `name`, `rfid_uid` |
+| `DELETE` | `/api/employees?id={ID}` | Menghapus karyawan dari database | Query param `id` |
 | `POST` | `/api/upload` | Mengunggah foto absensi (.PNG) dan mencatat ke database | `multipart/form-data`: `employee_id`, `image` |
 
 ---

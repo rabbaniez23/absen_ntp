@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Karyawan - absen_ntp</title>
+    <link rel="stylesheet" href="/style.css?v=3">
+</head>
+<body>
+    <div class="absen-ntp-container kiosk-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="status-dot"></span>
+                <div>
+                    <h1>MANAJEMEN DATA KARYAWAN</h1>
+                    <span class="subtitle">SISTEM DATABASE & SMART CARD RFID (absen_ntp)</span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <a href="/" class="absen-ntp-toggle-btn" title="Kembali ke Mesin Absensi">
+                    <span class="btn-icon">⬅️</span> KEMBALI KE ABSENSI
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Admin Grid -->
+        <main class="admin-grid">
+            <!-- Left Panel: Form Tambah Karyawan -->
+            <section class="card form-card">
+                <div class="card-header">
+                    <div class="section-title">
+                        <span class="title-icon">➕</span>
+                        <h2>TAMBAH KARYAWAN</h2>
+                    </div>
+                </div>
+
+                <form id="addEmployeeForm" class="admin-form" autocomplete="off">
+                    <div class="admin-input-group">
+                        <label for="empIdInput">Nomor ID Karyawan</label>
+                        <input type="text" id="empIdInput" class="admin-input" placeholder="Contoh: EMP003" required>
+                        <span class="admin-hint">ID unik karyawan di perusahaan.</span>
+                    </div>
+
+                    <div class="admin-input-group">
+                        <label for="empNameInput">Nama Lengkap Karyawan</label>
+                        <input type="text" id="empNameInput" class="admin-input" placeholder="Contoh: Siti Rahmawati" required>
+                        <span class="admin-hint">Nama yang akan tampil saat absensi.</span>
+                    </div>
+
+                    <div class="admin-input-group">
+                        <label for="empRfidInput">Nomor Kartu RFID (UID)</label>
+                        <input type="text" id="empRfidInput" class="admin-input" placeholder="Tempelkan kartu atau ketik UID..." required>
+                        <span class="admin-hint">Bisa langsung di-tap dari USB RFID reader.</span>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn-primary" style="margin-top: 8px;">
+                        <span>💾</span> SIMPAN KE DATABASE
+                    </button>
+
+                    <div id="formAlert" class="alert-box"></div>
+                </form>
+            </section>
+
+            <!-- Right Panel: Tabel Daftar Karyawan -->
+            <section class="card table-card">
+                <div class="card-header">
+                    <div class="section-title">
+                        <span class="title-icon">👥</span>
+                        <h2>DAFTAR KARYAWAN TERDAFTAR</h2>
+                    </div>
+                    <span class="badge" id="employeeTotalBadge">0 Karyawan</span>
+                </div>
+
+                <div class="table-toolbar">
+                    <input type="text" id="searchInput" class="admin-input search-input" placeholder="🔍 Cari nama / ID / RFID...">
+                    <button type="button" id="refreshBtn" class="absen-ntp-toggle-btn" title="Muat Ulang Data">
+                        🔄 Refresh
+                    </button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">No</th>
+                                <th style="width: 120px;">ID Karyawan</th>
+                                <th>Nama Karyawan</th>
+                                <th style="width: 140px;">RFID UID</th>
+                                <th style="width: 90px;">Status</th>
+                                <th style="width: 90px; text-align: center;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employeeTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                    Memuat data dari database...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <span>&bull; Data otomatis tersinkronisasi ke MariaDB & JSON Storage lokal &bull;</span>
+        </footer>
+    </div>
+
+    <script>
+        let allEmployees = [];
+
+        const form = document.getElementById("addEmployeeForm");
+        const empIdInput = document.getElementById("empIdInput");
+        const empNameInput = document.getElementById("empNameInput");
+        const empRfidInput = document.getElementById("empRfidInput");
+        const submitBtn = document.getElementById("submitBtn");
+        const formAlert = document.getElementById("formAlert");
+        const tableBody = document.getElementById("employeeTableBody");
+        const searchInput = document.getElementById("searchInput");
+        const refreshBtn = document.getElementById("refreshBtn");
+        const employeeTotalBadge = document.getElementById("employeeTotalBadge");
+
+        function showAlert(message, isSuccess = true) {
+            formAlert.textContent = message;
+            formAlert.className = "alert-box " + (isSuccess ? "success" : "error");
+            setTimeout(() => {
+                formAlert.style.display = "none";
+            }, 5000);
+        }
+
+        async function loadEmployees() {
+            try {
+                const response = await fetch("/api/employees");
+                const result = await response.json();
+                if (result.success && Array.isArray(result.employees)) {
+                    allEmployees = result.employees;
+                    renderTable(allEmployees);
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: #f85149; padding: 20px;">Gagal memuat data: ${result.message || "Error"}</td></tr>`;
+                }
+            } catch (err) {
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: #f85149; padding: 20px;">Koneksi ke server gagal.</td></tr>`;
+            }
+        }
+
+        function renderTable(list) {
+            employeeTotalBadge.textContent = `${list.length} Karyawan`;
+
+            if (list.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 30px;">Tidak ada data karyawan ditemukan.</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            list.forEach((emp, index) => {
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><strong style="color: var(--accent);">${emp.employee_id}</strong></td>
+                        <td>${emp.name}</td>
+                        <td><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${emp.rfid_uid}</code></td>
+                        <td><span class="badge-active">AKTIF</span></td>
+                        <td style="text-align: center;">
+                            <button class="btn-delete" onclick="deleteEmployee('${emp.employee_id}', '${emp.name}')" title="Hapus Karyawan">
+                                🗑️ Hapus
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tableBody.innerHTML = html;
+        }
+
+        // Search Filter
+        searchInput.addEventListener("input", () => {
+            const query = searchInput.value.toLowerCase().trim();
+            if (!query) {
+                renderTable(allEmployees);
+                return;
+            }
+            const filtered = allEmployees.filter(emp =>
+                emp.employee_id.toLowerCase().includes(query) ||
+                emp.name.toLowerCase().includes(query) ||
+                (emp.rfid_uid && emp.rfid_uid.toLowerCase().includes(query))
+            );
+            renderTable(filtered);
+        });
+
+        // Submit Form
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const employee_id = empIdInput.value.trim().toUpperCase();
+            const name = empNameInput.value.trim();
+            const rfid_uid = empRfidInput.value.trim();
+
+            if (!employee_id || !name || !rfid_uid) {
+                showAlert("Semua bidang wajib diisi!", false);
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = "<span>⏳</span> Menyimpan...";
+
+            try {
+                const res = await fetch("/api/employees", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ employee_id, name, rfid_uid })
+                });
+                const result = await res.json();
+
+                if (result.success) {
+                    showAlert(result.message, true);
+                    form.reset();
+                    loadEmployees();
+                } else {
+                    showAlert(result.message || "Gagal menyimpan karyawan", false);
+                }
+            } catch (err) {
+                showAlert("Gagal menghubungi server: " + err.message, false);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "<span>💾</span> SIMPAN KE DATABASE";
+            }
+        });
+
+        // Delete Employee
+        async function deleteEmployee(id, name) {
+            if (!confirm(`Apakah Anda yakin ingin menghapus karyawan "${name}" (${id})?`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/employees?id=${encodeURIComponent(id)}`, {
+                    method: "DELETE"
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showAlert(result.message, true);
+                    loadEmployees();
+                } else {
+                    showAlert(result.message || "Gagal menghapus karyawan", false);
+                }
+            } catch (err) {
+                showAlert("Gagal menghubungi server: " + err.message, false);
+            }
+        }
+
+        refreshBtn.addEventListener("click", () => {
+            loadEmployees();
+        });
+
+        // Load employees when page opens
+        window.addEventListener("DOMContentLoaded", () => {
+            loadEmployees();
+        });
+    </script>
+</body>
+</html>
