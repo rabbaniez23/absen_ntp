@@ -1,8 +1,8 @@
 """
-Employee Attendance System - Task 15: MariaDB Database Layer
-Provides direct SQL parameterized queries without ORM.
-Supports employee lookup and attendance recording.
-Includes automatic fallback to local JSON if database is unreachable.
+Modul Akses Basis Data (Database Layer)
+Menyediakan eksekusi query SQL dengan parameterized query untuk keamanan data.
+Mendukung pencarian karyawan, pencatatan absensi, dan manajemen master data karyawan.
+Dilengkapi mekanisme fallback otomatis ke file JSON jika MariaDB sedang offline.
 """
 
 import datetime
@@ -21,8 +21,8 @@ logger = logging.getLogger("AttendanceServer")
 
 def get_db_connection() -> Optional[pymysql.Connection]:
     """
-    Establishes and returns a connection to MariaDB.
-    Returns None if database server is offline or connection fails.
+    Membuka dan mengembalikan koneksi aktif ke basis data MariaDB.
+    Mengembalikan None jika server database offline atau koneksi gagal.
     """
     try:
         connection = pymysql.connect(
@@ -38,17 +38,17 @@ def get_db_connection() -> Optional[pymysql.Connection]:
         )
         return connection
     except Exception as err:
-        logger.debug(f"[Database] Connection error: {err}")
+        logger.debug(f"[Database] Gagal terhubung ke basis data: {err}")
         return None
 
 
 def init_database_tables() -> bool:
     """
-    Initializes MariaDB database and tables directly via SQL without external CLI.
-    Creates attendance_db, employees table, and attendance table if they do not exist.
+    Menginisialisasi basis data dan tabel langsung melalui SQL tanpa CLI eksternal.
+    Membuat database attendance_db, tabel employees, dan attendance jika belum ada.
     """
     try:
-        # Step 1: Connect to server without database to ensure database exists
+        # Langkah 1: Hubungkan ke server MariaDB untuk memastikan database sudah dibuat
         server_conn = pymysql.connect(
             host=config.DB_HOST,
             port=config.DB_PORT,
@@ -62,13 +62,13 @@ def init_database_tables() -> bool:
             cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{config.DB_NAME}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
         server_conn.close()
 
-        # Step 2: Connect to the database and create tables
+        # Langkah 2: Hubungkan ke database dan buat struktur tabel
         db_conn = get_db_connection()
         if not db_conn:
             return False
 
         with db_conn.cursor() as cursor:
-            # Table: employees
+            # Tabel master karyawan
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS `employees` (
                     `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -83,7 +83,7 @@ def init_database_tables() -> bool:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             """)
 
-            # Table: attendance
+            # Tabel riwayat absensi
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS `attendance` (
                     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -102,11 +102,11 @@ def init_database_tables() -> bool:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             """)
 
-            # Seed initial employees from employees.json if table is empty
+            # Isi data awal karyawan dari employees.json jika tabel masih kosong
             cursor.execute("SELECT COUNT(*) AS total FROM `employees`;")
             count = cursor.fetchone().get("total", 0)
             if count == 0 and config.EMPLOYEES_FILE.exists():
-                logger.info("[Database] Seeding initial employee data from employees.json...")
+                logger.info("[Database] Mengimpor data karyawan awal dari employees.json...")
                 with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
                     emp_data = json.load(f)
                     for key, val in emp_data.items():
@@ -120,23 +120,23 @@ def init_database_tables() -> bool:
                         """, (emp_id, name, rfid))
 
         db_conn.close()
-        logger.info("[Database] MariaDB schema initialized successfully.")
+        logger.info("[Database] Skema MariaDB berhasil diinisialisasi.")
         return True
     except Exception as err:
-        logger.warning(f"[Database] Schema auto-init notice: {err}")
+        logger.warning(f"[Database] Catatan inisialisasi basis data: {err}")
         return False
 
 
 def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
     """
-    Finds an employee by RFID UID or Employee ID using direct parameterized SQL.
-    Falls back to local JSON if database connection is unavailable.
+    Mencari data karyawan berdasarkan nomor UID RFID atau Employee ID.
+    Menggunakan MariaDB dengan fallback otomatis ke file JSON lokal jika database offline.
     """
     clean_id = identifier.strip()
     if not clean_id:
         return None
 
-    # 1. Attempt lookup in MariaDB using parameterized SQL (NO ORM)
+    # 1. Coba pencarian di MariaDB menggunakan parameterized query
     conn = get_db_connection()
     if conn:
         try:
@@ -150,7 +150,7 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
                 cursor.execute(sql, (clean_id, clean_id))
                 row = cursor.fetchone()
                 if row:
-                    logger.info(f"[Database] Employee found in MariaDB: {row['name']} ({row['employee_id']})")
+                    logger.info(f"[Database] Karyawan ditemukan di MariaDB: {row['name']} ({row['employee_id']})")
                     return {
                         "employee_id": row["employee_id"],
                         "name": row["name"],
@@ -158,15 +158,15 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
                         "source": "mariadb"
                     }
                 else:
-                    logger.info(f"[Database] Employee not found in MariaDB: {clean_id}")
+                    logger.info(f"[Database] Karyawan tidak ditemukan di MariaDB: {clean_id}")
                     return None
         except Exception as err:
-            logger.warning(f"[Database] Query error in lookup_employee: {err}. Falling back to JSON...")
+            logger.warning(f"[Database] Terjadi kendala query di MariaDB: {err}. Beralih ke JSON...")
         finally:
             conn.close()
 
-    # 2. Resilient fallback: data/employees.json
-    logger.info(f"[Fallback] Querying local employees.json for {clean_id}")
+    # 2. Fallback: cari di berkas lokal data/employees.json
+    logger.info(f"[Fallback] Mencari data di employees.json untuk ID: {clean_id}")
     if config.EMPLOYEES_FILE.exists():
         try:
             with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
@@ -197,12 +197,12 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
 
 def record_attendance(employee_id: str, captured_at: datetime.datetime, image_path: str, status: str = "SUCCESS") -> bool:
     """
-    Inserts a new attendance record into MariaDB using direct parameterized SQL.
-    Always maintains a backup record in data/attendance.json.
+    Menyimpan data riwayat absensi ke tabel MariaDB.
+    Selalu mencadangkan catatan absensi ke file data/attendance.json.
     """
     db_success = False
 
-    # 1. Insert into MariaDB via direct parameterized SQL (NO ORM)
+    # 1. Simpan ke MariaDB menggunakan parameterized query
     conn = get_db_connection()
     if conn:
         try:
@@ -218,13 +218,13 @@ def record_attendance(employee_id: str, captured_at: datetime.datetime, image_pa
                     status
                 ))
                 db_success = True
-                logger.info(f"[Database] Attendance inserted into MariaDB: {employee_id} at {captured_at}")
+                logger.info(f"[Database] Data absensi tersimpan di MariaDB: {employee_id} ({captured_at})")
         except Exception as err:
-            logger.warning(f"[Database] Insert error in record_attendance: {err}")
+            logger.warning(f"[Database] Gagal menyimpan absensi ke MariaDB: {err}")
         finally:
             conn.close()
 
-    # 2. Always persist into local data/attendance.json as persistent cache / backup
+    # 2. Cadangkan riwayat ke file lokal data/attendance.json
     try:
         attendance_file = config.DATA_DIR / "attendance.json"
         records = []
@@ -247,19 +247,19 @@ def record_attendance(employee_id: str, captured_at: datetime.datetime, image_pa
             json.dump(records, f, indent=2)
 
     except Exception as e:
-        logger.error(f"[Storage] Error writing backup attendance.json: {e}")
+        logger.error(f"[Storage] Gagal menulis cadangan attendance.json: {e}")
 
     return True
 
 
 def get_all_employees() -> list:
     """
-    Retrieves all active employees from MariaDB with JSON fallback.
-    Returns list of dicts: [{'employee_id', 'name', 'rfid_uid', 'is_active', 'source'}]
+    Mengambil seluruh daftar karyawan aktif dari MariaDB atau fallback dari file JSON.
+    Mengembalikan list berisi dict: [{'employee_id', 'name', 'rfid_uid', 'is_active', 'source'}]
     """
     employees = []
 
-    # 1. Try MariaDB
+    # 1. Ambil dari MariaDB
     conn = get_db_connection()
     if conn:
         try:
@@ -277,11 +277,11 @@ def get_all_employees() -> list:
                     })
                 return employees
         except Exception as err:
-            logger.warning(f"[Database] Error in get_all_employees: {err}")
+            logger.warning(f"[Database] Terjadi kendala saat mengambil data karyawan dari MariaDB: {err}")
         finally:
             conn.close()
 
-    # 2. Fallback to data/employees.json
+    # 2. Fallback: baca dari data/employees.json
     if config.EMPLOYEES_FILE.exists():
         try:
             with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
@@ -298,15 +298,15 @@ def get_all_employees() -> list:
                         "source": "json"
                     })
         except Exception as err:
-            logger.error(f"[Fallback] Error reading employees.json: {err}")
+            logger.error(f"[Fallback] Gagal membaca berkas employees.json: {err}")
 
     return employees
 
 
 def add_employee(employee_id: str, name: str, rfid_uid: str) -> tuple:
     """
-    Adds a new employee into MariaDB and keeps local employees.json synchronized.
-    Returns (success: bool, message: str).
+    Menambahkan karyawan baru ke MariaDB dan menyinkronkannya ke employees.json.
+    Mengembalikan (success: bool, message: str).
     """
     emp_id = employee_id.strip().upper()
     emp_name = name.strip()
@@ -315,12 +315,12 @@ def add_employee(employee_id: str, name: str, rfid_uid: str) -> tuple:
     if not emp_id or not emp_name or not rfid:
         return False, "Semua bidang (Employee ID, Nama, RFID UID) wajib diisi."
 
-    # 1. Insert into MariaDB
+    # 1. Simpan ke MariaDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                # Check for uniqueness
+                # Periksa apakah ID atau RFID sudah terdaftar
                 cursor.execute(
                     "SELECT employee_id, rfid_uid FROM employees WHERE employee_id = %s OR rfid_uid = %s LIMIT 1;",
                     (emp_id, rfid)
@@ -336,13 +336,13 @@ def add_employee(employee_id: str, name: str, rfid_uid: str) -> tuple:
                     "INSERT INTO employees (employee_id, name, rfid_uid, is_active) VALUES (%s, %s, %s, 1);",
                     (emp_id, emp_name, rfid)
                 )
-                logger.info(f"[Database] Employee added to MariaDB: {emp_name} ({emp_id})")
+                logger.info(f"[Database] Karyawan berhasil ditambahkan ke MariaDB: {emp_name} ({emp_id})")
         except Exception as err:
-            logger.warning(f"[Database] Error adding employee to MariaDB: {err}")
+            logger.warning(f"[Database] Gagal menambahkan karyawan ke MariaDB: {err}")
         finally:
             conn.close()
 
-    # 2. Always synchronize with data/employees.json
+    # 2. Sinkronkan ke berkas lokal data/employees.json
     try:
         data = {}
         if config.EMPLOYEES_FILE.exists():
@@ -359,35 +359,35 @@ def add_employee(employee_id: str, name: str, rfid_uid: str) -> tuple:
 
         with open(config.EMPLOYEES_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        logger.info(f"[Storage] Synchronized employees.json with new employee: {emp_name} ({emp_id})")
+        logger.info(f"[Storage] Berkas employees.json berhasil disinkronkan: {emp_name} ({emp_id})")
     except Exception as e:
-        logger.error(f"[Storage] Error syncing employees.json: {e}")
+        logger.error(f"[Storage] Gagal menyinkronkan data ke employees.json: {e}")
 
     return True, f"Karyawan '{emp_name}' ({emp_id}) berhasil disimpan ke database!"
 
 
 def delete_employee(employee_id: str) -> tuple:
     """
-    Deletes an employee from MariaDB and employees.json.
-    Returns (success: bool, message: str).
+    Menghapus karyawan dari MariaDB dan employees.json.
+    Mengembalikan (success: bool, message: str).
     """
     emp_id = employee_id.strip().upper()
     if not emp_id:
         return False, "Employee ID tidak valid."
 
-    # 1. Delete from MariaDB
+    # 1. Hapus dari MariaDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
                 cursor.execute("DELETE FROM employees WHERE employee_id = %s;", (emp_id,))
-                logger.info(f"[Database] Employee deleted from MariaDB: {emp_id}")
+                logger.info(f"[Database] Karyawan dihapus dari MariaDB: {emp_id}")
         except Exception as err:
-            logger.warning(f"[Database] Error deleting employee from MariaDB: {err}")
+            logger.warning(f"[Database] Gagal menghapus karyawan dari MariaDB: {err}")
         finally:
             conn.close()
 
-    # 2. Delete from data/employees.json
+    # 2. Hapus dari data/employees.json
     try:
         if config.EMPLOYEES_FILE.exists():
             with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
@@ -399,9 +399,10 @@ def delete_employee(employee_id: str) -> tuple:
 
             with open(config.EMPLOYEES_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
-            logger.info(f"[Storage] Removed employee {emp_id} from employees.json")
+            logger.info(f"[Storage] Karyawan {emp_id} berhasil dihapus dari employees.json")
     except Exception as e:
-        logger.error(f"[Storage] Error removing from employees.json: {e}")
+        logger.error(f"[Storage] Gagal menghapus karyawan dari employees.json: {e}")
 
     return True, f"Karyawan '{emp_id}' berhasil dihapus."
+
 

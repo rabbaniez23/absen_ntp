@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Employee Attendance System - absen_ntp Launcher Script
-# Launches full-screen dedicated browser for absen_ntp with auto-allowed webcam
+# Skrip Peluncur Kiosk Sistem Presensi Karyawan
+# Membuka peramban layar penuh otomatis dengan izin akses kamera aktif
 # ==============================================================================
 
-# URL server absen_ntp lokal
+# URL server presensi lokal
 SERVER_URL="http://localhost:8000"
 
 # Tunggu hingga server Python aktif merespons

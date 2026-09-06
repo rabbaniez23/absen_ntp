@@ -175,7 +175,7 @@
             tableBody.innerHTML = html;
         }
 
-        // Search Filter
+        // Filter pencarian data karyawan
         searchInput.addEventListener("input", () => {
             const query = searchInput.value.toLowerCase().trim();
             if (!query) {
@@ -190,7 +190,7 @@
             renderTable(filtered);
         });
 
-        // Submit Form
+        // Pengiriman form tambah karyawan
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
             const employee_id = empIdInput.value.trim().toUpperCase();
@@ -228,7 +228,7 @@
             }
         });
 
-        // Delete Employee
+        // Hapus data karyawan
         async function deleteEmployee(id, name) {
             if (!confirm(`Apakah Anda yakin ingin menghapus karyawan "${name}" (${id})?`)) {
                 return;
@@ -254,7 +254,7 @@
             loadEmployees();
         });
 
-        // Load employees when page opens
+        // Muat data karyawan saat halaman selesai terbuka
         window.addEventListener("DOMContentLoaded", () => {
             loadEmployees();
         });

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Employee Attendance System - Task 18: Debian Deployment Script
-# Deploys application files, runs DB migration, and prepares production environment
-# Target directory: /opt/employee-attendance
-# Run with sudo: sudo bash deploy_debian.sh
+# Skrip Deployment Aplikasi Sistem Presensi Karyawan ke Debian (/opt)
+# Menyalin berkas aplikasi, migrasi database MariaDB, dan konfigurasi hak akses
+# Target direktori: /opt/employee-attendance
+# Jalankan dengan sudo: sudo bash deploy_debian.sh
 # ==============================================================================
 
 set -e
@@ -17,7 +17,7 @@ fi
 TARGET_DIR="/opt/employee-attendance"
 
 echo "======================================================================"
-echo "    DEPLOYING EMPLOYEE ATTENDANCE SYSTEM TO DEBIAN (/opt)"
+echo "    MENYIAPKAN DEPLOYMENT APLIKASI PRESENSI KE DEBIAN (/opt)"
 echo "======================================================================"
 
 # 0. Pastikan user 'attendance' ada di sistem

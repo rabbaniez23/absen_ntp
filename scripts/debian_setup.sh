@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Employee Attendance System - Task 17: Debian Preparation & Setup Script
-# Target OS: Debian 11 / Debian 12 / Ubuntu Server (Bare-metal / VM - No Docker)
-# Run as root or with sudo: sudo bash debian_setup.sh
+# Skrip Persiapan & Instalasi Lingkungan Sistem Presensi di Debian/Ubuntu
+# Target OS: Debian 11 / Debian 12 / Ubuntu Server (Bare-metal / VM - Non-Docker)
+# Jalankan sebagai root atau dengan sudo: sudo bash debian_setup.sh
 # ==============================================================================
 
 set -e
 
 echo "======================================================================"
-echo "    PREPARING DEBIAN ENVIRONMENT FOR EMPLOYEE ATTENDANCE SYSTEM"
+echo "      PERSIAPAN SISTEM DEBIAN UNTUK SISTEM PRESENSI KARYAWAN"
 echo "======================================================================"
 
 # 1. Update Repository and System Packages

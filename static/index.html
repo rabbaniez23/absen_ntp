@@ -8,7 +8,7 @@
 </head>
 <body>
     <div class="absen-ntp-container kiosk-container">
-        <!-- Header -->
+        <!-- Area Header -->
         <header class="app-header">
             <div class="logo-area">
                 <span class="status-dot"></span>
@@ -36,9 +36,9 @@
             </div>
         </header>
 
-        <!-- Main Layout (absen_ntp) -->
+        <!-- Tata Letak Utama -->
         <main class="main-grid">
-            <!-- Left Panel: Large Camera Viewport -->
+            <!-- Panel Kiri: Layar Kamera Webcam -->
             <section class="card camera-section">
                 <div class="card-header">
                     <div class="section-title">
@@ -51,36 +51,36 @@
                 <div class="camera-viewport">
                     <video id="webcamVideo" autoplay playsinline muted></video>
 
-                    <!-- Standby / Error Overlay -->
+                    <!-- Overlay Saat Standby / Terjadi Kendala -->
                     <div class="camera-overlay" id="cameraOverlay">
                         <div class="camera-icon" id="cameraIcon">📷</div>
                         <p id="cameraMessage">Menghubungkan kamera...</p>
                         <button id="retryCameraBtn" class="absen-ntp-retry-btn kiosk-retry-btn hidden" type="button">🔄 Hubungkan Ulang Kamera</button>
                     </div>
 
-                    <!-- Biometric Face Oval Guide -->
+                    <!-- Panduan Oval Wajah Biometrik -->
                     <div class="face-guide-overlay" id="faceGuide">
                         <div class="face-oval"></div>
                         <div class="face-guide-text">POSISIKAN WAJAH DI DALAM AREA INI</div>
                     </div>
 
-                    <!-- Countdown Display -->
+                    <!-- Tampilan Hitung Mundur -->
                     <div class="countdown-overlay hidden" id="countdownOverlay">
                         <span id="countdownNumber">3</span>
                     </div>
 
-                    <!-- Captured Freeze Frame Preview -->
+                    <!-- Pratinjau Foto Hasil Jepretan -->
                     <img id="capturedPreview" class="captured-preview hidden" alt="Captured Frame">
                     
-                    <!-- Shutter Flash Animation -->
+                    <!-- Efek Lampu Kilat Rana -->
                     <div id="captureFlash" class="capture-flash"></div>
                     
-                    <!-- Offscreen Canvas for Snapshot -->
+                    <!-- Kanvas Snapshot (Offscreen) -->
                     <canvas id="captureCanvas" class="hidden"></canvas>
                 </div>
             </section>
 
-            <!-- Right Panel: Employee Information & Interaction -->
+            <!-- Panel Kanan: Informasi Karyawan & Status Presensi -->
             <section class="card info-section">
                 <div class="card-header">
                     <div class="section-title">

@@ -1,10 +1,10 @@
 -- ====================================================================
--- Employee Attendance System - Task 14: MariaDB Database Schema
+-- Skema Database Sistem Presensi Karyawan (MariaDB)
 -- Database: attendance_db
--- Collation: utf8mb4_unicode_ci (Supports full Unicode & high performance)
+-- Karakter & Collation: utf8mb4 / utf8mb4_unicode_ci
 -- ====================================================================
 
--- 1. Create Database if not exists
+-- 1. Buat database jika belum ada
 CREATE DATABASE IF NOT EXISTS `attendance_db`
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
@@ -12,15 +12,15 @@ CREATE DATABASE IF NOT EXISTS `attendance_db`
 USE `attendance_db`;
 
 -- --------------------------------------------------------------------
--- 2. Table: employees
--- Stores master data for all registered employees and RFID card mappings.
+-- 2. Tabel: employees
+-- Menyimpan data master karyawan dan pemetaan UID kartu RFID.
 -- --------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `employees` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `employee_id` VARCHAR(50) NOT NULL UNIQUE COMMENT 'Unique business identifier, e.g. EMP001',
-    `name` VARCHAR(100) NOT NULL COMMENT 'Full name of employee',
-    `rfid_uid` VARCHAR(50) DEFAULT NULL UNIQUE COMMENT 'RFID card UID from USB Reader',
-    `is_active` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1: Active, 0: Inactive/Terminated',
+    `employee_id` VARCHAR(50) NOT NULL UNIQUE COMMENT 'ID Karyawan, contoh: EMP001',
+    `name` VARCHAR(100) NOT NULL COMMENT 'Nama lengkap karyawan',
+    `rfid_uid` VARCHAR(50) DEFAULT NULL UNIQUE COMMENT 'UID kartu RFID dari scanner USB',
+    `is_active` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1: Aktif, 0: Nonaktif',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX `idx_employees_rfid` (`rfid_uid`),
@@ -28,16 +28,16 @@ CREATE TABLE IF NOT EXISTS `employees` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------------------
--- 3. Table: attendance
--- Stores historical log of biometric attendance events and image paths.
--- Foreign Key: employee_id references employees(employee_id)
+-- 3. Tabel: attendance
+-- Menyimpan riwayat pencatatan presensi beserta path foto tangkapan webcam.
+-- Relasi Foreign Key: employee_id merujuk ke employees.employee_id
 -- --------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `attendance` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-    `employee_id` VARCHAR(50) NOT NULL COMMENT 'Foreign key to employees.employee_id',
-    `captured_at` DATETIME NOT NULL COMMENT 'Exact timestamp of camera snapshot',
-    `image_path` VARCHAR(255) NOT NULL COMMENT 'Relative filesystem path to captured PNG',
-    `attendance_status` VARCHAR(20) NOT NULL DEFAULT 'SUCCESS' COMMENT 'Attendance status, e.g. SUCCESS',
+    `employee_id` VARCHAR(50) NOT NULL COMMENT 'Relasi ke employees.employee_id',
+    `captured_at` DATETIME NOT NULL COMMENT 'Waktu pengambilan foto presensi',
+    `image_path` VARCHAR(255) NOT NULL COMMENT 'Path relatif file foto di disk',
+    `attendance_status` VARCHAR(20) NOT NULL DEFAULT 'SUCCESS' COMMENT 'Status presensi, contoh: SUCCESS',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT `fk_attendance_employee`
         FOREIGN KEY (`employee_id`)

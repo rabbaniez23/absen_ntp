@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Employee Attendance System - Autostart Configuration Script (absen_ntp)
-# Configures Systemd Service for Python Server and XDG Desktop Autostart for absen_ntp
+# Skrip Konfigurasi Autostart Layanan & Desktop Kiosk
+# Mengatur Systemd Service untuk Server Python dan Autostart XDG Desktop
 # Target OS: Debian / Ubuntu / Linux Mint
-# Run as root / with sudo: sudo bash setup_autostart.sh
+# Jalankan sebagai root / sudo: sudo bash setup_autostart.sh
 # ==============================================================================
 
 set -e
@@ -14,7 +14,7 @@ DESKTOP_NAME="attendance-kiosk.desktop"
 TARGET_DIR="/opt/employee-attendance"
 
 echo "======================================================================"
-echo "    CONFIGURING AUTOSTART SYSTEMD & DESKTOP FOR ABSEN_NTP"
+echo "    MENGONFIGURASI AUTOSTART SYSTEMD & DESKTOP PRESENSI"
 echo "======================================================================"
 
 # 0. Pastikan user 'attendance' ada di sistem

@@ -15,31 +15,31 @@ from urllib.parse import parse_qs, urlparse
 import config
 import db
 
-# Maximum allowed upload size (10 MB)
+# Batas maksimal ukuran berkas unggahan (10 MB)
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024
 
-# Standard PNG magic signature
+# Magic signature format berkas PNG standar
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 # ----------------------------------------------------------------------
-# Centralized Logging Setup (Console + Rotating File logs/app.log)
+# Pengaturan Log Terpusat (Konsol Terminal + File Berotasi logs/app.log)
 # ----------------------------------------------------------------------
 logger = logging.getLogger("AttendanceServer")
 logger.setLevel(logging.INFO)
 
-# Avoid duplicate handlers if reloaded
+# Cegah duplikasi handler saat modul dimuat ulang
 if not logger.handlers:
     log_formatter = logging.Formatter(
         fmt="[%(asctime)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-    # 1. Console Handler (stdout)
+    # 1. Handler terminal (stdout)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(log_formatter)
     logger.addHandler(console_handler)
 
-    # 2. Rotating File Handler (logs/app.log, max 5MB, 5 backups)
+    # 2. Handler berkas rotasi (logs/app.log, maks 5MB, 5 cadangan)
     file_handler = RotatingFileHandler(
         config.LOG_FILE,
         maxBytes=5 * 1024 * 1024,
@@ -51,24 +51,24 @@ if not logger.handlers:
 
 
 class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
-    """Custom HTTP request handler serving static assets and attendance APIs."""
+    """Handler HTTP untuk melayani aset antarmuka statis dan endpoint API absensi."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(config.STATIC_DIR), **kwargs)
 
     def log_message(self, format, *args):
-        """Routes HTTP access messages through logger instead of stderr."""
+        """Mengarahkan pesan akses HTTP melalui logger terpusat."""
         logger.info(f"HTTP {self.address_string()} - {format % args}")
 
     def end_headers(self):
-        """Forces no-cache headers on all HTTP responses to avoid stale browser cache."""
+        """Menambahkan header no-cache pada semua respons agar data di browser selalu mutakhir."""
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
         super().end_headers()
 
     def send_json(self, status_code: int, data: dict):
-        """Sends a JSON response with proper HTTP headers."""
+        """Mengirim respons JSON dengan header HTTP yang sesuai."""
         payload = json.dumps(data).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -77,7 +77,7 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_GET(self):
-        """Routes GET requests to static file handler or API endpoints."""
+        """Mengarahkan request GET ke file statis web atau endpoint API."""
         parsed_url = urlparse(self.path)
 
         if parsed_url.path == "/api/employee":
@@ -88,7 +88,7 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
-        """Routes POST requests to API endpoints."""
+        """Mengarahkan request POST ke endpoint API."""
         parsed_url = urlparse(self.path)
 
         if parsed_url.path == "/api/upload":
@@ -101,22 +101,22 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             logger.warning(f"ENDPOINT NOT FOUND: {parsed_url.path}")
             self.send_json(404, {
                 "success": False,
-                "message": f"Endpoint not found: {parsed_url.path}"
+                "message": f"Endpoint tidak ditemukan: {parsed_url.path}"
             })
 
     def do_DELETE(self):
-        """Routes DELETE requests to API endpoints."""
+        """Mengarahkan request DELETE ke endpoint API."""
         parsed_url = urlparse(self.path)
         if parsed_url.path == "/api/employees":
             self.handle_delete_employee(parsed_url)
         else:
             self.send_json(404, {
                 "success": False,
-                "message": f"Endpoint not found: {parsed_url.path}"
+                "message": f"Endpoint tidak ditemukan: {parsed_url.path}"
             })
 
     def handle_get_employees(self):
-        """Returns full list of employees from MariaDB or JSON fallback."""
+        """Mengambil dan mengembalikan seluruh daftar karyawan dari database."""
         logger.info("API: GET /api/employees")
         employees = db.get_all_employees()
         self.send_json(200, {
@@ -126,7 +126,7 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         })
 
     def handle_post_employee(self):
-        """Adds a new employee into MariaDB and employees.json."""
+        """Menambahkan karyawan baru ke database dan file cadangan JSON."""
         logger.info("API: POST /api/employees")
         try:
             content_length = int(self.headers.get("Content-Length", 0))
@@ -157,7 +157,7 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         })
 
     def handle_delete_employee(self, parsed_url=None):
-        """Deletes an employee by ID."""
+        """Menghapus data karyawan berdasarkan ID."""
         logger.info("API: DELETE /api/employees")
         emp_id = None
         if parsed_url:
@@ -185,23 +185,23 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         })
 
     def handle_get_employee(self, parsed_url):
-        """Lookup employee via MariaDB parameterized query with JSON fallback."""
+        """Mencari data karyawan berdasarkan ID atau nomor kartu RFID."""
         query_params = parse_qs(parsed_url.query)
         lookup_id = query_params.get("id", [""])[0].strip()
 
         if not lookup_id:
-            logger.warning("EMPLOYEE LOOKUP FAILED: Missing 'id' parameter")
+            logger.warning("PENCARIAN GAGAL: Parameter 'id' tidak disertakan")
             self.send_json(400, {
                 "success": False,
-                "message": "Missing 'id' query parameter"
+                "message": "Parameter 'id' wajib diisi"
             })
             return
 
-        logger.info(f"EMPLOYEE LOOKUP {lookup_id}")
+        logger.info(f"PENCARIAN KARYAWAN: {lookup_id}")
 
         emp = db.lookup_employee(lookup_id)
         if emp:
-            logger.info(f"EMPLOYEE FOUND {emp['employee_id']} ({emp['name']}) [source: {emp.get('source', 'unknown')}]")
+            logger.info(f"KARYAWAN DITEMUKAN: {emp['employee_id']} ({emp['name']}) [sumber: {emp.get('source', 'unknown')}]")
             self.send_json(200, {
                 "success": True,
                 "employee_id": emp["employee_id"],
@@ -209,55 +209,55 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "rfid_uid": emp.get("rfid_uid") or emp["employee_id"]
             })
         else:
-            logger.warning(f"EMPLOYEE NOT FOUND {lookup_id}")
+            logger.warning(f"KARYAWAN TIDAK DITEMUKAN: {lookup_id}")
             self.send_json(404, {
                 "success": False,
-                "message": "Employee not found"
+                "message": "Karyawan tidak ditemukan"
             })
 
     def handle_post_upload(self):
-        """Handles PNG image upload with Employee ID validation and disk storage."""
+        """Menangani unggahan foto absensi PNG dengan validasi integritas data."""
         try:
             content_length = int(self.headers.get("Content-Length", 0))
         except (ValueError, TypeError):
             content_length = 0
 
         if content_length <= 0:
-            logger.warning("UPLOAD REJECTED: Empty request body")
+            logger.warning("UNGGAHAN DITOLAK: Body request kosong")
             self.send_json(400, {
                 "success": False,
-                "message": "Empty request body"
+                "message": "Body request kosong"
             })
             return
 
         if content_length > MAX_UPLOAD_SIZE:
-            logger.warning(f"UPLOAD REJECTED: Size {content_length} bytes exceeds {MAX_UPLOAD_SIZE} limit")
+            logger.warning(f"UNGGAHAN DITOLAK: Ukuran {content_length} bytes melampaui batas {MAX_UPLOAD_SIZE}")
             self.send_json(413, {
                 "success": False,
-                "message": f"Payload too large: exceeds maximum limit of {MAX_UPLOAD_SIZE // (1024*1024)}MB"
+                "message": f"Ukuran berkas terlalu besar: melebihi batas maksimal {MAX_UPLOAD_SIZE // (1024*1024)}MB"
             })
             return
 
         content_type = self.headers.get("Content-Type", "")
         if not content_type.startswith("multipart/form-data"):
-            logger.warning(f"UPLOAD REJECTED: Invalid Content-Type '{content_type}'")
+            logger.warning(f"UNGGAHAN DITOLAK: Content-Type tidak valid '{content_type}'")
             self.send_json(400, {
                 "success": False,
-                "message": "Content-Type must be multipart/form-data"
+                "message": "Content-Type harus berupa multipart/form-data"
             })
             return
 
         try:
             raw_body = self.rfile.read(content_length)
         except Exception as e:
-            logger.error(f"UPLOAD READ ERROR: {e}")
+            logger.error(f"GAGAL MEMBACA UNGGAHAN: {e}")
             self.send_json(500, {
                 "success": False,
-                "message": f"Failed to read upload payload: {str(e)}"
+                "message": f"Gagal membaca payload unggahan: {str(e)}"
             })
             return
 
-        # Parse multipart payload
+        # Parsing data formulir multipart
         try:
             header_bytes = f"Content-Type: {content_type}\r\n\r\n".encode("utf-8")
             msg = BytesParser(policy=default).parsebytes(header_bytes + raw_body)
@@ -275,48 +275,48 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
                     image_bytes = part.get_payload(decode=True)
 
         except Exception as e:
-            logger.error(f"MULTIPART PARSE ERROR: {e}")
+            logger.error(f"PARSING MULTIPART GAGAL: {e}")
             self.send_json(400, {
                 "success": False,
-                "message": f"Malformed multipart data: {str(e)}"
+                "message": f"Format data multipart tidak valid: {str(e)}"
             })
             return
 
-        # Validate Employee ID
+        # Validasi format ID Karyawan
         if not employee_id:
-            logger.warning("UPLOAD REJECTED: Missing employee_id field")
+            logger.warning("UNGGAHAN DITOLAK: Kolom employee_id tidak ada")
             self.send_json(400, {
                 "success": False,
-                "message": "Missing 'employee_id' in form data"
+                "message": "Field 'employee_id' wajib disertakan"
             })
             return
 
         if not re.match(r"^[A-Za-z0-9_-]+$", employee_id):
-            logger.warning(f"UPLOAD REJECTED: Illegal characters in employee_id '{employee_id}'")
+            logger.warning(f"UNGGAHAN DITOLAK: Karakter tidak valid pada employee_id '{employee_id}'")
             self.send_json(400, {
                 "success": False,
-                "message": "Invalid characters in employee_id. Only alphanumeric, dashes, and underscores allowed."
+                "message": "Format ID karyawan hanya boleh alfanumerik, tanda strip, atau garis bawah."
             })
             return
 
-        # Validate Image Bytes
+        # Validasi berkas biner foto PNG
         if not image_bytes:
-            logger.warning(f"UPLOAD REJECTED: Missing image data for employee_id '{employee_id}'")
+            logger.warning(f"UNGGAHAN DITOLAK: Data gambar tidak ditemukan untuk '{employee_id}'")
             self.send_json(400, {
                 "success": False,
-                "message": "Missing 'image' file in form data"
+                "message": "Berkas 'image' wajib disertakan"
             })
             return
 
         if not image_bytes.startswith(PNG_SIGNATURE):
-            logger.warning(f"UPLOAD REJECTED: Invalid image signature for employee_id '{employee_id}'")
+            logger.warning(f"UNGGAHAN DITOLAK: Magic signature berkas tidak valid untuk '{employee_id}'")
             self.send_json(400, {
                 "success": False,
-                "message": "Invalid file format. Uploaded image must be a valid PNG."
+                "message": "Format berkas tidak valid. Foto harus berformat PNG asli."
             })
             return
 
-        # Generate timestamps and paths
+        # Buat timestamp dan jalur direktori penyimpanan foto
         now = datetime.datetime.now()
         year_str = now.strftime("%Y")
         month_str = now.strftime("%m")
@@ -329,30 +329,30 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         filename = f"{employee_id}_{timestamp_str}.png"
         file_path = target_dir / filename
 
-        # Write image to disk
+        # Simpan berkas gambar ke harddisk
         try:
             with open(file_path, "wb") as f:
                 f.write(image_bytes)
-            logger.info(f"IMAGE SAVED {employee_id} -> {filename} ({len(image_bytes)} bytes)")
+            logger.info(f"FOTO TERSIMPAN: {employee_id} -> {filename} ({len(image_bytes)} bytes)")
         except Exception as e:
-            logger.error(f"DISK WRITE ERROR: Failed to save {file_path}: {e}")
+            logger.error(f"GAGAL MENULIS KE DISK: {file_path}: {e}")
             self.send_json(500, {
                 "success": False,
-                "message": f"Failed to save image to disk: {str(e)}"
+                "message": f"Gagal menyimpan foto ke harddisk: {str(e)}"
             })
             return
 
         rel_path = str(file_path.relative_to(config.BASE_DIR)).replace("\\", "/")
 
-        # Record attendance in MariaDB using direct SQL parameterized query
+        # Catat data absensi ke basis data
         db.record_attendance(employee_id, now, rel_path, "SUCCESS")
 
-        logger.info(f"ATTENDANCE SUCCESS {employee_id}")
+        logger.info(f"ABSENSI BERHASIL: {employee_id}")
 
-        # Send JSON response
+        # Kirim respons sukses ke klien
         self.send_json(200, {
             "success": True,
-            "message": "Attendance saved",
+            "message": "Absensi berhasil dicatat",
             "employee_id": employee_id,
             "filename": filename,
             "filepath": rel_path,
@@ -361,8 +361,8 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def run_server():
-    """Starts the HTTP server on configured host and port."""
-    # Attempt automatic database and table initialization
+    """Menjalankan HTTP server pada host dan port yang telah ditentukan."""
+    # Inisialisasi basis data dan tabel jika belum ada
     db.init_database_tables()
 
     address = (config.HOST, config.PORT)
@@ -370,18 +370,19 @@ def run_server():
 
     with socketserver.ThreadingTCPServer(address, AttendanceRequestHandler) as httpd:
         logger.info("=" * 60)
-        logger.info(f"SERVER STARTED at http://localhost:{config.PORT}")
-        logger.info(f"Serving static files from: {config.STATIC_DIR}")
-        logger.info(f"Captures stored under: {config.CAPTURES_DIR}")
-        logger.info(f"Employee data loaded from: {config.EMPLOYEES_FILE}")
-        logger.info(f"Log file active at: {config.LOG_FILE}")
+        logger.info(f"SERVER ABSEN_NTP AKTIF di http://localhost:{config.PORT}")
+        logger.info(f"Melayani aset statis dari: {config.STATIC_DIR}")
+        logger.info(f"Penyimpanan foto di: {config.CAPTURES_DIR}")
+        logger.info(f"Data karyawan dimuat dari: {config.EMPLOYEES_FILE}")
+        logger.info(f"Berkas log aktif di: {config.LOG_FILE}")
         logger.info("=" * 60)
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
-            logger.info("SERVER SHUTTING DOWN GRACEFULLY...")
+            logger.info("MENGHENTIKAN SERVER DENGAN AMAN...")
         finally:
             httpd.server_close()
+
 
 
 if __name__ == "__main__":

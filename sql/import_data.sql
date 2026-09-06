@@ -1,14 +1,14 @@
 -- ====================================================================
--- Auto-Generated Migration Script from JSON Files
--- Safe & Idempotent (INSERT IGNORE)
+-- Skrip Migrasi Data dari File JSON ke Database MariaDB
+-- Aman dieksekusi berulang (idempoten dengan update duplicate key)
 -- ====================================================================
 USE `attendance_db`;
 
--- 1. Migrate Employees
+-- 1. Migrasi Data Karyawan
 INSERT INTO `employees` (`employee_id`, `name`, `rfid_uid`, `is_active`) VALUES ('EMP001', 'Budi Santoso', '983746128', 1) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
 INSERT INTO `employees` (`employee_id`, `name`, `rfid_uid`, `is_active`) VALUES ('EMP002', 'Andi Wijaya', '827364928', 1) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
 
--- 2. Migrate Attendance History
+-- 2. Migrasi Riwayat Presensi
 INSERT INTO `attendance` (`employee_id`, `captured_at`, `image_path`, `attendance_status`) VALUES ('EMP001', '2026-09-05 22:31:55', 'captures/2026/09/05/EMP001_20260905_223155.png', 'SUCCESS');
 INSERT INTO `attendance` (`employee_id`, `captured_at`, `image_path`, `attendance_status`) VALUES ('EMP002', '2026-09-05 22:32:54', 'captures/2026/09/05/EMP002_20260905_223254.png', 'SUCCESS');
 INSERT INTO `attendance` (`employee_id`, `captured_at`, `image_path`, `attendance_status`) VALUES ('EMP002', '2026-09-05 22:33:59', 'captures/2026/09/05/EMP002_20260905_223359.png', 'SUCCESS');

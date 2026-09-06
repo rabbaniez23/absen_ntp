@@ -1,7 +1,7 @@
 """
-Employee Attendance System - Database Viewer Utility
-Inspects and displays employees and attendance tables directly in terminal.
-Works with both MariaDB and local persistent storage.
+Sistem Presensi Karyawan - Utilitas Penampil Database & Data Lokal
+Menampilkan isi tabel karyawan (employees) dan riwayat presensi (attendance)
+langsung di terminal dari MariaDB atau fallback file JSON lokal.
 """
 
 import json
@@ -12,7 +12,7 @@ import db
 
 
 def print_table(title: str, headers: list, rows: list):
-    """Prints a formatted ASCII table in terminal."""
+    """Mencetak tabel ASCII terformat di terminal."""
     print("\n" + "=" * 70)
     print(f"  TABEL: {title.upper()}")
     print("=" * 70)
@@ -21,20 +21,20 @@ def print_table(title: str, headers: list, rows: list):
         print("  (Belum ada data / tabel kosong)")
         return
 
-    # Calculate column widths
+    # Hitung lebar setiap kolom
     widths = [len(h) for h in headers]
     for row in rows:
         for i, val in enumerate(row):
             widths[i] = max(widths[i], len(str(val)))
 
-    # Format header
+    # Format judul kolom (header)
     header_str = " | ".join(str(headers[i]).ljust(widths[i]) for i in range(len(headers)))
     sep_str = "-+-".join("-" * widths[i] for i in range(len(headers)))
 
     print(header_str)
     print(sep_str)
 
-    # Format rows
+    # Format baris data
     for row in rows:
         row_str = " | ".join(str(row[i]).ljust(widths[i]) for i in range(len(row)))
         print(row_str)
@@ -43,11 +43,11 @@ def print_table(title: str, headers: list, rows: list):
 
 
 def show_employees():
-    """Displays employee master data."""
+    """Menampilkan data master karyawan."""
     headers = ["EMPLOYEE ID", "NAMA KARYAWAN", "RFID UID", "STATUS"]
     rows = []
 
-    # 1. Try MariaDB
+    # 1. Coba ambil dari MariaDB
     conn = db.get_db_connection()
     if conn:
         try:
@@ -67,7 +67,7 @@ def show_employees():
             if conn:
                 conn.close()
 
-    # 2. Fallback: employees.json
+    # 2. Fallback: baca dari file employees.json
     if config.EMPLOYEES_FILE.exists():
         with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -78,15 +78,15 @@ def show_employees():
                     rfid,
                     "AKTIF"
                 ])
-        print_table("employees (Sumber: Local Storage / JSON)", headers, rows)
+        print_table("employees (Sumber: Penyimpanan Lokal / JSON)", headers, rows)
 
 
 def show_attendance():
-    """Displays attendance logs."""
+    """Menampilkan riwayat presensi."""
     headers = ["ID EMP", "WAKTU ABSENSI", "PATH FOTO DI DISK", "STATUS"]
     rows = []
 
-    # 1. Try MariaDB
+    # 1. Coba ambil dari MariaDB
     conn = db.get_db_connection()
     if conn:
         try:
@@ -106,7 +106,7 @@ def show_attendance():
             if conn:
                 conn.close()
 
-    # 2. Fallback: attendance.json
+    # 2. Fallback: baca dari file attendance.json
     att_file = config.DATA_DIR / "attendance.json"
     if att_file.exists():
         with open(att_file, "r", encoding="utf-8") as f:
@@ -118,7 +118,7 @@ def show_attendance():
                     item.get("image_path", "-"),
                     item.get("attendance_status", "-")
                 ])
-        print_table("attendance (Sumber: Local Storage / JSON)", headers, rows)
+        print_table("attendance (Sumber: Penyimpanan Lokal / JSON)", headers, rows)
 
 
 def main():

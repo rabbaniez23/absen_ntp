@@ -1,8 +1,10 @@
 /**
- * Employee Attendance System - Task 11: Comprehensive Error Handling
+ * Logika Antarmuka Pengguna (Frontend) Sistem Presensi Karyawan
+ * Mengatur alur pemindaian kartu RFID, pratinjau kamera webcam, hitung mundur,
+ * pengambilan foto, serta pengiriman data ke server backend.
  */
 
-// Application States Definition
+// Definisi status aplikasi (State Machine)
 const AppState = Object.freeze({
     IDLE: "IDLE",
     IDENTIFYING: "IDENTIFYING",
@@ -22,9 +24,9 @@ let isCameraOnline = false;
 let countdownTimer = null;
 let errorRecoveryTimer = null;
 let currentPreviewUrl = null;
-let isMirrored = false; // Default: Normal (NOT MIRRORED)
+let isMirrored = false; // Pengaturan bawaan kamera: Normal (tidak dicerminkan)
 
-// DOM Elements - Camera & Capture
+// Elemen DOM - Kamera & Tangkapan Gambar
 const webcamVideo = document.getElementById("webcamVideo");
 const cameraOverlay = document.getElementById("cameraOverlay");
 const cameraIcon = document.getElementById("cameraIcon");
@@ -41,31 +43,29 @@ const retryCameraBtn = document.getElementById("retryCameraBtn");
 const mirrorToggleBtn = document.getElementById("mirrorToggleBtn");
 const mirrorStatusText = document.getElementById("mirrorStatusText");
 
-// DOM Elements - Date and Time
+// Elemen DOM - Tanggal dan Waktu
 const liveDate = document.getElementById("liveDate");
 const liveTime = document.getElementById("liveTime");
 const attendanceDate = document.getElementById("attendanceDate");
 const attendanceTime = document.getElementById("attendanceTime");
 
-// DOM Elements - Employee Info & Status
+// Elemen DOM - Informasi Karyawan & Status
 const employeeName = document.getElementById("employeeName");
 const employeeId = document.getElementById("employeeId");
 const statusBanner = document.getElementById("statusBanner");
 const statusText = document.getElementById("statusText");
 
-// DOM Elements - Input Field (RFID / Keyboard / Numpad)
+// Elemen DOM - Input RFID / Keyboard
 const rfidInput = document.getElementById("rfidInput");
 
-// Month names in Indonesian
+// Nama bulan dalam Bahasa Indonesia
 const MONTH_NAMES = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
     "Juli", "Agustus", "September", "Oktober", "November", "Desember"
 ];
 
 /**
- * Formats a Date object into DD MMMM YYYY (e.g. 05 September 2026).
- * @param {Date} date
- * @returns {string}
+ * Format objek Date menjadi tanggal terformat (contoh: 05 September 2026).
  */
 function formatDate(date) {
     const day = String(date.getDate()).padStart(2, "0");
@@ -75,9 +75,7 @@ function formatDate(date) {
 }
 
 /**
- * Formats a Date object into HH:mm:ss (e.g. 22:10:45).
- * @param {Date} date
- * @returns {string}
+ * Format objek Date menjadi jam terformat (contoh: 22:10:45).
  */
 function formatTime(date) {
     const hours = String(date.getHours()).padStart(2, "0");
@@ -87,7 +85,7 @@ function formatTime(date) {
 }
 
 /**
- * Updates the date and time elements every second.
+ * Memperbarui tampilan tanggal dan jam setiap detik.
  */
 function updateClock() {
     const now = new Date();
@@ -101,7 +99,7 @@ function updateClock() {
 }
 
 /**
- * Starts the realtime clock timer.
+ * Mengaktifkan timer jam waktu nyata.
  */
 function initializeClock() {
     updateClock();
@@ -109,19 +107,17 @@ function initializeClock() {
 }
 
 /**
- * Sets the application state and updates UI components accordingly.
- * @param {string} newState
- * @param {string} [customMessage=""]
+ * Mengubah status aplikasi dan memperbarui elemen antarmuka terkait.
  */
 function setApplicationState(newState, customMessage = "") {
     currentState = newState;
-    console.log(`[Attendance System] State Transition -> ${newState} ${customMessage ? `("${customMessage}")` : ""}`);
+    console.log(`[Presensi] Perubahan Status -> ${newState} ${customMessage ? `("${customMessage}")` : ""}`);
 
     if (statusBanner) {
         statusBanner.className = `status-banner state-${newState.toLowerCase()}`;
     }
 
-    // Toggle biometric face oval guide during camera positioning & countdown
+    // Tampilkan panduan oval posisi wajah saat bersiap atau hitung mundur
     if (faceGuide) {
         if (newState === AppState.CAMERA_READY || newState === AppState.COUNTDOWN) {
             faceGuide.classList.add("visible");
@@ -147,27 +143,27 @@ function setApplicationState(newState, customMessage = "") {
             break;
 
         case AppState.EMPLOYEE_FOUND:
-            statusText.textContent = customMessage || "EMPLOYEE FOUND";
+            statusText.textContent = customMessage || "KARTU TERDETEKSI";
             if (rfidInput) rfidInput.disabled = true;
             break;
 
         case AppState.CAMERA_READY:
-            statusText.textContent = customMessage || "POSITION YOUR FACE";
+            statusText.textContent = customMessage || "ARAHKAN WAJAH KE KAMERA";
             if (rfidInput) rfidInput.disabled = true;
             break;
 
         case AppState.COUNTDOWN:
-            statusText.textContent = customMessage ? `COUNTDOWN: ${customMessage}` : "COUNTDOWN";
+            statusText.textContent = customMessage ? `HITUNG MUNDUR: ${customMessage}` : "HITUNG MUNDUR";
             if (rfidInput) rfidInput.disabled = true;
             break;
 
         case AppState.CAPTURING:
-            statusText.textContent = customMessage || "CAPTURING...";
+            statusText.textContent = customMessage || "MENGAMBIL FOTO...";
             if (rfidInput) rfidInput.disabled = true;
             break;
 
         case AppState.SAVING:
-            statusText.textContent = customMessage || "SAVING...";
+            statusText.textContent = customMessage || "MENYIMPAN DATA...";
             if (rfidInput) rfidInput.disabled = true;
             break;
 
@@ -177,7 +173,7 @@ function setApplicationState(newState, customMessage = "") {
             break;
 
         case AppState.ERROR:
-            statusText.textContent = customMessage || "ERROR";
+            statusText.textContent = customMessage || "TERJADI KESALAHAN";
             if (rfidInput) rfidInput.disabled = true;
             break;
 
@@ -188,12 +184,10 @@ function setApplicationState(newState, customMessage = "") {
 }
 
 /**
- * Handles errors gracefully and guarantees safe recovery back to IDLE state.
- * @param {string} errorMessage
- * @param {number} [displayDuration=2500]
+ * Menampilkan pesan kesalahan dan otomatis kembali ke kondisi siap (IDLE).
  */
 function handleErrorAndRecover(errorMessage, displayDuration = 2500) {
-    console.warn(`[Attendance System] Error occurred: ${errorMessage}`);
+    console.warn(`[Presensi] Kesalahan: ${errorMessage}`);
 
     if (errorRecoveryTimer) {
         clearTimeout(errorRecoveryTimer);
@@ -208,7 +202,7 @@ function handleErrorAndRecover(errorMessage, displayDuration = 2500) {
 }
 
 /**
- * Resets application state, overlays, and employee display back to IDLE.
+ * Mengembalikan tampilan dan status antarmuka kembali ke kondisi awal (IDLE).
  */
 function resetToIdle() {
     if (countdownTimer) {
@@ -235,16 +229,16 @@ function resetToIdle() {
     if (employeeId) employeeId.textContent = "-";
     if (rfidInput) rfidInput.value = "";
 
-    // Guarantee webcam video playback is active and unpaused
+    // Pastikan video kamera tetap berputar
     if (webcamVideo && isCameraOnline && webcamVideo.paused) {
-        webcamVideo.play().catch(err => console.warn("[Attendance System] Video resume error:", err));
+        webcamVideo.play().catch(err => console.warn("[Presensi] Gagal memutar ulang video:", err));
     }
 
     setApplicationState(AppState.IDLE);
 }
 
 /**
- * Keeps the input field focused when system is in IDLE state.
+ * Memastikan kursor selalu fokus pada input RFID agar siap membaca kartu.
  */
 function focusInputField() {
     if (currentState === AppState.IDLE && rfidInput && document.activeElement !== rfidInput) {
@@ -253,11 +247,7 @@ function focusInputField() {
 }
 
 /**
- * Helper to perform fetch with request timeout using AbortController.
- * @param {string} url
- * @param {RequestInit} [options={}]
- * @param {number} [timeoutMs=8000]
- * @returns {Promise<Response>}
+ * Fungsi pembantu fetch dengan batas waktu timeout menggunakan AbortController.
  */
 async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
     const controller = new AbortController();
@@ -280,9 +270,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
 }
 
 /**
- * Parses JSON response safely; handles invalid JSON formatting.
- * @param {Response} response 
- * @returns {Promise<any>}
+ * Membaca respons JSON secara aman jika respons bukan format valid.
  */
 async function parseJsonResponse(response) {
     try {
@@ -293,16 +281,14 @@ async function parseJsonResponse(response) {
 }
 
 /**
- * Verifies if camera stream is active and functional.
- * @returns {boolean}
+ * Memeriksa apakah feed video kamera sedang aktif dan siap.
  */
 function isCameraReady() {
     return isCameraOnline && webcamVideo && webcamVideo.readyState >= 2 && webcamVideo.videoWidth > 0;
 }
 
 /**
- * Look up employee data from backend API with robust error handling.
- * @param {string} id 
+ * Mencari data karyawan ke backend berdasarkan ID atau UID kartu RFID.
  */
 async function lookupEmployee(id) {
     setApplicationState(AppState.IDENTIFYING);
@@ -312,7 +298,7 @@ async function lookupEmployee(id) {
         const data = await parseJsonResponse(response);
 
         if (response.ok && data.success) {
-            console.log(`[Attendance System] Employee found: ${data.name} (${data.employee_id})`);
+            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (${data.employee_id})`);
             currentEmployeeId = data.employee_id;
 
             if (employeeName) employeeName.textContent = data.name;
@@ -320,15 +306,15 @@ async function lookupEmployee(id) {
 
             setApplicationState(AppState.EMPLOYEE_FOUND, `KARTU TERDETEKSI: ${data.name.toUpperCase()}`);
 
-            // Transition: EMPLOYEE_FOUND -> CAMERA_READY
+            // Transisi: KARTU TERDETEKSI -> ARAHKAN WAJAH
             setTimeout(() => {
-                // Ensure camera is still ready before prompting position face
+                // Pastikan kamera aktif sebelum meminta karyawan menghadap kamera
                 if (!isCameraReady()) {
                     handleErrorAndRecover("KAMERA TIDAK TERSEDIA");
                     return;
                 }
 
-                setApplicationState(AppState.CAMERA_READY, "POSITION YOUR FACE");
+                setApplicationState(AppState.CAMERA_READY, "ARAHKAN WAJAH KE KAMERA");
 
                 setTimeout(() => {
                     startCountdown(() => {
@@ -339,31 +325,26 @@ async function lookupEmployee(id) {
             }, 1200);
 
         } else {
-            // Error 1: Employee tidak ditemukan
-            const message = data && data.message ? data.message.toUpperCase() : "EMPLOYEE NOT FOUND";
+            // Kasus data karyawan tidak ditemukan
+            const message = data && data.message ? data.message.toUpperCase() : "KARYAWAN TIDAK DITEMUKAN";
             handleErrorAndRecover(message);
         }
     } catch (error) {
-        console.error("[Attendance System] Lookup error:", error);
+        console.error("[Presensi] Kesalahan pencarian karyawan:", error);
 
-        // Error 7: Request timeout
         if (error.message === "REQUEST_TIMEOUT") {
-            handleErrorAndRecover("REQUEST TIMEOUT (SERVER TIDAK MERESPON)");
-        }
-        // Error 9: JSON invalid
-        else if (error.message === "JSON_INVALID") {
-            handleErrorAndRecover("FORMAT DATA JSON TIDAK VALID");
-        }
-        // Error 6: Backend tidak aktif
-        else {
-            handleErrorAndRecover("SERVER BACKEND TIDAK AKTIF / OFFLINE");
+            handleErrorAndRecover("SERVER TIDAK MERESPON (TIMEOUT)");
+        } else if (error.message === "JSON_INVALID") {
+            handleErrorAndRecover("FORMAT RESPON SERVER TIDAK VALID");
+        } else {
+            handleErrorAndRecover("SERVER BACKEND TIDAK TERHUBUNG");
         }
     }
 }
 
 /**
- * Executes a 3-2-1 countdown sequence with visual display.
- * @param {Function} onComplete Callback function executed after countdown ends.
+ * Menjalankan urutan hitung mundur 3-2-1 dengan efek visual di layar.
+ * @param {Function} onComplete Fungsi yang dijalankan setelah hitung mundur selesai.
  */
 function startCountdown(onComplete) {
     let count = 3;
@@ -400,7 +381,7 @@ function startCountdown(onComplete) {
                 countdownOverlay.classList.add("hidden");
             }
 
-            console.log("[Attendance System] Countdown finished. Triggering capture...");
+            console.log("[Presensi] Hitung mundur selesai. Mengambil foto...");
             if (typeof onComplete === "function") {
                 onComplete();
             }
@@ -409,20 +390,19 @@ function startCountdown(onComplete) {
 }
 
 /**
- * Captures a single frame from the webcam stream onto an HTML Canvas,
- * converts it into a PNG Blob, and dispatches to uploadCapture.
+ * Mengambil satu frame dari feed webcam ke elemen Canvas HTML,
+ * mengubahnya menjadi Blob PNG, lalu mengirimkannya ke uploadCapture.
  */
 function captureWebcamFrame() {
-    setApplicationState(AppState.CAPTURING, "CAPTURING IMAGE...");
+    setApplicationState(AppState.CAPTURING, "MENGAMBIL FOTO...");
 
-    // Error 8: Capture gagal (kamera terputus atau frame kosong)
     if (!isCameraReady()) {
-        console.error("[Attendance System] Capture failed: Camera stream not ready.");
-        handleErrorAndRecover("CAPTURE GAGAL: KAMERA TIDAK TERSEDIA");
+        console.error("[Presensi] Gagal mengambil foto: Stream kamera tidak siap.");
+        handleErrorAndRecover("KAMERA TIDAK TERSEDIA");
         return;
     }
 
-    // Shutter flash effect
+    // Efek kilatan lampu rana (shutter flash)
     if (captureFlash) {
         captureFlash.classList.add("flash-active");
         setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
@@ -447,14 +427,14 @@ function captureWebcamFrame() {
 
         captureCanvas.toBlob((blob) => {
             if (!blob) {
-                console.error("[Attendance System] Canvas toBlob returned null.");
-                handleErrorAndRecover("CAPTURE GAGAL: KONVERSI GAMBAR GAGAL");
+                console.error("[Presensi] Konversi Canvas ke Blob bernilai null.");
+                handleErrorAndRecover("GAGAL MENGONVERSI GAMBAR");
                 return;
             }
 
-            console.log(`[Attendance System] Frame captured: PNG Blob ${(blob.size / 1024).toFixed(1)} KB (${width}x${height})`);
+            console.log(`[Presensi] Foto berhasil diambil: PNG ${(blob.size / 1024).toFixed(1)} KB (${width}x${height})`);
 
-            // Freeze frame preview
+            // Tampilkan pratinjau beku sementara
             if (currentPreviewUrl) {
                 URL.revokeObjectURL(currentPreviewUrl);
             }
@@ -465,24 +445,22 @@ function captureWebcamFrame() {
                 capturedPreview.classList.remove("hidden");
             }
 
-            // Upload image to backend
+            // Kirim gambar ke server
             uploadCapture(currentEmployeeId, blob);
 
         }, "image/png");
 
     } catch (err) {
-        console.error("[Attendance System] Exception during canvas drawImage:", err);
-        handleErrorAndRecover("CAPTURE GAGAL: KESALAHAN KANVAS");
+        console.error("[Presensi] Kendala kanvas saat mengambil foto:", err);
+        handleErrorAndRecover("KESALAHAN KANVAS FOTO");
     }
 }
 
 /**
- * Uploads captured PNG Blob and Employee ID to the Python backend with complete error handling.
- * @param {string} empId
- * @param {Blob} blob
+ * Mengunggah Blob foto dan ID Karyawan ke backend server.
  */
 async function uploadCapture(empId, blob) {
-    setApplicationState(AppState.SAVING, "MENYIMPAN FOTO ABSENSI...");
+    setApplicationState(AppState.SAVING, "MENYIMPAN DATA PRESENSI...");
 
     const formData = new FormData();
     formData.append("employee_id", empId);
@@ -492,58 +470,48 @@ async function uploadCapture(empId, blob) {
         const response = await fetchWithTimeout("/api/upload", {
             method: "POST",
             body: formData
-        }, 10000); // 10s upload timeout
+        }, 10000);
 
-        // Error 5: File terlalu besar (HTTP 413)
         if (response.status === 413) {
-            handleErrorAndRecover("FILE TERLALU BESAR (MAKSIMUM 10MB)");
+            handleErrorAndRecover("UKURAN FILE TERLALU BESAR (MAKS 10MB)");
             return;
         }
 
         const data = await parseJsonResponse(response);
 
         if (response.ok && data.success) {
-            console.log("[Attendance System] Attendance recorded:", data);
+            console.log("[Presensi] Presensi berhasil dicatat:", data);
             setApplicationState(AppState.SUCCESS, "ABSENSI BERHASIL");
 
             setTimeout(() => {
                 resetToIdle();
             }, 2500);
         } else {
-            // Error 4: Upload gagal
-            const message = data && data.message ? `UPLOAD GAGAL: ${data.message}` : "UPLOAD GAGAL";
+            const message = data && data.message ? `GAGAL: ${data.message}` : "PRESENSI GAGAL";
             handleErrorAndRecover(message);
         }
     } catch (error) {
-        console.error("[Attendance System] Upload error:", error);
+        console.error("[Presensi] Kesalahan unggah foto:", error);
 
-        // Error 7: Request timeout
         if (error.message === "REQUEST_TIMEOUT") {
-            handleErrorAndRecover("UPLOAD TIMEOUT (SERVER TIDAK MERESPON)");
-        }
-        // Error 9: JSON invalid
-        else if (error.message === "JSON_INVALID") {
+            handleErrorAndRecover("UNGGAH TIMEOUT (SERVER TIDAK MERESPON)");
+        } else if (error.message === "JSON_INVALID") {
             handleErrorAndRecover("FORMAT DATA RESPON TIDAK VALID");
-        }
-        // Error 6: Backend tidak aktif
-        else {
+        } else {
             handleErrorAndRecover("SERVER BACKEND TIDAK TERHUBUNG");
         }
     }
 }
 
 /**
- * Handles submission of Employee ID / RFID UID.
- * Prevents overlapping processes if system is not in IDLE state.
- * @param {string} rawInput 
+ * Menangani penerimaan input ID Karyawan / UID RFID.
  */
 function handleEmployeeInput(rawInput) {
     if (currentState !== AppState.IDLE) {
-        console.warn(`[Attendance System] Input ignored: System busy in state ${currentState}`);
+        console.warn(`[Presensi] Input diabaikan: Sistem sedang dalam status ${currentState}`);
         return;
     }
 
-    // Pre-validation: Ensure camera is operating before proceeding
     if (!isCameraReady()) {
         handleErrorAndRecover("KAMERA TIDAK AKTIF / BELUM DIIZINKAN");
         return;
@@ -552,14 +520,14 @@ function handleEmployeeInput(rawInput) {
     const cleanId = rawInput.trim();
     if (!cleanId) return;
 
-    console.log(`[Attendance System] Input received: "${cleanId}"`);
+    console.log(`[Presensi] Input diterima: "${cleanId}"`);
     if (rfidInput) rfidInput.value = "";
 
     lookupEmployee(cleanId);
 }
 
 /**
- * Initializes input event listeners for RFID and Keyboard.
+ * Menginisialisasi pendengar event keyboard dan kartu RFID.
  */
 function initializeInputHandler() {
     if (!rfidInput) return;
@@ -579,17 +547,16 @@ function initializeInputHandler() {
 }
 
 /**
- * Initializes and requests browser webcam access with detailed error handling and auto-retry.
- * @param {number} [retryCount=0] Current retry attempt count
+ * Mengakses webcam peramban dengan penanganan kendala dan percobaan ulang otomatis.
  */
 async function initializeCamera(retryCount = 0) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         isCameraOnline = false;
-        setCameraError("Webcam API tidak didukung pada browser ini.");
+        setCameraError("Peramban tidak mendukung akses kamera webcam.");
         return;
     }
 
-    // Clean up any lingering old tracks before acquiring a new stream
+    // Bersihkan stream lama jika ada sebelum membuka stream baru
     if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
             try { track.stop(); } catch (e) {}
@@ -597,7 +564,7 @@ async function initializeCamera(retryCount = 0) {
         mediaStream = null;
     }
 
-    setCameraConnecting(retryCount > 0 ? `Menunggu pelepasan kamera oleh sistem (${retryCount}/3)...` : "Menghubungkan kamera...");
+    setCameraConnecting(retryCount > 0 ? `Menunggu kamera dilepas oleh sistem (${retryCount}/3)...` : "Menghubungkan kamera...");
 
     try {
         const constraints = {
@@ -615,29 +582,29 @@ async function initializeCamera(retryCount = 0) {
 
         webcamVideo.onloadedmetadata = () => {
             webcamVideo.play().catch(err => {
-                console.warn("[Attendance System] Video play warning:", err);
+                console.warn("[Presensi] Peringatan pemutaran video kamera:", err);
             });
             isCameraOnline = true;
             setCameraActive();
-            console.log("[Attendance System] Webcam stream started successfully.");
+            console.log("[Presensi] Feed video kamera berhasil aktif.");
         };
 
-        // Handle stream interruption (e.g. USB webcam unplugged)
+        // Deteksi jika kabel kamera terputus
         stream.getVideoTracks().forEach(track => {
             track.onended = () => {
                 isCameraOnline = false;
-                handleCameraError({ name: "NotFoundError", message: "Webcam disconnected" });
+                handleCameraError({ name: "NotFoundError", message: "Kamera terputus" });
             };
         });
 
     } catch (error) {
         isCameraOnline = false;
-        console.error("[Attendance System] Webcam error:", error);
+        console.error("[Presensi] Kesalahan kamera:", error);
 
-        // If camera hardware was temporarily locked by Windows/driver during reload, auto-retry up to 3 times
+        // Jika kamera terkunci sementara oleh driver sistem, coba ulang hingga 3 kali
         if ((error.name === "NotReadableError" || error.name === "TrackStartError") && retryCount < 3) {
             const delay = 1200 + (retryCount * 500);
-            console.log(`[Attendance System] Camera locked by device driver. Auto-retrying in ${delay}ms (Attempt ${retryCount + 1}/3)...`);
+            console.log(`[Presensi] Kamera terkunci sistem. Mencoba ulang dalam ${delay}ms (Percobaan ${retryCount + 1}/3)...`);
             setTimeout(() => {
                 initializeCamera(retryCount + 1);
             }, delay);
@@ -649,12 +616,11 @@ async function initializeCamera(retryCount = 0) {
 }
 
 /**
- * Updates UI to camera connecting state.
- * @param {string} [msg="Menghubungkan kamera..."]
+ * Memperbarui tampilan antarmuka ke status menghubungkan kamera.
  */
 function setCameraConnecting(msg = "Menghubungkan kamera...") {
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "CONNECTING...";
+        cameraStatusBadge.textContent = "MENGHUBUNGKAN...";
         cameraStatusBadge.className = "badge";
     }
     if (cameraOverlay) {
@@ -669,7 +635,7 @@ function setCameraConnecting(msg = "Menghubungkan kamera...") {
 }
 
 /**
- * Updates UI when camera is active and streaming.
+ * Memperbarui status antarmuka ketika kamera aktif dan siap digunakan.
  */
 function setCameraActive() {
     if (cameraStatusBadge) {
@@ -685,32 +651,26 @@ function setCameraActive() {
 }
 
 /**
- * Handles camera errors gracefully.
- * Covers Error 2 (Permission denied) and Error 3 (Camera not available).
- * @param {Error} error 
+ * Menangani pesan kesalahan akses kamera.
  */
 function handleCameraError(error) {
-    let message = "Camera error: " + error.message;
+    let message = "Kendala kamera: " + error.message;
 
-    // Error 2: Camera permission denied
     if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        message = "Izin kamera ditolak oleh browser.";
-    }
-    // Error 3: Camera tidak tersedia
-    else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        message = "Kamera tidak ditemukan pada perangkat.";
+        message = "Izin akses kamera ditolak oleh browser.";
+    } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        message = "Perangkat kamera tidak ditemukan.";
     } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        message = "Kamera sedang digunakan aplikasi lain atau belum dilepas oleh sistem.";
+        message = "Kamera sedang dipakai aplikasi lain atau belum dilepas sistem.";
     } else if (error.name === "OverconstrainedError") {
-        message = "Kamera tidak mendukung resolusi yang diminta.";
+        message = "Resolusi kamera tidak didukung perangkat.";
     }
 
     setCameraError(message);
 }
 
 /**
- * Displays error state on camera viewport.
- * @param {string} message 
+ * Menampilkan pesan kesalahan pada area layar kamera.
  */
 function setCameraError(message) {
     if (cameraStatusBadge) {
@@ -731,12 +691,12 @@ function setCameraError(message) {
         retryCameraBtn.classList.remove("hidden");
     }
     if (statusText && currentState === AppState.IDLE) {
-        statusText.textContent = "CAMERA UNAVAILABLE";
+        statusText.textContent = "KAMERA TIDAK TERSEDIA";
     }
 }
 
 /**
- * Initializes fullscreen toggle button.
+ * Mengatur fungsi tombol layar penuh (fullscreen).
  */
 function initializeFullscreenHandler() {
     if (!fullscreenBtn) return;
@@ -744,12 +704,12 @@ function initializeFullscreenHandler() {
     fullscreenBtn.addEventListener("click", () => {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {
-                console.warn("[Attendance System] Fullscreen error:", err);
+                console.warn("[Presensi] Kendala fullscreen:", err);
             });
         } else {
             if (document.exitFullscreen) {
                 document.exitFullscreen().catch(err => {
-                    console.warn("[Attendance System] Exit fullscreen error:", err);
+                    console.warn("[Presensi] Kendala keluar fullscreen:", err);
                 });
             }
         }
@@ -757,16 +717,15 @@ function initializeFullscreenHandler() {
 
     document.addEventListener("fullscreenchange", () => {
         if (document.fullscreenElement) {
-            fullscreenBtn.innerHTML = '<span class="fs-icon">🗗</span> WINDOWED';
+            fullscreenBtn.innerHTML = '<span class="fs-icon">🗗</span> JENDELA';
         } else {
-            fullscreenBtn.innerHTML = '<span class="fs-icon">⛶</span> FULLSCREEN';
+            fullscreenBtn.innerHTML = '<span class="fs-icon">⛶</span> LAYAR PENUH';
         }
     });
 }
 
 /**
- * Applies mirror or normal orientation to camera viewport and button.
- * @param {boolean} mirrored
+ * Mengatur orientasi pencerminan tampilan kamera (mirror/normal).
  */
 function setMirrorMode(mirrored) {
     isMirrored = Boolean(mirrored);
@@ -792,12 +751,11 @@ function setMirrorMode(mirrored) {
 }
 
 /**
- * Initializes camera mirror orientation toggle button.
+ * Menginisialisasi tombol pengalih mirror kamera.
  */
 function initializeMirrorHandler() {
     if (!mirrorToggleBtn) return;
 
-    // Load persisted user preference; default is FALSE (Normal / Non-Mirrored)
     let saved = false;
     try {
         const val = localStorage.getItem("absen_ntp_camera_mirrored") ?? localStorage.getItem("kiosk_camera_mirrored");
@@ -807,23 +765,23 @@ function initializeMirrorHandler() {
 
     mirrorToggleBtn.addEventListener("click", () => {
         setMirrorMode(!isMirrored);
-        console.log(`[Attendance System] User toggled mirror mode: ${isMirrored ? "ON" : "OFF"}`);
+        console.log(`[Presensi] Mode mirror diubah: ${isMirrored ? "ON" : "OFF"}`);
     });
 }
 
 /**
- * Initializes manual camera retry button listener.
+ * Menginisialisasi tombol coba ulang kamera jika sebelumnya bermasalah.
  */
 function initializeCameraRetryHandler() {
     if (!retryCameraBtn) return;
 
     retryCameraBtn.addEventListener("click", () => {
-        console.log("[Attendance System] Reconnecting camera via manual retry button...");
+        console.log("[Presensi] Menghubungkan ulang kamera secara manual...");
         initializeCamera(0);
     });
 }
 
-// Clean up camera hardware tracks immediately when user leaves or refreshes the page
+// Lepas akses perangkat kamera saat halaman ditutup atau dimuat ulang
 window.addEventListener("beforeunload", () => {
     if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
@@ -840,9 +798,9 @@ window.addEventListener("pagehide", () => {
     }
 });
 
-// Lifecycle event: Initialize when DOM is ready
+// Inisialisasi seluruh komponen saat dokumen HTML selesai dimuat
 document.addEventListener("DOMContentLoaded", () => {
-    console.log("[Attendance System] Initialized Task 13: UI Polish");
+    console.log("[Presensi] Sistem Presensi Siap Digunakan.");
     setApplicationState(AppState.IDLE);
     initializeClock();
     initializeMirrorHandler();

@@ -25,7 +25,7 @@
 html, body {
     width: 100%;
     height: 100vh;
-    overflow: hidden; /* No scroll on standard desktop resolutions */
+    overflow: hidden; /* Mencegah scroll pada layar desktop */
     background-color: var(--bg-main);
     color: var(--text-primary);
     font-family: var(--font-family);
@@ -34,7 +34,7 @@ html, body {
     align-items: center;
 }
 
-/* Fullscreen Container (absen_ntp) */
+/* Kontainer Utama Layar Penuh */
 .absen-ntp-container,
 .kiosk-container {
     width: 96vw;
@@ -50,7 +50,7 @@ html, body {
     gap: 18px;
 }
 
-/* Header */
+/* Bagian Header */
 .app-header {
     display: flex;
     justify-content: space-between;
@@ -155,89 +155,92 @@ html, body {
     background: rgba(56, 139, 253, 0.15);
 }
 
-/* Main Grid Layout */
+/* Tata Letak Kisi Utama */
 .main-grid {
     display: grid;
     grid-template-columns: 1.4fr 1fr;
     gap: 22px;
     flex-grow: 1;
-    min-height: 0; /* Prevents overflow in flex children */
+    min-height: 0; /* Mencegah overflow pada child flex */
 }
 
-/* absen_ntp Cards */
+/* Kartu Panel */
 .card {
-    background: var(--card-bg);
+    background-color: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: 14px;
-    padding: 20px;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    overflow: hidden;
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid var(--card-border);
-    flex-shrink: 0;
 }
 
 .section-title {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .title-icon {
-    font-size: 1.1rem;
+    font-size: 1.3rem;
 }
 
 .card-header h2 {
     font-size: 1.1rem;
-    letter-spacing: 1.2px;
-    color: var(--text-secondary);
     font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-primary);
 }
 
 .badge {
     font-size: 0.8rem;
-    background: #1c2434;
-    border: 1px solid var(--card-border);
-    padding: 4px 10px;
-    border-radius: 6px;
-    color: var(--accent);
     font-weight: 700;
-    letter-spacing: 0.8px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: #21262d;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
 }
 
 .badge.active {
+    background: rgba(35, 134, 54, 0.2);
     color: #3fb950;
-    border-color: #238636;
-    background: rgba(35, 134, 54, 0.15);
+    border-color: rgba(63, 185, 80, 0.4);
+    box-shadow: 0 0 10px rgba(63, 185, 80, 0.2);
 }
 
 .badge.error {
+    background: rgba(248, 81, 73, 0.2);
     color: #f85149;
-    border-color: #da3633;
-    background: rgba(218, 54, 51, 0.15);
+    border-color: rgba(248, 81, 73, 0.4);
+    box-shadow: 0 0 10px rgba(248, 81, 73, 0.2);
 }
 
-/* Camera Viewport (Big, Dominant, Polished) */
-.camera-viewport {
-    width: 100%;
-    flex-grow: 1;
-    background: #000000;
-    border-radius: 12px;
-    overflow: hidden;
+/* Tampilan Feed Kamera */
+.camera-section {
     position: relative;
+}
+
+.camera-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 480px;
+    background-color: #030406;
+    overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
-    border: 2px solid var(--card-border);
-    min-height: 0;
 }
 
 #webcamVideo {
@@ -245,15 +248,15 @@ html, body {
     height: 100%;
     object-fit: cover;
     display: block;
-    transform: none; /* Default: Normal (NOT MIRRORED) */
-    transition: transform 0.25s ease;
+    transform: none; /* Bawaan: Normal (tidak dicerminkan) */
+    transition: transform 0.2s ease-in-out;
 }
 
 #webcamVideo.mirrored {
-    transform: scaleX(-1); /* Mirrored only if explicitly turned ON */
+    transform: scaleX(-1); /* Dicerminkan jika tombol mirror aktif */
 }
 
-/* Face Alignment Guide */
+/* Panduan Posisi Wajah */
 .face-guide-overlay {
     position: absolute;
     top: 0;

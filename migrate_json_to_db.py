@@ -1,7 +1,7 @@
 """
-Employee Attendance System - Task 14: Data Migration Script
-Migrates existing JSON data (employees.json & attendance.json) into MariaDB.
-Safely preserves original JSON files.
+Skrip Migrasi Data JSON ke MariaDB
+Memindahkan data riwayat dari berkas JSON (employees.json & attendance.json) ke MariaDB.
+Berkas JSON asli tetap dipertahankan sebagai cadangan lokal.
 """
 
 import json
@@ -20,7 +20,7 @@ logger = logging.getLogger("DataMigration")
 
 
 def load_employees_data(file_path: Path) -> list:
-    """Loads employees data supporting dictionary keyed by RFID or list."""
+    """Membaca data karyawan baik format dictionary dengan key RFID maupun array list."""
     if not file_path.exists():
         logger.warning(f"File tidak ditemukan: {file_path}")
         return []
@@ -47,7 +47,7 @@ def load_employees_data(file_path: Path) -> list:
 
 
 def load_attendance_data(file_path: Path) -> list:
-    """Loads attendance array safely."""
+    """Membaca data riwayat absensi dari berkas JSON."""
     if not file_path.exists():
         return []
     try:
@@ -60,18 +60,18 @@ def load_attendance_data(file_path: Path) -> list:
 
 
 def generate_migration_sql(employees: list, attendances: list, output_sql_path: Path):
-    """Generates an idempotent SQL script with INSERT IGNORE statements."""
+    """Membuat skrip SQL migrasi data karyawan dan riwayat absensi."""
     lines = [
         "-- ====================================================================",
-        "-- Auto-Generated Migration Script from JSON Files",
-        "-- Safe & Idempotent (INSERT IGNORE)",
+        "-- Skrip Migrasi Otomatis dari Berkas JSON ke MariaDB",
+        "-- Aman & Idempoten (ON DUPLICATE KEY UPDATE)",
         "-- ====================================================================",
         "USE `attendance_db`;",
         ""
     ]
 
-    # 1. Employees Migration
-    lines.append("-- 1. Migrate Employees")
+    # 1. Migrasi Data Master Karyawan
+    lines.append("-- 1. Migrasi Karyawan")
     for emp in employees:
         emp_id = emp.get("employee_id", "").replace("'", "''")
         name = emp.get("name", "").replace("'", "''")
@@ -92,8 +92,8 @@ def generate_migration_sql(employees: list, attendances: list, output_sql_path: 
 
     lines.append("")
 
-    # 2. Attendance History Migration
-    lines.append("-- 2. Migrate Attendance History")
+    # 2. Migrasi Riwayat Presensi
+    lines.append("-- 2. Migrasi Riwayat Presensi")
     for att in attendances:
         emp_id = att.get("employee_id", "").replace("'", "''")
         captured_at = att.get("captured_at", "").replace("T", " ")
@@ -111,7 +111,7 @@ def generate_migration_sql(employees: list, attendances: list, output_sql_path: 
     with open(output_sql_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
-    logger.info(f"Generated migration SQL file: {output_sql_path} ({len(employees)} employees, {len(attendances)} attendances)")
+    logger.info(f"File SQL migrasi berhasil dibuat: {output_sql_path} ({len(employees)} karyawan, {len(attendances)} presensi)")
 
 
 def main():
@@ -124,14 +124,14 @@ def main():
     logger.info(f"Ditemukan {len(employees)} data karyawan di {config.EMPLOYEES_FILE}")
     logger.info(f"Ditemukan {len(attendances)} riwayat absensi di {attendances_file}")
 
-    # Generate import_data.sql for direct database loading
+    # Buat file import_data.sql untuk query database
     output_sql = config.BASE_DIR / "import_data.sql"
     generate_migration_sql(employees, attendances, output_sql)
 
     logger.info("Persiapan migrasi berhasil.")
-    logger.info("PERINGATAN: File data/employees.json dan data/attendance.json TETAP DISIMPAN dan TIDAK DIHAPUS.")
+    logger.info("CATATAN: File data/employees.json dan data/attendance.json tetap disimpan sebagai cadangan offline.")
 
-    # Execute directly into MariaDB if available
+    # Eksekusi langsung ke database MariaDB jika sedang berjalan
     try:
         import pymysql
         conn = pymysql.connect(

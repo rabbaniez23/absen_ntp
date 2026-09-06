@@ -100,5 +100,19 @@
     "image_path": "captures/test_audit.png",
     "attendance_status": "SUCCESS",
     "db_synced": true
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-06T22:29:11",
+    "image_path": "captures/2026/09/06/EMP001_20260906_222911.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-06T22:29:13",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
   }
 ]
