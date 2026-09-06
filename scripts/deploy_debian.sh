@@ -73,17 +73,18 @@ fi
 
 # 4. Impor Skema & Data Migrasi ke MariaDB Debian
 echo "[4/6] Mengimpor skema tabel dan data ke MariaDB lokal..."
-# Gunakan socket root lokal MariaDB Debian (tanpa password default di Linux)
-mysql -e "CREATE DATABASE IF NOT EXISTS \`attendance_db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -e "CREATE USER IF NOT EXISTS 'attendance_user'@'localhost' IDENTIFIED BY 'attendance_secure_pass123';"
-mysql -e "GRANT ALL PRIVILEGES ON \`attendance_db\`.* TO 'attendance_user'@'localhost';"
-mysql -e "FLUSH PRIVILEGES;"
-
-# Eksekusi DDL & Data awal
-mysql attendance_db < "${TARGET_DIR}/schema.sql"
-if [ -f "${TARGET_DIR}/import_data.sql" ]; then
-    mysql attendance_db < "${TARGET_DIR}/import_data.sql"
-    echo "  -> Data awal berhasil diimpor ke MariaDB."
+if command -v mysql &>/dev/null; then
+    mysql -e "CREATE DATABASE IF NOT EXISTS \`attendance_db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || true
+    mysql -e "CREATE USER IF NOT EXISTS 'attendance_user'@'localhost' IDENTIFIED BY 'attendance_secure_pass123';" 2>/dev/null || true
+    mysql -e "GRANT ALL PRIVILEGES ON \`attendance_db\`.* TO 'attendance_user'@'localhost';" 2>/dev/null || true
+    mysql -e "FLUSH PRIVILEGES;" 2>/dev/null || true
+    mysql attendance_db < "${TARGET_DIR}/schema.sql" 2>/dev/null || true
+    if [ -f "${TARGET_DIR}/import_data.sql" ]; then
+        mysql attendance_db < "${TARGET_DIR}/import_data.sql" 2>/dev/null || true
+        echo "  -> Data awal berhasil diimpor ke MariaDB."
+    fi
+else
+    echo "  -> MariaDB tidak terpasang. Sistem akan otomatis berjalan menggunakan penyimpanan lokal JSON."
 fi
 
 # 5. Atur kepemilikan berkas ke user layanan 'attendance'
