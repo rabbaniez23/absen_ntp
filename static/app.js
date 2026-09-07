@@ -27,6 +27,7 @@ let currentPreviewUrl = null;
 let isMirrored = false; // Pengaturan bawaan kamera: Normal (tidak dicerminkan)
 
 // Elemen DOM - Kamera & Tangkapan Gambar
+const streamVideo = document.getElementById("streamVideo");
 const webcamVideo = document.getElementById("webcamVideo");
 const cameraOverlay = document.getElementById("cameraOverlay");
 const cameraIcon = document.getElementById("cameraIcon");
@@ -230,11 +231,14 @@ function resetToIdle() {
     if (employeeName) employeeName.textContent = "-";
     if (employeeNik) employeeNik.textContent = "-";
     if (employeeId && employeeId !== employeeNik) employeeId.textContent = "-";
-    if (rfidInput) rfidInput.value = "";
+    if (rfidInput) {
+        rfidInput.value = "";
+        rfidInput.disabled = false;
+    }
 
-    // Pastikan video kamera tetap berputar
-    if (webcamVideo && isCameraOnline && webcamVideo.paused) {
-        webcamVideo.play().catch(err => console.warn("[Presensi] Gagal memutar ulang video:", err));
+    // Pastikan lingkaran panduan wajah tetap terlihat di atas video live preview
+    if (faceGuide) {
+        faceGuide.classList.add("visible");
     }
 
     setApplicationState(AppState.IDLE);
@@ -301,11 +305,79 @@ function isCameraReady() {
 
 /**
  * Menangani tap kartu RFID QinHeng:
- * Mengirim ID kartu ke backend, menjepret kamera Logitech C930e langsung via V4L2,
- * mencatat ke MariaDB, dan menampilkan Nama Karyawan & NIK (Nomor RFID disembunyikan).
+ * 1. Menampilkan Nama Karyawan & NIK (Nomor RFID disembunyikan).
+ * 2. Mengaktifkan panduan lingkaran wajah & hitung mundur 3-2-1.
+ * 3. Menjepret frame live stream kamera Logitech C930e dan menyimpan ke MariaDB.
  */
-async function processAttendanceScan(id) {
-    setApplicationState(AppState.IDENTIFYING, "MENCARI DATA KARYAWAN & MENJEPRET KAMERA...");
+async function handleEmployeeInput(rawInput) {
+    if (currentState !== AppState.IDLE) {
+        console.warn(`[Presensi] Input diabaikan: Sistem sedang dalam status ${currentState}`);
+        return;
+    }
+
+    const cleanId = rawInput.trim();
+    if (!cleanId) return;
+
+    if (rfidInput) rfidInput.value = "";
+
+    // 1. Cari data karyawan ke backend
+    setApplicationState(AppState.IDENTIFYING, "MENCARI DATA KARYAWAN...");
+
+    try {
+        const response = await fetchWithTimeout(`api/employee?id=${encodeURIComponent(cleanId)}`, {}, 6000);
+        const data = await parseJsonResponse(response);
+
+        if (response.ok && data.success) {
+            const nikDisplay = data.nik || data.employee_id;
+            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (NIK: ${nikDisplay})`);
+            currentEmployeeId = data.employee_id;
+
+            // Tampilkan HANYA Nama Karyawan dan NIK (Nomor RFID disembunyikan demi privasi)
+            if (employeeName) employeeName.textContent = data.name;
+            if (employeeNik) employeeNik.textContent = nikDisplay;
+            if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
+
+            setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
+
+            // Tampilkan panduan oval posisi wajah
+            if (faceGuide) faceGuide.classList.add("visible");
+
+            // Beri waktu 800ms lalu mulai hitung mundur 3-2-1
+            setTimeout(() => {
+                setApplicationState(AppState.CAMERA_READY, "ARAHKAN WAJAH KE DALAM LINGKARAN OVAL");
+
+                setTimeout(() => {
+                    startCountdown(() => {
+                        // Setelah hitung mundur 3-2-1 selesai: JEPRET & SIMPAN!
+                        processAttendanceScan(cleanId, data);
+                    });
+                }, 800);
+
+            }, 700);
+
+        } else {
+            const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";
+            handleErrorAndRecover(message, 2500);
+        }
+    } catch (error) {
+        console.error("[Presensi] Kesalahan pencarian karyawan:", error);
+        handleErrorAndRecover("SERVER BACKEND TIDAK TERHUBUNG", 2500);
+    }
+}
+
+/**
+ * Menjepret frame kamera dan mencatat absensi ke server backend.
+ */
+async function processAttendanceScan(id, empInfo = null) {
+    setApplicationState(AppState.CAPTURING, "MENGAMBIL FOTO...");
+
+    // Efek kilatan lampu rana kamera (shutter flash)
+    if (captureFlash) {
+        captureFlash.classList.add("flash-active");
+        setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
+    }
+
+    setApplicationState(AppState.SAVING, "MENYIMPAN DATA PRESENSI...");
 
     try {
         const response = await fetchWithTimeout("api/attendance/scan", {
@@ -319,31 +391,24 @@ async function processAttendanceScan(id) {
         const data = await parseJsonResponse(response);
 
         if (response.ok && data.success) {
-            const nikDisplay = data.nik || data.employee_id;
-            console.log(`[Presensi] Absensi Berhasil: ${data.name} (NIK: ${nikDisplay})`);
-            currentEmployeeId = data.employee_id;
+            const nikDisplay = data.nik || (empInfo ? empInfo.nik : data.employee_id);
+            const empName = data.name || (empInfo ? empInfo.name : "Karyawan");
+            console.log(`[Presensi] Absensi Berhasil: ${empName} (NIK: ${nikDisplay})`);
 
-            // Tampilkan HANYA Nama Karyawan dan NIK (Nomor RFID TIDAK ditampilkan)
-            if (employeeName) employeeName.textContent = data.name;
+            if (employeeName) employeeName.textContent = empName;
             if (employeeNik) employeeNik.textContent = nikDisplay;
             if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
             if (attendanceDate && data.date) attendanceDate.textContent = data.date;
             if (attendanceTime && data.time) attendanceTime.textContent = data.time;
             if (rfidInput) rfidInput.value = "";
 
-            // Efek kilatan lampu rana (shutter flash)
-            if (captureFlash) {
-                captureFlash.classList.add("flash-active");
-                setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
-            }
-
-            // Tampilkan hasil foto jepretan kamera Logitech C930e dari backend
+            // Tampilkan foto hasil jepretan kamera Logitech C930e dari backend
             if (capturedPreview && data.photo_url) {
                 capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
                 capturedPreview.classList.remove("hidden");
             }
 
-            setApplicationState(AppState.SUCCESS, `ABSENSI BERHASIL: ${data.name.toUpperCase()}`);
+            setApplicationState(AppState.SUCCESS, `ABSENSI BERHASIL: ${empName.toUpperCase()}`);
 
             // Reset otomatis ke IDLE setelah 3.5 detik
             setTimeout(() => {
@@ -351,25 +416,17 @@ async function processAttendanceScan(id) {
             }, 3500);
 
         } else {
-            // Kasus data kartu tidak terdaftar di sistem
-            const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";
+            const message = data && data.message ? data.message.toUpperCase() : "GAGAL MENYIMPAN PRESENSI";
             handleErrorAndRecover(message, 3000);
         }
     } catch (error) {
         console.error("[Presensi] Kesalahan proses absensi:", error);
-
-        if (error.message === "REQUEST_TIMEOUT") {
-            handleErrorAndRecover("SERVER TIDAK MERESPON (TIMEOUT)");
-        } else if (error.message === "JSON_INVALID") {
-            handleErrorAndRecover("FORMAT RESPON SERVER TIDAK VALID");
-        } else {
-            handleErrorAndRecover("SERVER BACKEND TIDAK TERHUBUNG");
-        }
+        handleErrorAndRecover("SERVER BACKEND TIDAK MERESPON", 3000);
     }
 }
 
-// Alias lookupEmployee ke processAttendanceScan untuk kompatibilitas
-const lookupEmployee = processAttendanceScan;
+// Alias lookupEmployee untuk kompatibilitas
+const lookupEmployee = handleEmployeeInput;
 
 /**
  * Menjalankan urutan hitung mundur 3-2-1 dengan efek visual di layar.
@@ -643,83 +700,39 @@ async function findLogitechOrExternalCameraId() {
 }
 
 /**
- * Mengakses webcam peramban jika diizinkan, dengan prioritas Logitech Webcam C930e.
- * Catatan: Jika browser Firefox tidak mengizinkan webcam, sistem tetap berjalan lancar
- * karena pengambilan foto ditangani langsung oleh hardware Linux V4L2 pada backend Python.
+ * Menginisialisasi siaran langsung kamera Logitech C930e dari backend (MJPEG stream).
+ * Tidak memerlukan izin getUserMedia di peramban Firefox.
  */
-async function initializeCamera(retryCount = 0) {
+function initializeCamera() {
     isCameraOnline = true;
 
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (V4L2)";
+        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraTitle) {
         cameraTitle.textContent = "CAMERA PREVIEW (Logitech C930e)";
     }
-    if (cameraOverlay) {
-        cameraOverlay.classList.remove("hidden", "error");
-    }
-    if (cameraIcon) {
-        cameraIcon.textContent = "📷";
-    }
-    if (cameraMessage) {
-        cameraMessage.textContent = "Kamera Logitech C930e Aktif di Backend Linux";
-    }
-    if (retryCameraBtn) {
-        retryCameraBtn.classList.add("hidden");
-    }
 
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        return;
-    }
-
-    // Bersihkan stream lama jika ada sebelum membuka stream baru
-    if (mediaStream) {
-        mediaStream.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) { }
-        });
-        mediaStream = null;
-    }
-
-    try {
-        const preferredDeviceId = await findLogitechOrExternalCameraId();
-        const videoConstraints = {
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        };
-        if (preferredDeviceId) {
-            videoConstraints.deviceId = { exact: preferredDeviceId };
-        } else {
-            videoConstraints.facingMode = "user";
-        }
-
-        let stream;
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
-        } catch (exactErr) {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        }
-
-        mediaStream = stream;
-        webcamVideo.srcObject = stream;
-
-        webcamVideo.onloadedmetadata = () => {
-            webcamVideo.play().catch(err => console.warn("[Presensi] Peringatan live preview:", err));
-            setCameraActive();
-            if (cameraTitle) {
-                cameraTitle.textContent = "CAMERA PREVIEW (Logitech C930e)";
+    // Hubungkan elemen <img> langsung ke endpoint streaming video backend
+    if (streamVideo) {
+        streamVideo.src = getApiUrl("api/camera/stream");
+        streamVideo.onload = () => {
+            if (cameraOverlay) cameraOverlay.classList.add("hidden");
+            if (faceGuide) faceGuide.classList.add("visible");
+            if (cameraStatusBadge) {
+                cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
+                cameraStatusBadge.className = "badge active";
             }
         };
+        streamVideo.onerror = () => {
+            console.log("[Presensi] Sedang menghubungkan live stream Logitech C930e...");
+        };
+    }
 
-        stream.getVideoTracks().forEach(track => {
-            track.onended = () => {
-                handleCameraError({ name: "NotFoundError", message: "Live preview peramban dihentikan" });
-            };
-        });
-
-    } catch (error) {
-        handleCameraError(error);
+    // Tampilkan panduan oval posisi wajah secara default
+    if (faceGuide) {
+        faceGuide.classList.add("visible");
     }
 }
 
@@ -832,6 +845,13 @@ function setMirrorMode(mirrored) {
             webcamVideo.classList.add("mirrored");
         } else {
             webcamVideo.classList.remove("mirrored");
+        }
+    }
+    if (streamVideo) {
+        if (isMirrored) {
+            streamVideo.classList.add("mirrored");
+        } else {
+            streamVideo.classList.remove("mirrored");
         }
     }
     if (mirrorToggleBtn && mirrorStatusText) {

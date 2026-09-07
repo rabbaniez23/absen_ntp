@@ -127,6 +127,10 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json(404, {"success": False, "message": "File foto tidak ditemukan"})
                 return
 
+        if clean_path in ["/api/camera/stream", "/api/stream"]:
+            self.handle_get_camera_stream()
+            return
+
         if clean_path == "/api/employee":
             self.handle_get_employee(parsed_url)
         elif clean_path == "/api/employees":
@@ -170,6 +174,40 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "success": False,
                 "message": f"Endpoint tidak ditemukan: {parsed_url.path}"
             })
+
+    def handle_get_camera_stream(self):
+        """
+        Menyajikan live video stream MJPEG (multipart/x-mixed-replace) dari Logitech C930e.
+        Memungkinkan browser menampilkan preview realtime tanpa popup izin WebRTC.
+        """
+        import camera_v4l2
+        import time
+        streamer = camera_v4l2.CameraStreamer.get_instance()
+        streamer.start()
+
+        self.send_response(200)
+        self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+
+        try:
+            while True:
+                frame = streamer.get_latest_frame()
+                if frame and len(frame) > 100:
+                    self.wfile.write(b"--frame\r\n")
+                    self.wfile.write(b"Content-Type: image/jpeg\r\n")
+                    self.wfile.write(f"Content-Length: {len(frame)}\r\n\r\n".encode("ascii"))
+                    self.wfile.write(frame)
+                    self.wfile.write(b"\r\n")
+                    self.wfile.flush()
+                time.sleep(0.04)  # ~25 FPS
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+        except Exception as e:
+            logger.debug(f"[Stream] Klien disconnect: {e}")
 
     def handle_get_employees(self):
         """Mengambil dan mengembalikan seluruh daftar karyawan dari database."""
@@ -500,6 +538,14 @@ def run_server():
     """Menjalankan HTTP server pada host dan port yang telah ditentukan."""
     # Inisialisasi basis data dan tabel jika belum ada
     db.init_database_tables()
+
+    # Inisialisasi stream kamera hardware Logitech C930e (V4L2)
+    try:
+        import camera_v4l2
+        camera_v4l2.CameraStreamer.get_instance().start()
+        logger.info("[Kamera] Streamer hardware Logitech C930e diaktifkan.")
+    except Exception as cam_err:
+        logger.debug(f"[Kamera] Inisialisasi stream hardware: {cam_err}")
 
     address = (config.HOST, config.PORT)
     socketserver.ThreadingTCPServer.allow_reuse_address = True

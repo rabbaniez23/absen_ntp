@@ -49,10 +49,12 @@
                 </div>
                 
                 <div class="camera-viewport">
-                    <video id="webcamVideo" autoplay playsinline muted></video>
+                    <!-- Siaran Live Stream Kamera Logitech C930e (V4L2) -->
+                    <img id="streamVideo" class="camera-stream" src="api/camera/stream" alt="Live Camera Preview">
+                    <video id="webcamVideo" class="hidden" autoplay playsinline muted></video>
 
                     <!-- Overlay Saat Standby / Terjadi Kendala -->
-                    <div class="camera-overlay" id="cameraOverlay">
+                    <div class="camera-overlay hidden" id="cameraOverlay">
                         <div class="camera-icon" id="cameraIcon">📷</div>
                         <p id="cameraMessage">Menghubungkan kamera...</p>
                         <button id="retryCameraBtn" class="absen-ntp-retry-btn kiosk-retry-btn hidden" type="button">🔄 Hubungkan Ulang Kamera</button>

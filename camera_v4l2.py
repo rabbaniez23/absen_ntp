@@ -10,6 +10,7 @@ import mmap
 import os
 import select
 import struct
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -234,11 +235,140 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
         os.close(fd)
 
 
+class CameraStreamer:
+    """
+    Menyediakan stream MJPEG berkelanjutan dari Logitech C930e (V4L2)
+    sehingga browser dapat menampilkan preview live tanpa WebRTC / izin dialog.
+    """
+    _instance = None
+    _lock = threading.Lock()
+
+    def __init__(self):
+        self.device_path = None
+        self.running = False
+        self.latest_frame: Optional[bytes] = None
+        self.thread: Optional[threading.Thread] = None
+        self.width = 1280
+        self.height = 720
+
+    @classmethod
+    def get_instance(cls):
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = CameraStreamer()
+            return cls._instance
+
+    def start(self):
+        with self._lock:
+            if self.running and self.thread and self.thread.is_alive():
+                return
+            self.device_path = find_logitech_device_path()
+            if not self.device_path or not os.path.exists(self.device_path):
+                return
+            self.running = True
+            self.thread = threading.Thread(target=self._stream_loop, daemon=True)
+            self.thread.start()
+
+    def stop(self):
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=1.0)
+            self.thread = None
+
+    def get_latest_frame(self) -> Optional[bytes]:
+        return self.latest_frame
+
+    def _stream_loop(self):
+        while self.running:
+            fd = None
+            buffers = []
+            try:
+                fd = os.open(self.device_path, os.O_RDWR | os.O_NONBLOCK, 0)
+                fmt = bytearray(SIZEOF_V4L2_FORMAT)
+                struct.pack_into("=I", fmt, 0, V4L2_BUF_TYPE_VIDEO_CAPTURE)
+                struct.pack_into("=IIII", fmt, 8, self.width, self.height, V4L2_PIX_FMT_MJPEG, V4L2_FIELD_NONE)
+                try:
+                    fcntl.ioctl(fd, VIDIOC_S_FMT, fmt)
+                except Exception:
+                    pass
+
+                req = bytearray(SIZEOF_V4L2_REQUESTBUFFERS)
+                struct.pack_into("=III", req, 0, 4, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)
+                fcntl.ioctl(fd, VIDIOC_REQBUFS, req)
+                num_bufs = struct.unpack_from("=I", req, 0)[0]
+                if num_bufs == 0:
+                    time.sleep(1.0)
+                    continue
+
+                for i in range(num_bufs):
+                    buf = bytearray(SIZEOF_V4L2_BUFFER)
+                    struct.pack_into("=II", buf, 0, i, V4L2_BUF_TYPE_VIDEO_CAPTURE)
+                    fcntl.ioctl(fd, VIDIOC_QUERYBUF, buf)
+                    length = struct.unpack_from("=I", buf, 68)[0]
+                    offset = struct.unpack_from("=I", buf, 64)[0]
+                    mm = mmap.mmap(fd, length, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE, offset=offset)
+                    buffers.append((mm, length))
+                    fcntl.ioctl(fd, VIDIOC_QBUF, buf)
+
+                buf_type = struct.pack("=I", V4L2_BUF_TYPE_VIDEO_CAPTURE)
+                fcntl.ioctl(fd, VIDIOC_STREAMON, buf_type)
+
+                while self.running:
+                    r, _, _ = select.select([fd], [], [], 0.5)
+                    if not r:
+                        continue
+                    buf = bytearray(SIZEOF_V4L2_BUFFER)
+                    struct.pack_into("=I", buf, 4, V4L2_BUF_TYPE_VIDEO_CAPTURE)
+                    struct.pack_into("=I", buf, 60, V4L2_MEMORY_MMAP)
+                    fcntl.ioctl(fd, VIDIOC_DQBUF, buf)
+                    idx = struct.unpack_from("=I", buf, 0)[0]
+                    bytes_used = struct.unpack_from("=I", buf, 8)[0]
+
+                    mm, _ = buffers[idx]
+                    frame_data = bytes(mm[:bytes_used])
+                    if len(frame_data) > 100 and frame_data[:2] == b"\xff\xd8":
+                        self.latest_frame = frame_data
+
+                    fcntl.ioctl(fd, VIDIOC_QBUF, buf)
+                    time.sleep(0.035)  # ~25-30 fps
+
+                try:
+                    fcntl.ioctl(fd, VIDIOC_STREAMOFF, buf_type)
+                except Exception:
+                    pass
+
+            except Exception:
+                time.sleep(1.0)
+            finally:
+                for mm, _ in buffers:
+                    try:
+                        mm.close()
+                    except Exception:
+                        pass
+                if fd is not None:
+                    try:
+                        os.close(fd)
+                    except Exception:
+                        pass
+
+
 def capture_image_from_device(output_file: Optional[Path] = None, width: int = 1280, height: int = 720) -> Optional[bytes]:
     """
     Mengambil foto dari kamera Logitech C930e.
-    Mendukung fswebcam jika tersedia, atau otomatis fallback ke driver internal V4L2.
+    Jika CameraStreamer aktif, mengambil frame realtime yang sedang mengalir (instan 0ms).
+    Jika belum, menjalankan capture V4L2 secara langsung.
     """
+    streamer = CameraStreamer.get_instance()
+    frame = streamer.get_latest_frame()
+    if frame and len(frame) > 100:
+        if output_file:
+            try:
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+                output_file.write_bytes(frame)
+            except Exception:
+                pass
+        return frame
+
     dev_path = find_logitech_device_path()
     
     # Cara 1: Coba gunakan fswebcam jika tersedia di sistem
