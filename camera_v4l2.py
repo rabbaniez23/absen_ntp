@@ -27,12 +27,17 @@ def _IOW(type_char, nr, size):
 def _IOWR(type_char, nr, size):
     return _IOC(3, type_char, nr, size)
 
+def v4l2_fourcc(a, b, c, d):
+    return ord(a) | (ord(b) << 8) | (ord(c) << 16) | (ord(d) << 24)
+
 # Konstanta V4L2
 V4L2_BUF_TYPE_VIDEO_CAPTURE = 1
 V4L2_MEMORY_MMAP = 1
-V4L2_PIX_FMT_MJPEG = 0x4745504A  # b'MJPG'
-V4L2_PIX_FMT_YUYV = 0x56595559   # b'YUYV'
+V4L2_PIX_FMT_MJPEG = v4l2_fourcc('M', 'J', 'P', 'G')  # Logitech C930e Hardware JPEG
+V4L2_PIX_FMT_JPEG  = v4l2_fourcc('J', 'P', 'E', 'G')
+V4L2_PIX_FMT_YUYV  = v4l2_fourcc('Y', 'U', 'Y', 'V')
 V4L2_FIELD_NONE = 1
+V4L2_FIELD_ANY = 0
 
 # Ukuran struct pada Linux x86_64
 SIZEOF_V4L2_FORMAT = 208
@@ -70,33 +75,80 @@ def find_logitech_device_path() -> str:
     return "/dev/video0"
 
 
+def yuyv_to_bmp(yuyv_bytes: bytes, width: int = 1280, height: int = 720) -> bytes:
+    """Mengonversi citra mentah YUYV 4:2:2 ke format BMP 24-bit murni tanpa dependensi eksternal."""
+    row_stride = ((width * 3 + 3) // 4) * 4
+    image_size = row_stride * height
+    file_size = 54 + image_size
+
+    header = bytearray(54)
+    header[0:2] = b'BM'
+    struct.pack_into("<I", header, 2, file_size)
+    struct.pack_into("<I", header, 10, 54)
+    struct.pack_into("<I", header, 14, 40)
+    struct.pack_into("<i", header, 18, width)
+    struct.pack_into("<i", header, 22, -height)  # top-down
+    struct.pack_into("<H", header, 26, 1)
+    struct.pack_into("<H", header, 28, 24)
+    struct.pack_into("<I", header, 34, image_size)
+
+    total_pixels = width * height
+    out_bgr = bytearray(total_pixels * 3)
+    mv = memoryview(yuyv_bytes)
+
+    out_idx = 0
+    in_idx = 0
+    max_in = min(len(mv), width * height * 2) - 3
+
+    while in_idx < max_in:
+        y0 = mv[in_idx]
+        u = mv[in_idx + 1] - 128
+        y1 = mv[in_idx + 2]
+        v = mv[in_idx + 3] - 128
+        in_idx += 4
+
+        r_diff = int(1.402 * v)
+        g_diff = int(-0.344136 * u - 0.714136 * v)
+        b_diff = int(1.772 * u)
+
+        out_bgr[out_idx]     = max(0, min(255, y0 + b_diff))
+        out_bgr[out_idx + 1] = max(0, min(255, y0 + g_diff))
+        out_bgr[out_idx + 2] = max(0, min(255, y0 + r_diff))
+
+        out_bgr[out_idx + 3] = max(0, min(255, y1 + b_diff))
+        out_bgr[out_idx + 4] = max(0, min(255, y1 + g_diff))
+        out_bgr[out_idx + 5] = max(0, min(255, y1 + r_diff))
+
+        out_idx += 6
+
+    return bytes(header) + bytes(out_bgr)
+
+
 def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, height: int = 720) -> Optional[bytes]:
     """
-    Mengambil satu frame citra (JPEG bytes) langsung dari kamera V4L2.
+    Mengambil satu frame citra (JPEG atau BMP bytes) langsung dari kamera V4L2.
     """
     path = device_path or find_logitech_device_path()
     if not os.path.exists(path):
         return None
 
     try:
-        # Buka perangkat V4L2 dalam mode baca/tulis non-blocking
         fd = os.open(path, os.O_RDWR | os.O_NONBLOCK, 0)
     except Exception as e:
         print(f"[V4L2 Debug] Gagal membuka {path}: {e}")
         return None
 
     try:
-        # 1. Atur Format Citra ke MJPEG (Motion JPEG)
+        # 1. Coba atur format ke MJPEG
         fmt = bytearray(SIZEOF_V4L2_FORMAT)
         struct.pack_into("=I", fmt, 0, V4L2_BUF_TYPE_VIDEO_CAPTURE)
-        # pix_format: width(I), height(I), pixelformat(I), field(I)
         struct.pack_into("=IIII", fmt, 8, width, height, V4L2_PIX_FMT_MJPEG, V4L2_FIELD_NONE)
         try:
             fcntl.ioctl(fd, VIDIOC_S_FMT, fmt)
         except Exception as e:
             print(f"[V4L2 Debug] VIDIOC_S_FMT: {e}")
 
-        # 2. Minta buffer memori (request buffers)
+        # 2. Minta buffer memori
         req = bytearray(SIZEOF_V4L2_REQUESTBUFFERS)
         struct.pack_into("=III", req, 0, 4, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)
         try:
@@ -107,10 +159,9 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
 
         num_bufs = struct.unpack_from("=I", req, 0)[0]
         if num_bufs == 0:
-            print("[V4L2 Debug] num_bufs is 0")
             return None
 
-        # 3. Query buffer dan petakan memori (mmap)
+        # 3. Query buffer dan petakan memori
         buffers = []
         for i in range(num_bufs):
             buf = bytearray(SIZEOF_V4L2_BUFFER)
@@ -118,19 +169,14 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
             struct.pack_into("=I", buf, 60, V4L2_MEMORY_MMAP)
             fcntl.ioctl(fd, VIDIOC_QUERYBUF, buf)
 
-            # Pada kernel Linux 64-bit (x86_64):
-            # union m.offset berada di byte 64
-            # length berada di byte 72
             buf_offset = struct.unpack_from("=I", buf, 64)[0]
             buf_length = struct.unpack_from("=I", buf, 72)[0]
-            print(f"[V4L2 Debug] Buffer {i}: length={buf_length}, offset={buf_offset}")
 
             mm = mmap.mmap(fd, buf_length, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE, offset=buf_offset)
             buffers.append((mm, buf_length))
-            # Antrikan buffer (QBUF)
             fcntl.ioctl(fd, VIDIOC_QBUF, buf)
 
-        # 4. Aktifkan aliran video (STREAMON)
+        # 4. STREAMON
         buf_type = struct.pack("=I", V4L2_BUF_TYPE_VIDEO_CAPTURE)
         try:
             fcntl.ioctl(fd, VIDIOC_STREAMON, buf_type)
@@ -139,11 +185,11 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
             return None
 
         jpeg_data = None
-        # Buang beberapa frame awal agar auto-exposure & white balance kamera stabil
+        last_raw_frame = None
+
         for frame_idx in range(5):
             r, _, _ = select.select([fd], [], [], 2.0)
             if not r:
-                print(f"[V4L2 Debug] Frame {frame_idx} select timeout")
                 break
             buf = bytearray(SIZEOF_V4L2_BUFFER)
             struct.pack_into("=II", buf, 0, 0, V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -151,34 +197,38 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
             fcntl.ioctl(fd, VIDIOC_DQBUF, buf)
             idx = struct.unpack_from("=I", buf, 0)[0]
             bytes_used = struct.unpack_from("=I", buf, 8)[0]
-            print(f"[V4L2 Debug] Frame {frame_idx}: idx={idx}, bytes_used={bytes_used}")
 
             mm, _ = buffers[idx]
-            frame_bytes = mm[:bytes_used]
+            frame_bytes = bytes(mm[:bytes_used])
+            last_raw_frame = frame_bytes
+
             if len(frame_bytes) > 100 and frame_bytes[:2] == b"\xff\xd8":
-                jpeg_data = bytes(frame_bytes)
+                jpeg_data = frame_bytes
 
             fcntl.ioctl(fd, VIDIOC_QBUF, buf)
 
-        # 5. Hentikan aliran video (STREAMOFF)
+        # 5. STREAMOFF
         try:
             fcntl.ioctl(fd, VIDIOC_STREAMOFF, buf_type)
         except Exception:
             pass
 
-        # Bersihkan mmap
         for mm, _ in buffers:
             mm.close()
 
-        if not jpeg_data:
-            print("[V4L2 Debug] Tidak ada JPEG SOI header b'\\xff\\xd8' yang ditemukan pada buffer")
+        if jpeg_data:
+            print("[V4L2] Berhasil mendapatkan frame JPEG langsung dari Logitech C930e")
+            return jpeg_data
 
-        return jpeg_data
+        if last_raw_frame and len(last_raw_frame) >= width * height * 2:
+            print("[V4L2] Mengonversi citra mentah YUYV Logitech C930e ke format BMP...")
+            bmp_data = yuyv_to_bmp(last_raw_frame, width, height)
+            return bmp_data
+
+        return None
 
     except Exception as e:
-        print(f"[V4L2 Debug] Error tak terduga: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"[V4L2 Debug] Error: {e}")
         return None
     finally:
         os.close(fd)
