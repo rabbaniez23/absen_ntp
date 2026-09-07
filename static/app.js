@@ -133,7 +133,7 @@ function setApplicationState(newState, customMessage = "") {
 
     switch (newState) {
         case AppState.IDLE:
-            statusText.textContent = "TEMPELKAN KARTU RFID DI READER";
+            statusText.textContent = "TEMPEL KARTU RFID ATAU MASUKKAN NIK";
             if (rfidInput) {
                 rfidInput.disabled = false;
                 focusInputField();
@@ -597,19 +597,31 @@ let rfidBufferTimer = null;
  * Mendukung QinHeng Electronics RFID Reader (Bus 005 Device 002: ID 1a86:dd01).
  */
 function initializeInputHandler() {
-    // 1. Tangani input langsung pada elemen rfidInput
+    // 1. Tangani tombol ABSEN manual jika diklik
+    const submitNikBtn = document.getElementById("submitNikBtn");
+    if (submitNikBtn) {
+        submitNikBtn.addEventListener("click", () => {
+            const cleanVal = rfidInput ? rfidInput.value.trim() : "";
+            rfidBuffer = "";
+            if (rfidInput) rfidInput.value = "";
+            if (cleanVal) handleEmployeeInput(cleanVal);
+        });
+    }
+
+    // 2. Tangani input langsung pada elemen rfidInput saat tekan Enter
     if (rfidInput) {
         rfidInput.addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
                 event.preventDefault();
                 const cleanVal = rfidInput.value.trim();
                 rfidInput.value = "";
+                rfidBuffer = "";
                 if (cleanVal) handleEmployeeInput(cleanVal);
             }
         });
     }
 
-    // 2. Global Keydown listener untuk menangkap input QinHeng Electronics RFID Reader
+    // 3. Global Keydown listener untuk menangkap input QinHeng Electronics RFID Reader
     // di mana pun posisi kursor / fokus mouse berada
     document.addEventListener("keydown", (event) => {
         // Jika fokus sedang di input teks lain (misal modal atau form admin), abaikan
@@ -618,7 +630,8 @@ function initializeInputHandler() {
         }
 
         if (event.key === "Enter") {
-            const rawVal = rfidBuffer.trim() || (rfidInput ? rfidInput.value.trim() : "");
+            const inputVal = rfidInput ? rfidInput.value.trim() : "";
+            const rawVal = inputVal || rfidBuffer.trim();
             rfidBuffer = "";
             if (rfidInput) rfidInput.value = "";
             if (rawVal) {
