@@ -115,9 +115,16 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
         for i in range(num_bufs):
             buf = bytearray(SIZEOF_V4L2_BUFFER)
             struct.pack_into("=II", buf, 0, i, V4L2_BUF_TYPE_VIDEO_CAPTURE)
+            struct.pack_into("=I", buf, 60, V4L2_MEMORY_MMAP)
             fcntl.ioctl(fd, VIDIOC_QUERYBUF, buf)
-            buf_length = struct.unpack_from("=I", buf, 24)[0]
-            buf_offset = struct.unpack_from("=I", buf, 28)[0]
+
+            # Pada kernel Linux 64-bit (x86_64):
+            # union m.offset berada di byte 64
+            # length berada di byte 72
+            buf_offset = struct.unpack_from("=I", buf, 64)[0]
+            buf_length = struct.unpack_from("=I", buf, 72)[0]
+            print(f"[V4L2 Debug] Buffer {i}: length={buf_length}, offset={buf_offset}")
+
             mm = mmap.mmap(fd, buf_length, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE, offset=buf_offset)
             buffers.append((mm, buf_length))
             # Antrikan buffer (QBUF)
@@ -140,9 +147,11 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
                 break
             buf = bytearray(SIZEOF_V4L2_BUFFER)
             struct.pack_into("=II", buf, 0, 0, V4L2_BUF_TYPE_VIDEO_CAPTURE)
+            struct.pack_into("=I", buf, 60, V4L2_MEMORY_MMAP)
             fcntl.ioctl(fd, VIDIOC_DQBUF, buf)
             idx = struct.unpack_from("=I", buf, 0)[0]
-            bytes_used = struct.unpack_from("=I", buf, 16)[0]
+            bytes_used = struct.unpack_from("=I", buf, 8)[0]
+            print(f"[V4L2 Debug] Frame {frame_idx}: idx={idx}, bytes_used={bytes_used}")
 
             mm, _ = buffers[idx]
             frame_bytes = mm[:bytes_used]
