@@ -61,11 +61,19 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         logger.info(f"HTTP {self.address_string()} - {format % args}")
 
     def end_headers(self):
-        """Menambahkan header no-cache pada semua respons agar data di browser selalu mutakhir."""
+        """Menambahkan header no-cache dan CORS pada semua respons."""
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
         super().end_headers()
+
+    def do_OPTIONS(self):
+        """Menangani permintaan preflight CORS."""
+        self.send_response(204)
+        self.end_headers()
 
     def send_json(self, status_code: int, data: dict):
         """Mengirim respons JSON dengan header HTTP yang sesuai."""

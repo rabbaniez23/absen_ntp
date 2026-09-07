@@ -246,15 +246,24 @@ function focusInputField() {
     }
 }
 
+function getApiUrl(endpoint) {
+    const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
+    if (window.location.port !== "8000") {
+        return `http://${window.location.hostname}:8000/${cleanEndpoint}`;
+    }
+    return cleanEndpoint;
+}
+
 /**
  * Fungsi pembantu fetch dengan batas waktu timeout menggunakan AbortController.
  */
 async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    const targetUrl = getApiUrl(url);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(targetUrl, {
             ...options,
             signal: controller.signal
         });
@@ -559,7 +568,7 @@ async function initializeCamera(retryCount = 0) {
     // Bersihkan stream lama jika ada sebelum membuka stream baru
     if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) {}
+            try { track.stop(); } catch (e) { }
         });
         mediaStream = null;
     }
@@ -747,7 +756,7 @@ function setMirrorMode(mirrored) {
     }
     try {
         localStorage.setItem("absen_ntp_camera_mirrored", isMirrored ? "1" : "0");
-    } catch (e) {}
+    } catch (e) { }
 }
 
 /**
@@ -760,7 +769,7 @@ function initializeMirrorHandler() {
     try {
         const val = localStorage.getItem("absen_ntp_camera_mirrored") ?? localStorage.getItem("kiosk_camera_mirrored");
         saved = val === "1";
-    } catch (e) {}
+    } catch (e) { }
     setMirrorMode(saved);
 
     mirrorToggleBtn.addEventListener("click", () => {
@@ -785,7 +794,7 @@ function initializeCameraRetryHandler() {
 window.addEventListener("beforeunload", () => {
     if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) {}
+            try { track.stop(); } catch (e) { }
         });
     }
 });
@@ -793,7 +802,7 @@ window.addEventListener("beforeunload", () => {
 window.addEventListener("pagehide", () => {
     if (mediaStream) {
         mediaStream.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) {}
+            try { track.stop(); } catch (e) { }
         });
     }
 });
