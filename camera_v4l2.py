@@ -332,7 +332,7 @@ class CameraStreamer:
                         self.latest_frame = frame_data
 
                     fcntl.ioctl(fd, VIDIOC_QBUF, buf)
-                    time.sleep(0.035)  # ~25-30 fps
+                    time.sleep(0.06)  # ~15-16 fps (sangat ringan di CPU low-spec)
 
                 try:
                     fcntl.ioctl(fd, VIDIOC_STREAMOFF, buf_type)

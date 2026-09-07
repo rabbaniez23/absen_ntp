@@ -227,7 +227,7 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
                     self.wfile.write(frame)
                     self.wfile.write(b"\r\n")
                     self.wfile.flush()
-                time.sleep(0.04)  # ~25 FPS
+                time.sleep(0.065)  # ~15 FPS (ringan dan hemat memori/CPU)
         except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
             pass
         except Exception as e:
