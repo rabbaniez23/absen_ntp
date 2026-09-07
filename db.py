@@ -11,19 +11,26 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-import pymysql
-import pymysql.cursors
+try:
+    import pymysql
+    import pymysql.cursors
+    HAVE_PYMYSQL = True
+except ImportError:
+    pymysql = None
+    HAVE_PYMYSQL = False
 
 import config
 
 logger = logging.getLogger("AttendanceServer")
 
 
-def get_db_connection() -> Optional[pymysql.Connection]:
+def get_db_connection() -> Optional[Any]:
     """
     Membuka dan mengembalikan koneksi aktif ke basis data MariaDB.
-    Mengembalikan None jika server database offline atau koneksi gagal.
+    Mengembalikan None jika pymysql belum terpasang atau database offline.
     """
+    if not HAVE_PYMYSQL or pymysql is None:
+        return None
     try:
         connection = pymysql.connect(
             host=config.DB_HOST,
@@ -47,6 +54,10 @@ def init_database_tables() -> bool:
     Menginisialisasi basis data dan tabel langsung melalui SQL tanpa CLI eksternal.
     Membuat database attendance_db, tabel employees, dan attendance jika belum ada.
     """
+    if not HAVE_PYMYSQL or pymysql is None:
+        logger.info("[Database] Driver pymysql belum terpasang di sistem. Menggunakan penyimpanan data JSON.")
+        return False
+
     try:
         # Langkah 1: Hubungkan ke server MariaDB untuk memastikan database sudah dibuat
         server_conn = pymysql.connect(
