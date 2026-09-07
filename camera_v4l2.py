@@ -81,7 +81,8 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
     try:
         # Buka perangkat V4L2 dalam mode baca/tulis non-blocking
         fd = os.open(path, os.O_RDWR | os.O_NONBLOCK, 0)
-    except Exception:
+    except Exception as e:
+        print(f"[V4L2 Debug] Gagal membuka {path}: {e}")
         return None
 
     try:
@@ -92,15 +93,21 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
         struct.pack_into("=IIII", fmt, 8, width, height, V4L2_PIX_FMT_MJPEG, V4L2_FIELD_NONE)
         try:
             fcntl.ioctl(fd, VIDIOC_S_FMT, fmt)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[V4L2 Debug] VIDIOC_S_FMT: {e}")
 
         # 2. Minta buffer memori (request buffers)
         req = bytearray(SIZEOF_V4L2_REQUESTBUFFERS)
         struct.pack_into("=III", req, 0, 4, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_MEMORY_MMAP)
-        fcntl.ioctl(fd, VIDIOC_REQBUFS, req)
+        try:
+            fcntl.ioctl(fd, VIDIOC_REQBUFS, req)
+        except Exception as e:
+            print(f"[V4L2 Debug] VIDIOC_REQBUFS error: {e}")
+            return None
+
         num_bufs = struct.unpack_from("=I", req, 0)[0]
         if num_bufs == 0:
+            print("[V4L2 Debug] num_bufs is 0")
             return None
 
         # 3. Query buffer dan petakan memori (mmap)
@@ -118,13 +125,18 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
 
         # 4. Aktifkan aliran video (STREAMON)
         buf_type = struct.pack("=I", V4L2_BUF_TYPE_VIDEO_CAPTURE)
-        fcntl.ioctl(fd, VIDIOC_STREAMON, buf_type)
+        try:
+            fcntl.ioctl(fd, VIDIOC_STREAMON, buf_type)
+        except Exception as e:
+            print(f"[V4L2 Debug] VIDIOC_STREAMON error: {e}")
+            return None
 
         jpeg_data = None
         # Buang beberapa frame awal agar auto-exposure & white balance kamera stabil
         for frame_idx in range(5):
             r, _, _ = select.select([fd], [], [], 2.0)
             if not r:
+                print(f"[V4L2 Debug] Frame {frame_idx} select timeout")
                 break
             buf = bytearray(SIZEOF_V4L2_BUFFER)
             struct.pack_into("=II", buf, 0, 0, V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -149,9 +161,15 @@ def capture_v4l2_frame(device_path: Optional[str] = None, width: int = 1280, hei
         for mm, _ in buffers:
             mm.close()
 
+        if not jpeg_data:
+            print("[V4L2 Debug] Tidak ada JPEG SOI header b'\\xff\\xd8' yang ditemukan pada buffer")
+
         return jpeg_data
 
-    except Exception:
+    except Exception as e:
+        print(f"[V4L2 Debug] Error tak terduga: {e}")
+        import traceback
+        traceback.print_exc()
         return None
     finally:
         os.close(fd)
