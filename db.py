@@ -151,24 +151,42 @@ def init_database_tables() -> bool:
 def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
     """
     Mencari data karyawan berdasarkan nomor UID RFID, NIK, atau Employee ID.
-    Menggunakan MariaDB dengan fallback otomatis ke file JSON lokal jika database offline.
+    Mendukung variasi awalan reader (seperti dreizehn/13) dan fallback ke employees.json.
     """
-    clean_id = identifier.strip()
+    clean_id = (identifier or "").strip()
     if not clean_id:
         return None
 
-    # 1. Coba pencarian di MariaDB menggunakan parameterized query
+    # Bentuk daftar variasi kemungkinan ID yang dikirim oleh RFID reader
+    candidate_ids = [clean_id]
+    lower_id = clean_id.lower()
+    if "dreizehn" in lower_id:
+        c1 = lower_id.replace("dreizehn", "13")
+        c2 = lower_id.replace("dreizehn", "")
+        c3 = c2.lstrip("0")
+        for c in [c1, c2, c3]:
+            if c and c not in candidate_ids:
+                candidate_ids.append(c)
+    elif clean_id.startswith("13"):
+        c_dz = "dreizehn" + clean_id[2:]
+        if c_dz not in candidate_ids:
+            candidate_ids.append(c_dz)
+
+    # 1. Coba pencarian di MariaDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                sql = """
+                placeholders = ", ".join(["%s"] * len(candidate_ids))
+                sql = f"""
                     SELECT employee_id, nik, name, rfid_uid, is_active
                     FROM employees
-                    WHERE (rfid_uid = %s OR employee_id = %s OR nik = %s) AND is_active = 1
+                    WHERE (rfid_uid IN ({placeholders}) OR employee_id IN ({placeholders}) OR nik IN ({placeholders}))
+                      AND is_active = 1
                     LIMIT 1
                 """
-                cursor.execute(sql, (clean_id, clean_id, clean_id))
+                params = tuple(candidate_ids * 3)
+                cursor.execute(sql, params)
                 row = cursor.fetchone()
                 if row:
                     nik_val = row.get("nik") or row["employee_id"]
@@ -181,40 +199,39 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
                         "source": "mariadb"
                     }
                 else:
-                    logger.info(f"[Database] Karyawan tidak ditemukan di MariaDB: {clean_id}")
-                    return None
+                    logger.info(f"[Database] Karyawan tidak ditemukan di MariaDB untuk kandidat {candidate_ids}. Mencoba fallback...")
         except Exception as err:
             logger.warning(f"[Database] Terjadi kendala query di MariaDB: {err}. Beralih ke JSON...")
         finally:
             conn.close()
 
     # 2. Fallback: cari di berkas lokal data/employees.json
-    logger.info(f"[Fallback] Mencari data di employees.json untuk ID: {clean_id}")
+    logger.info(f"[Fallback] Mencari data di employees.json untuk kandidat: {candidate_ids}")
     if config.EMPLOYEES_FILE.exists():
         try:
             with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                if clean_id in data:
-                    emp = data[clean_id]
-                    rfid = clean_id if clean_id != emp.get("employee_id") else None
-                    emp_id = emp.get("employee_id", clean_id)
+
+            for cand in candidate_ids:
+                if cand in data:
+                    emp = data[cand]
+                    emp_id = emp.get("employee_id", cand)
                     return {
                         "employee_id": emp_id,
                         "nik": emp.get("nik") or emp_id,
                         "name": emp.get("name", "Unknown"),
-                        "rfid_uid": rfid or emp.get("rfid_uid", clean_id),
+                        "rfid_uid": cand if cand != emp_id else emp.get("rfid_uid", cand),
                         "source": "json_fallback"
                     }
                 for key, emp in data.items():
                     emp_id = emp.get("employee_id")
                     emp_nik = emp.get("nik")
-                    if emp_id == clean_id or emp_nik == clean_id:
-                        rfid = key if key != emp_id else None
+                    if emp_id == cand or emp_nik == cand or key == cand:
                         return {
-                            "employee_id": emp_id,
-                            "nik": emp_nik or emp_id,
+                            "employee_id": emp_id or cand,
+                            "nik": emp_nik or emp_id or cand,
                             "name": emp.get("name", "Unknown"),
-                            "rfid_uid": rfid or emp.get("rfid_uid", key),
+                            "rfid_uid": key if key != emp_id else emp.get("rfid_uid", key),
                             "source": "json_fallback"
                         }
         except Exception as e:
