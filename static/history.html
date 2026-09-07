@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riwayat & Galeri Foto Absensi - absen_ntp</title>
-    <link rel="stylesheet" href="style.css?v=4">
+    <title>Riwayat Absen - Absen NTP</title>
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 
 <body>
@@ -15,22 +15,25 @@
             <div class="logo-area">
                 <span class="status-dot"></span>
                 <div>
-                    <h1>RIWAYAT & GALERI FOTO ABSENSI</h1>
-                    <span class="subtitle">LOG MONITORING BIOMETRIK KAMERA LOGITECH C930e (absen_ntp)</span>
+                    <h1>RIWAYAT ABSENSI</h1>
+                    <span class="subtitle">LOG MONITORING KEHADIRAN (absen_ntp)</span>
                 </div>
             </div>
 
             <div class="header-right">
                 <nav class="nav-tabs">
-                    <a href="index.html" class="nav-btn" title="Mesin Absensi Kiosk">
-                        <span>📷</span> KIOSK
+                    <a href="index.html" class="nav-btn" title="Mesin Absensi Absen NTP">
+                        <span>📷</span> ABSEN NTP
                     </a>
                     <a href="employees.html" class="nav-btn" title="Kelola Master Karyawan">
                         <span>👥</span> KARYAWAN
                     </a>
-                    <a href="history.html" class="nav-btn active" title="Lihat Riwayat & Foto Absensi">
-                        <span>🖼️</span> RIWAYAT FOTO
+                    <a href="history.html" class="nav-btn active" title="Lihat Riwayat Absen">
+                        <span>📋</span> RIWAYAT ABSEN
                     </a>
+                    <button id="fullscreenBtn" class="nav-btn fullscreen-toggle-btn" type="button" title="Mode Layar Penuh">
+                        <span class="fs-icon">⛶</span> FULLSCREEN
+                    </button>
                 </nav>
             </div>
         </header>
@@ -50,8 +53,8 @@
                 <span class="stat-value" id="statUniqueEmployees">0</span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">Hardware Kamera</span>
-                <span class="stat-value" style="color: #58a6ff; font-size: 1.1rem;">Logitech C930e</span>
+                <span class="stat-label">Status Absensi</span>
+                <span class="stat-value success" style="font-size: 1.15rem;">ONLINE</span>
             </div>
         </div>
 
@@ -60,11 +63,11 @@
             <section class="card" style="display: flex; flex-direction: column; flex-grow: 1; min-height: 0; padding-bottom: 0;">
                 <div class="card-header">
                     <div class="section-title">
-                        <span class="title-icon">🖼️</span>
-                        <h2>FOTO & LOG ABSENSI KARYAWAN</h2>
+                        <span class="title-icon">📋</span>
+                        <h2>LOG & FOTO ABSENSI KARYAWAN</h2>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span class="badge active" id="recordCountBadge">0 Foto Tersimpan</span>
+                        <span class="badge active" id="recordCountBadge">0 Log Absen</span>
                     </div>
                 </div>
 
@@ -124,7 +127,7 @@
 
         <!-- Footer -->
         <footer class="app-footer">
-            <span>&bull; Foto wajah diambil otomatis oleh Logitech C930e dan tersimpan di server Linux &bull;</span>
+            <span>&bull; Foto wajah diambil otomatis saat tap kartu RFID dan tersimpan di server Linux &bull;</span>
         </footer>
     </div>
 
@@ -255,8 +258,8 @@
                 galleryView.innerHTML = `
                     <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 50px 20px;">
                         <span style="font-size: 3rem; display: block; margin-bottom: 12px;">📷</span>
-                        <h3 style="color: var(--text-secondary); margin-bottom: 6px;">Tidak Ada Foto Absensi</h3>
-                        <p style="font-size: 0.9rem;">Belum ada catatan foto untuk filter yang dipilih.</p>
+                        <h3 style="color: var(--text-secondary); margin-bottom: 6px;">Tidak Ada Log Absensi</h3>
+                        <p style="font-size: 0.9rem;">Belum ada catatan absensi untuk filter yang dipilih.</p>
                     </div>
                 `;
                 return;
@@ -266,22 +269,63 @@
                 const card = document.createElement("div");
                 card.className = "gallery-card";
 
-                const photoSrc = item.image_path ? getApiUrl(item.image_path) : "static/placeholder.jpg";
+                const photoSrc = item.image_path ? getApiUrl(item.image_path) : "";
                 const nikDisplay = item.nik || item.employee_id;
+                const empName = item.name || "Karyawan";
+                const capTime = item.captured_at || "-";
+                const imgPath = item.image_path || "";
 
-                card.innerHTML = `
-                    <div class="gallery-thumb-wrap" onclick="openPhotoModal('${escapeHtml(photoSrc)}', '${escapeHtml(item.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(item.captured_at)}', '${escapeHtml(item.image_path)}')">
-                        <img src="${escapeHtml(photoSrc)}" alt="Foto ${escapeHtml(item.name)}" loading="lazy" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'150\\' viewBox=\\'0 0 200 150\\'><rect fill=\\'%23161b22\\' width=\\'200\\' height=\\'150\\'/><text fill=\\'%238b949e\\' x=\\'50%\\' y=\\'50%\\' text-anchor=\\'middle\\'>Kamera V4L2</text></svg>'">
-                        <div class="gallery-thumb-overlay">🔍</div>
-                    </div>
-                    <div class="gallery-card-body">
-                        <div class="gallery-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
-                        <div class="gallery-nik">NIK: ${escapeHtml(nikDisplay)}</div>
-                        <div class="gallery-time">
-                            <span>🕒</span> ${escapeHtml(item.captured_at)}
-                        </div>
-                    </div>
-                `;
+                // Thumbnail Container
+                const thumbWrap = document.createElement("div");
+                thumbWrap.className = "gallery-thumb-wrap";
+                thumbWrap.title = `Klik untuk memperbesar foto ${empName}`;
+
+                const img = document.createElement("img");
+                img.src = photoSrc;
+                img.alt = `Foto ${empName}`;
+                img.style.width = "100%";
+                img.style.height = "165px";
+                img.style.objectFit = "cover";
+                img.style.display = "block";
+                img.onerror = function() {
+                    this.onerror = null;
+                    this.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'%3E%3Crect fill='%23161b22' width='200' height='150'/%3E%3Ctext fill='%238b949e' x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='14'%3EFoto Absen%3C/text%3E%3C/svg%3E";
+                };
+
+                const overlay = document.createElement("div");
+                overlay.className = "gallery-thumb-overlay";
+                overlay.textContent = "🔍";
+
+                thumbWrap.appendChild(img);
+                thumbWrap.appendChild(overlay);
+
+                thumbWrap.addEventListener("click", () => {
+                    openPhotoModal(photoSrc, empName, nikDisplay, capTime, imgPath);
+                });
+
+                // Card Body
+                const cardBody = document.createElement("div");
+                cardBody.className = "gallery-card-body";
+
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "gallery-name";
+                nameDiv.title = empName;
+                nameDiv.textContent = empName;
+
+                const nikDiv = document.createElement("div");
+                nikDiv.className = "gallery-nik";
+                nikDiv.textContent = `NIK: ${nikDisplay}`;
+
+                const timeDiv = document.createElement("div");
+                timeDiv.className = "gallery-time";
+                timeDiv.innerHTML = `<span>🕒</span> ${escapeHtml(capTime)}`;
+
+                cardBody.appendChild(nameDiv);
+                cardBody.appendChild(nikDiv);
+                cardBody.appendChild(timeDiv);
+
+                card.appendChild(thumbWrap);
+                card.appendChild(cardBody);
                 galleryView.appendChild(card);
             });
         }
@@ -298,24 +342,41 @@
                 const tr = document.createElement("tr");
                 const photoSrc = item.image_path ? getApiUrl(item.image_path) : "";
                 const nikDisplay = item.nik || item.employee_id;
+                const empName = item.name || "Karyawan";
+                const capTime = item.captured_at || "-";
+                const imgPath = item.image_path || "";
 
                 tr.innerHTML = `
                     <td>${index + 1}</td>
                     <td>
                         <img src="${escapeHtml(photoSrc)}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid var(--card-border);"
-                             onclick="openPhotoModal('${escapeHtml(photoSrc)}', '${escapeHtml(item.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(item.captured_at)}', '${escapeHtml(item.image_path)}')">
+                             alt="Foto ${escapeHtml(empName)}" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'48\\' height=\\'48\\' viewBox=\\'0 0 48 48\\'%3E%3Crect fill=\\'%23161b22\\' width=\\'48\\' height=\\'48\\'/%3E%3C/svg%3E';">
                     </td>
                     <td><strong style="color: var(--accent);">${escapeHtml(nikDisplay)}</strong></td>
-                    <td><strong>${escapeHtml(item.name)}</strong></td>
-                    <td>${escapeHtml(item.captured_at)}</td>
+                    <td><strong>${escapeHtml(empName)}</strong></td>
+                    <td>${escapeHtml(capTime)}</td>
                     <td><span class="badge-active">HADIR</span></td>
                     <td style="text-align: center;">
-                        <button class="absen-ntp-toggle-btn" style="padding: 4px 10px; font-size: 0.78rem;"
-                                onclick="openPhotoModal('${escapeHtml(photoSrc)}', '${escapeHtml(item.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(item.captured_at)}', '${escapeHtml(item.image_path)}')">
+                        <button class="absen-ntp-toggle-btn" style="padding: 4px 10px; font-size: 0.78rem;" type="button">
                             🔍 Foto
                         </button>
                     </td>
                 `;
+
+                // Add click listeners to thumbnail and action button
+                const thumbImg = tr.querySelector("img");
+                if (thumbImg) {
+                    thumbImg.addEventListener("click", () => {
+                        openPhotoModal(photoSrc, empName, nikDisplay, capTime, imgPath);
+                    });
+                }
+                const actionBtn = tr.querySelector("button");
+                if (actionBtn) {
+                    actionBtn.addEventListener("click", () => {
+                        openPhotoModal(photoSrc, empName, nikDisplay, capTime, imgPath);
+                    });
+                }
+
                 tableBody.appendChild(tr);
             });
         }
@@ -344,6 +405,32 @@
                 closePhotoModal();
             }
         });
+
+        // Handler Tombol Fullscreen
+        const fullscreenBtn = document.getElementById("fullscreenBtn");
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener("click", () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.warn("[Presensi] Kendala fullscreen:", err);
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen().catch(err => {
+                            console.warn("[Presensi] Kendala keluar fullscreen:", err);
+                        });
+                    }
+                }
+            });
+
+            document.addEventListener("fullscreenchange", () => {
+                if (document.fullscreenElement) {
+                    fullscreenBtn.innerHTML = '<span class="fs-icon">🗗</span> JENDELA';
+                } else {
+                    fullscreenBtn.innerHTML = '<span class="fs-icon">⛶</span> FULLSCREEN';
+                }
+            });
+        }
 
         // Event listeners untuk filter
         searchInput.addEventListener("input", filterAndRender);

@@ -50,6 +50,44 @@ html, body {
     gap: 18px;
 }
 
+/* Mode Fullscreen Browser untuk semua halaman */
+:fullscreen .absen-ntp-container,
+:-webkit-full-screen .absen-ntp-container,
+:fullscreen .kiosk-container,
+:-webkit-full-screen .kiosk-container {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 16px 24px !important;
+    box-shadow: none !important;
+}
+
+:fullscreen html, :fullscreen body,
+:-webkit-full-screen html, :-webkit-full-screen body {
+    width: 100vw !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+@media (max-height: 800px) {
+    html, body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+    }
+    .absen-ntp-container,
+    .kiosk-container {
+        height: auto;
+        min-height: 94vh;
+        margin: 14px auto;
+    }
+}
+
 /* Bagian Header */
 .app-header {
     display: flex;
@@ -699,21 +737,46 @@ html, body {
     overflow: hidden;
 }
 
+.form-scrollable-area {
+    overflow-y: auto;
+    flex-grow: 1;
+    min-height: 0;
+}
+
+/* Custom Scrollbar untuk semua panel scrollable */
+.form-scrollable-area::-webkit-scrollbar,
+.gallery-grid::-webkit-scrollbar,
+.table-wrapper::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.form-scrollable-area::-webkit-scrollbar-thumb,
+.gallery-grid::-webkit-scrollbar-thumb,
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 4px;
+}
+.form-scrollable-area::-webkit-scrollbar-thumb:hover,
+.gallery-grid::-webkit-scrollbar-thumb:hover,
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #388bfd;
+}
+
 .admin-form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 10px 0;
+    gap: 12px;
+    padding: 6px 0;
 }
 
 .admin-input-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .admin-input-group label {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -725,9 +788,9 @@ html, body {
     background: #0a0e14;
     border: 1px solid var(--card-border);
     color: var(--text-primary);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-radius: 8px;
     outline: none;
     transition: all 0.2s ease;
@@ -739,17 +802,18 @@ html, body {
 }
 
 .admin-hint {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: var(--text-muted);
+    line-height: 1.3;
 }
 
 .btn-primary {
     background: #238636;
     border: 1px solid #2ea043;
     color: #ffffff;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    padding: 12px 18px;
+    padding: 11px 16px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -757,6 +821,7 @@ html, body {
     align-items: center;
     justify-content: center;
     gap: 8px;
+    margin-top: 6px;
 }
 
 .btn-primary:hover {

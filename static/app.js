@@ -695,11 +695,11 @@ function initializeCamera() {
         faceGuide.classList.add("visible");
     }
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
+        cameraStatusBadge.textContent = "ONLINE";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraTitle) {
-        cameraTitle.textContent = "CAMERA PREVIEW (Logitech C930e)";
+        cameraTitle.textContent = "CAMERA PREVIEW";
     }
 
     // Hubungkan elemen <img> langsung ke endpoint streaming video backend
@@ -718,7 +718,7 @@ function initializeCamera() {
  */
 function setCameraConnecting(msg = "Menghubungkan kamera...") {
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
+        cameraStatusBadge.textContent = "ONLINE";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {
@@ -734,7 +734,7 @@ function setCameraConnecting(msg = "Menghubungkan kamera...") {
  */
 function setCameraActive() {
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
+        cameraStatusBadge.textContent = "ONLINE";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {
@@ -753,7 +753,7 @@ function handleCameraError(error) {
     console.log("[Presensi] Info stream kamera:", error ? error.message : "OK");
     isCameraOnline = true;
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
+        cameraStatusBadge.textContent = "ONLINE";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {

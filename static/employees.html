@@ -22,15 +22,18 @@
 
             <div class="header-right">
                 <nav class="nav-tabs">
-                    <a href="index.html" class="nav-btn" title="Mesin Absensi Kiosk">
-                        <span>📷</span> KIOSK
+                    <a href="index.html" class="nav-btn" title="Mesin Absensi Absen NTP">
+                        <span>📷</span> ABSEN NTP
                     </a>
                     <a href="employees.html" class="nav-btn active" title="Kelola Master Karyawan">
                         <span>👥</span> KARYAWAN
                     </a>
-                    <a href="history.html" class="nav-btn" title="Lihat Riwayat & Foto Absensi">
-                        <span>🖼️</span> RIWAYAT FOTO
+                    <a href="history.html" class="nav-btn" title="Lihat Riwayat Absen">
+                        <span>📋</span> RIWAYAT ABSEN
                     </a>
+                    <button id="fullscreenBtn" class="nav-btn fullscreen-toggle-btn" type="button" title="Mode Layar Penuh">
+                        <span class="fs-icon">⛶</span> FULLSCREEN
+                    </button>
                 </nav>
             </div>
         </header>
@@ -61,7 +64,7 @@
                         <h2>TAMBAH KARYAWAN</h2>
                     </div>
                 </div>
-                <div style="padding: 18px 20px;">
+                <div class="form-scrollable-area" style="padding: 16px 20px; overflow-y: auto; flex-grow: 1; min-height: 0;">
                     <form id="addEmployeeForm" class="admin-form" autocomplete="off">
                         <div class="admin-input-group">
                             <label for="empNikInput">Nomor Induk Karyawan (NIK)</label>
@@ -303,9 +306,31 @@
             }
         }
 
-        refreshBtn.addEventListener("click", () => {
-            loadEmployees();
-        });
+        // Handler Tombol Fullscreen
+        const fullscreenBtn = document.getElementById("fullscreenBtn");
+        if (fullscreenBtn) {
+            fullscreenBtn.addEventListener("click", () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.warn("[Presensi] Kendala fullscreen:", err);
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen().catch(err => {
+                            console.warn("[Presensi] Kendala keluar fullscreen:", err);
+                        });
+                    }
+                }
+            });
+
+            document.addEventListener("fullscreenchange", () => {
+                if (document.fullscreenElement) {
+                    fullscreenBtn.innerHTML = '<span class="fs-icon">🗗</span> JENDELA';
+                } else {
+                    fullscreenBtn.innerHTML = '<span class="fs-icon">⛶</span> FULLSCREEN';
+                }
+            });
+        }
 
         // Muat data karyawan saat halaman selesai terbuka
         window.addEventListener("DOMContentLoaded", () => {
