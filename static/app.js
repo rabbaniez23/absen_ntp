@@ -236,9 +236,9 @@ function resetToIdle() {
         rfidInput.disabled = false;
     }
 
-    // Pastikan lingkaran panduan wajah tetap terlihat di atas video live preview
+    // Sembunyikan lingkaran panduan saat standby (hanya muncul saat hitung mundur)
     if (faceGuide) {
-        faceGuide.classList.add("visible");
+        faceGuide.classList.remove("visible");
     }
 
     setApplicationState(AppState.IDLE);
@@ -339,21 +339,20 @@ async function handleEmployeeInput(rawInput) {
 
             setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
 
-            // Tampilkan panduan oval posisi wajah
+            // Tampilkan lingkaran oval panduan wajah khusus saat hitung mundur dimulai
             if (faceGuide) faceGuide.classList.add("visible");
 
-            // Beri waktu 800ms lalu mulai hitung mundur 3-2-1
+            // Beri jeda 600ms lalu jalankan hitung mundur 3-2-1
             setTimeout(() => {
                 setApplicationState(AppState.CAMERA_READY, "ARAHKAN WAJAH KE DALAM LINGKARAN OVAL");
 
-                setTimeout(() => {
-                    startCountdown(() => {
-                        // Setelah hitung mundur 3-2-1 selesai: JEPRET & SIMPAN!
-                        processAttendanceScan(cleanId, data);
-                    });
-                }, 800);
+                startCountdown(() => {
+                    // Setelah hitung mundur 3-2-1 selesai: Sembunyikan lingkaran lalu jepret & simpan!
+                    if (faceGuide) faceGuide.classList.remove("visible");
+                    processAttendanceScan(cleanId, data);
+                });
 
-            }, 700);
+            }, 600);
 
         } else {
             const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";
@@ -589,24 +588,6 @@ async function uploadCapture(empId, blob) {
     }
 }
 
-/**
- * Menangani penerimaan input ID Karyawan / UID RFID.
- */
-function handleEmployeeInput(rawInput) {
-    if (currentState !== AppState.IDLE) {
-        console.warn(`[Presensi] Input diabaikan: Sistem sedang dalam status ${currentState}`);
-        return;
-    }
-
-    const cleanId = rawInput.trim();
-    if (!cleanId) return;
-
-    console.log(`[Presensi] Kartu RFID dideteksi (Nomor kartu disembunyikan)`);
-    if (rfidInput) rfidInput.value = "";
-
-    processAttendanceScan(cleanId);
-}
-
 // Variabel penampung karakter scanner RFID global
 let rfidBuffer = "";
 let rfidBufferTimer = null;
@@ -724,6 +705,11 @@ function initializeCamera() {
     // Hubungkan elemen <img> langsung ke endpoint streaming video backend
     if (streamVideo) {
         streamVideo.src = getApiUrl("api/camera/stream");
+    }
+
+    // Panduan oval disembunyikan di awal, hanya akan muncul saat countdown
+    if (faceGuide) {
+        faceGuide.classList.remove("visible");
     }
 }
 
