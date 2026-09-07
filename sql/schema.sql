@@ -4,12 +4,8 @@
 -- Karakter & Collation: utf8mb4 / utf8mb4_unicode_ci
 -- ====================================================================
 
--- 1. Buat database jika belum ada
-CREATE DATABASE IF NOT EXISTS `attendance_db`
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-USE `attendance_db`;
+-- 1. Gunakan database debian yang sudah tersedia
+USE `debian`;
 
 -- --------------------------------------------------------------------
 -- 2. Tabel: employees

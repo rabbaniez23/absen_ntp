@@ -2,7 +2,7 @@
 -- Skrip Migrasi Data dari File JSON ke Database MariaDB
 -- Aman dieksekusi berulang (idempoten dengan update duplicate key)
 -- ====================================================================
-USE `attendance_db`;
+USE `debian`;
 
 -- 1. Migrasi Data Karyawan
 INSERT INTO `employees` (`employee_id`, `name`, `rfid_uid`, `is_active`) VALUES ('EMP001', 'Budi Santoso', '983746128', 1) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
