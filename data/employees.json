@@ -8,5 +8,10 @@
     "employee_id": "EMP002",
     "nik": "3201010202920002",
     "name": "Andi Wijaya"
+  },
+  "345678912": {
+    "employee_id": "EMP003",
+    "nik": "210019",
+    "name": "Pak Meka"
   }
 }

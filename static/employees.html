@@ -143,6 +143,39 @@
         </footer>
     </div>
 
+    <!-- Modal Edit Karyawan -->
+    <div id="editModal" class="photo-modal hidden">
+        <div class="photo-modal-content" style="max-width: 480px;">
+            <div class="photo-modal-header">
+                <div>
+                    <h3 style="color: #ffffff; font-size: 1.15rem; margin: 0;">✏️ Edit Data Karyawan</h3>
+                    <span id="editEmpIdLabel" style="color: var(--accent); font-size: 0.85rem; font-weight: 600;">-</span>
+                </div>
+                <button type="button" id="editModalCloseBtn" class="photo-modal-close" title="Tutup Modal">✖</button>
+            </div>
+            <form id="editEmployeeForm" class="admin-form" style="padding: 6px 0;">
+                <input type="hidden" id="editEmpId">
+                <div class="admin-input-group">
+                    <label for="editNikInput">Nomor Induk Karyawan (NIK)</label>
+                    <input type="text" id="editNikInput" class="admin-input" required>
+                </div>
+                <div class="admin-input-group">
+                    <label for="editNameInput">Nama Lengkap</label>
+                    <input type="text" id="editNameInput" class="admin-input" required>
+                </div>
+                <div class="admin-input-group">
+                    <label for="editRfidInput">Nomor Kartu RFID (UID)</label>
+                    <input type="text" id="editRfidInput" class="admin-input">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button type="button" id="editCancelBtn" class="absen-ntp-toggle-btn" style="flex: 1; justify-content: center;">Batal</button>
+                    <button type="submit" id="editSubmitBtn" class="btn-primary" style="flex: 1.5;">💾 Simpan Perubahan</button>
+                </div>
+                <div id="editFormAlert" class="alert-box"></div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let allEmployees = [];
         const form = document.getElementById("addEmployeeForm");
@@ -220,8 +253,12 @@
                     <td>${escapeHtml(emp.name)}</td>
                     <td><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${escapeHtml(emp.rfid_uid)}</code></td>
                     <td><span class="badge-active">AKTIF</span></td>
-                    <td style="text-align: center;">
-                        <button class="btn-delete" onclick="deleteEmployee('${escapeHtml(emp.employee_id)}', '${escapeHtml(emp.name)}')" title="Hapus Karyawan">
+                    <td style="text-align: center; white-space: nowrap;">
+                        <button class="absen-ntp-toggle-btn" style="padding: 5px 10px; font-size: 0.78rem; display: inline-flex; margin-right: 4px;"
+                                onclick="openEditModal('${escapeHtml(emp.employee_id)}', '${escapeHtml(emp.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(emp.rfid_uid || '')}')" title="Edit Data Karyawan">
+                            ✏️ Edit
+                        </button>
+                        <button class="btn-delete" style="display: inline-flex; padding: 5px 10px; font-size: 0.78rem;" onclick="deleteEmployee('${escapeHtml(emp.employee_id)}', '${escapeHtml(emp.name)}')" title="Hapus Karyawan">
                             🗑️ Hapus
                         </button>
                     </td>
@@ -305,6 +342,85 @@
                 showAlert("Gagal menghubungi server: " + err.message, false);
             }
         }
+
+        // Modal Edit Karyawan Logic
+        const editModal = document.getElementById("editModal");
+        const editEmpId = document.getElementById("editEmpId");
+        const editEmpIdLabel = document.getElementById("editEmpIdLabel");
+        const editNikInput = document.getElementById("editNikInput");
+        const editNameInput = document.getElementById("editNameInput");
+        const editRfidInput = document.getElementById("editRfidInput");
+        const editModalCloseBtn = document.getElementById("editModalCloseBtn");
+        const editCancelBtn = document.getElementById("editCancelBtn");
+        const editFormAlert = document.getElementById("editFormAlert");
+        const editEmployeeForm = document.getElementById("editEmployeeForm");
+        const editSubmitBtn = document.getElementById("editSubmitBtn");
+
+        function openEditModal(empId, name, nik, rfid) {
+            editEmpId.value = empId;
+            editEmpIdLabel.textContent = "ID: " + empId;
+            editNikInput.value = nik;
+            editNameInput.value = name;
+            editRfidInput.value = rfid || "";
+            editFormAlert.style.display = "none";
+            editModal.classList.remove("hidden");
+            editNikInput.focus();
+        }
+
+        function closeEditModal() {
+            editModal.classList.add("hidden");
+            editFormAlert.style.display = "none";
+        }
+
+        editModalCloseBtn.addEventListener("click", closeEditModal);
+        editCancelBtn.addEventListener("click", closeEditModal);
+        editModal.addEventListener("click", (e) => {
+            if (e.target === editModal) closeEditModal();
+        });
+
+        editEmployeeForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const empId = editEmpId.value.trim();
+            const nik = editNikInput.value.trim();
+            const name = editNameInput.value.trim();
+            const rfid_uid = editRfidInput.value.trim();
+
+            if (!nik || !name) {
+                editFormAlert.textContent = "NIK dan Nama wajib diisi!";
+                editFormAlert.className = "alert-box error";
+                editFormAlert.style.display = "block";
+                return;
+            }
+
+            editSubmitBtn.disabled = true;
+            editSubmitBtn.innerHTML = "Menyimpan...";
+
+            try {
+                const response = await fetch(getApiUrl("api/employees/update"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ employee_id: empId, nik, name, rfid_uid })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    closeEditModal();
+                    showAlert(result.message, true);
+                    loadEmployees();
+                } else {
+                    editFormAlert.textContent = result.message || "Gagal memperbarui data.";
+                    editFormAlert.className = "alert-box error";
+                    editFormAlert.style.display = "block";
+                }
+            } catch (err) {
+                editFormAlert.textContent = "Koneksi ke server gagal: " + err.message;
+                editFormAlert.className = "alert-box error";
+                editFormAlert.style.display = "block";
+            } finally {
+                editSubmitBtn.disabled = false;
+                editSubmitBtn.innerHTML = "💾 Simpan Perubahan";
+            }
+        });
 
         // Handler Tombol Fullscreen
         const fullscreenBtn = document.getElementById("fullscreenBtn");

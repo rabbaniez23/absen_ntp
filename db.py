@@ -556,3 +556,81 @@ def delete_employee(employee_id: str) -> tuple:
     return True, f"Karyawan '{emp_id}' berhasil dihapus."
 
 
+def update_employee(employee_id: str, name: str, nik: str, rfid_uid: str = None) -> tuple:
+    """
+    Memperbarui NIK, Nama, dan RFID UID karyawan di MariaDB dan employees.json.
+    Mengembalikan (success: bool, message: str).
+    """
+    emp_id = (employee_id or "").strip().upper()
+    emp_name = (name or "").strip()
+    clean_nik = (nik or "").strip()
+    rfid = (rfid_uid or "").strip()
+
+    if not emp_id:
+        return False, "ID Karyawan tidak valid."
+    if not emp_name:
+        return False, "Nama karyawan tidak boleh kosong."
+    if not clean_nik:
+        return False, "NIK karyawan tidak boleh kosong."
+
+    # 1. Update di MariaDB
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                # Periksa apakah NIK atau RFID baru bertabrakan dengan karyawan lain
+                cursor.execute(
+                    "SELECT employee_id FROM employees WHERE (nik = %s OR (rfid_uid = %s AND %s != '')) AND employee_id != %s LIMIT 1;",
+                    (clean_nik, rfid, rfid, emp_id)
+                )
+                conflict = cursor.fetchone()
+                if conflict:
+                    return False, f"NIK '{clean_nik}' atau RFID '{rfid}' sudah digunakan oleh karyawan lain ({conflict.get('employee_id')})!"
+
+                if rfid:
+                    cursor.execute(
+                        "UPDATE employees SET name = %s, nik = %s, rfid_uid = %s WHERE employee_id = %s;",
+                        (emp_name, clean_nik, rfid, emp_id)
+                    )
+                else:
+                    cursor.execute(
+                        "UPDATE employees SET name = %s, nik = %s WHERE employee_id = %s;",
+                        (emp_name, clean_nik, emp_id)
+                    )
+                logger.info(f"[Database] Karyawan {emp_id} berhasil diperbarui di MariaDB (NIK: {clean_nik}, Nama: {emp_name})")
+        except Exception as err:
+            logger.warning(f"[Database] Gagal memperbarui karyawan di MariaDB: {err}")
+        finally:
+            conn.close()
+
+    # 2. Update di data/employees.json
+    try:
+        if config.EMPLOYEES_FILE.exists():
+            with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            found_key = None
+            for k, v in list(data.items()):
+                if v.get("employee_id") == emp_id or v.get("nik") == clean_nik:
+                    found_key = k
+                    break
+
+            target_key = rfid if rfid else (found_key or emp_id)
+            if found_key and found_key != target_key:
+                del data[found_key]
+
+            data[target_key] = {
+                "employee_id": emp_id,
+                "nik": clean_nik,
+                "name": emp_name
+            }
+
+            with open(config.EMPLOYEES_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            logger.info(f"[Storage] Karyawan {emp_id} berhasil diperbarui di employees.json")
+    except Exception as e:
+        logger.error(f"[Storage] Gagal memperbarui data di employees.json: {e}")
+
+    return True, f"Data karyawan '{emp_name}' ({emp_id}) berhasil diperbarui ke NIK: {clean_nik}!"
+
+

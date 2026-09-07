@@ -156,10 +156,24 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_post_upload()
         elif clean_path == "/api/employees":
             self.handle_post_employee()
+        elif clean_path in ["/api/employees/update", "/api/employees/edit"]:
+            self.handle_update_employee()
         elif clean_path == "/api/employees/delete":
             self.handle_delete_employee()
         else:
             logger.warning(f"ENDPOINT TIDAK DITEMUKAN: {parsed_url.path}")
+            self.send_json(404, {
+                "success": False,
+                "message": f"Endpoint tidak ditemukan: {parsed_url.path}"
+            })
+
+    def do_PUT(self):
+        """Mengarahkan request PUT ke endpoint API."""
+        parsed_url = urlparse(self.path)
+        clean_path = self.get_clean_path(parsed_url.path)
+        if clean_path in ["/api/employees", "/api/employees/update"]:
+            self.handle_update_employee()
+        else:
             self.send_json(404, {
                 "success": False,
                 "message": f"Endpoint tidak ditemukan: {parsed_url.path}"
@@ -380,6 +394,33 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         success, msg = db.delete_employee(emp_id)
+        self.send_json(200 if success else 400, {
+            "success": success,
+            "message": msg
+        })
+
+    def handle_update_employee(self):
+        """Memperbarui data karyawan (Nama, NIK, RFID)."""
+        logger.info("API: POST/PUT /api/employees/update")
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(content_length).decode("utf-8")
+            payload = json.loads(raw_body)
+        except Exception as err:
+            logger.error(f"Gagal membaca payload update karyawan: {err}")
+            self.send_json(400, {"success": False, "message": "Format data JSON tidak valid."})
+            return
+
+        emp_id = payload.get("employee_id", "").strip()
+        nik = payload.get("nik", "").strip()
+        name = payload.get("name", "").strip()
+        rfid = payload.get("rfid_uid", "").strip()
+
+        if not emp_id or not name or not nik:
+            self.send_json(400, {"success": False, "message": "ID Karyawan, Nama, dan NIK wajib diisi."})
+            return
+
+        success, msg = db.update_employee(emp_id, name, nik, rfid_uid=rfid)
         self.send_json(200 if success else 400, {
             "success": success,
             "message": msg
