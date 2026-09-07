@@ -1,6 +1,6 @@
 -- ====================================================================
 -- Skema Database Sistem Presensi Karyawan (MariaDB)
--- Database: attendance_db
+-- Database: debian
 -- Karakter & Collation: utf8mb4 / utf8mb4_unicode_ci
 -- ====================================================================
 
@@ -9,19 +9,25 @@ USE `debian`;
 
 -- --------------------------------------------------------------------
 -- 2. Tabel: employees
--- Menyimpan data master karyawan dan pemetaan UID kartu RFID.
+-- Menyimpan data master karyawan, NIK, dan pemetaan UID kartu RFID.
 -- --------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `employees` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `employee_id` VARCHAR(50) NOT NULL UNIQUE COMMENT 'ID Karyawan, contoh: EMP001',
+    `nik` VARCHAR(50) DEFAULT NULL COMMENT 'Nomor Induk Karyawan resmi',
     `name` VARCHAR(100) NOT NULL COMMENT 'Nama lengkap karyawan',
-    `rfid_uid` VARCHAR(50) DEFAULT NULL UNIQUE COMMENT 'UID kartu RFID dari scanner USB',
+    `rfid_uid` VARCHAR(50) DEFAULT NULL UNIQUE COMMENT 'UID kartu RFID dari QinHeng USB Reader',
     `is_active` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1: Aktif, 0: Nonaktif',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_employees_nik` (`nik`),
     INDEX `idx_employees_rfid` (`rfid_uid`),
     INDEX `idx_employees_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Migrasi otomatis jika tabel lama belum memiliki kolom nik
+ALTER TABLE `employees` ADD COLUMN IF NOT EXISTS `nik` VARCHAR(50) DEFAULT NULL AFTER `employee_id`;
+UPDATE `employees` SET `nik` = `employee_id` WHERE `nik` IS NULL OR `nik` = '';
 
 -- --------------------------------------------------------------------
 -- 3. Tabel: attendance

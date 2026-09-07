@@ -4,9 +4,14 @@
 -- ====================================================================
 USE `debian`;
 
--- 1. Migrasi Data Karyawan
-INSERT INTO `employees` (`employee_id`, `name`, `rfid_uid`, `is_active`) VALUES ('EMP001', 'Budi Santoso', '983746128', 1) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
-INSERT INTO `employees` (`employee_id`, `name`, `rfid_uid`, `is_active`) VALUES ('EMP002', 'Andi Wijaya', '827364928', 1) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
+-- 1. Migrasi Data Karyawan (dilengkapi NIK)
+INSERT INTO `employees` (`employee_id`, `nik`, `name`, `rfid_uid`, `is_active`) 
+VALUES ('EMP001', '3201010101900001', 'Budi Santoso', '983746128', 1) 
+ON DUPLICATE KEY UPDATE `nik` = VALUES(`nik`), `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
+
+INSERT INTO `employees` (`employee_id`, `nik`, `name`, `rfid_uid`, `is_active`) 
+VALUES ('EMP002', '3201010202920002', 'Andi Wijaya', '827364928', 1) 
+ON DUPLICATE KEY UPDATE `nik` = VALUES(`nik`), `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
 
 -- 2. Migrasi Riwayat Presensi
 INSERT INTO `attendance` (`employee_id`, `captured_at`, `image_path`, `attendance_status`) VALUES ('EMP001', '2026-09-05 22:31:55', 'captures/2026/09/05/EMP001_20260905_223155.png', 'SUCCESS');

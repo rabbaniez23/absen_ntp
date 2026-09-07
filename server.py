@@ -176,22 +176,28 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         emp_id = payload.get("employee_id", "").strip()
+        nik = payload.get("nik", "").strip()
         name = payload.get("name", "").strip()
         rfid = payload.get("rfid_uid", "").strip()
 
-        if not emp_id or not name or not rfid:
+        if not nik and emp_id:
+            nik = emp_id
+        if not emp_id and nik:
+            emp_id = nik
+
+        if not name or not rfid or not (nik or emp_id):
             self.send_json(400, {
                 "success": False,
-                "message": "Semua bidang (Employee ID, Nama, RFID UID) wajib diisi."
+                "message": "Semua bidang (NIK / ID Karyawan, Nama, RFID UID) wajib diisi."
             })
             return
 
-        success, msg = db.add_employee(emp_id, name, rfid)
+        success, msg = db.add_employee(emp_id, name, rfid, nik=nik)
         status_code = 200 if success else 400
         self.send_json(status_code, {
             "success": success,
             "message": msg,
-            "employee": {"employee_id": emp_id, "name": name, "rfid_uid": rfid} if success else None
+            "employee": {"employee_id": emp_id, "nik": nik, "name": name, "rfid_uid": rfid} if success else None
         })
 
     def handle_delete_employee(self, parsed_url=None):
@@ -223,7 +229,7 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         })
 
     def handle_get_employee(self, parsed_url):
-        """Mencari data karyawan berdasarkan ID atau nomor kartu RFID."""
+        """Mencari data karyawan berdasarkan ID, NIK, atau nomor kartu RFID."""
         query_params = parse_qs(parsed_url.query)
         lookup_id = query_params.get("id", [""])[0].strip()
 
@@ -239,12 +245,13 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         emp = db.lookup_employee(lookup_id)
         if emp:
-            logger.info(f"KARYAWAN DITEMUKAN: {emp['employee_id']} ({emp['name']}) [sumber: {emp.get('source', 'unknown')}]")
+            nik_val = emp.get("nik") or emp["employee_id"]
+            logger.info(f"KARYAWAN DITEMUKAN: {emp['name']} (NIK: {nik_val}) [sumber: {emp.get('source', 'unknown')}]")
             self.send_json(200, {
                 "success": True,
                 "employee_id": emp["employee_id"],
-                "name": emp["name"],
-                "rfid_uid": emp.get("rfid_uid") or emp["employee_id"]
+                "nik": nik_val,
+                "name": emp["name"]
             })
         else:
             logger.warning(f"KARYAWAN TIDAK DITEMUKAN: {lookup_id}")

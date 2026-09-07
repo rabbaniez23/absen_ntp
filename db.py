@@ -68,20 +68,29 @@ def init_database_tables() -> bool:
             return False
 
         with db_conn.cursor() as cursor:
-            # Tabel master karyawan
+            # Tabel master karyawan (dengan kolom NIK)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS `employees` (
                     `id` INT AUTO_INCREMENT PRIMARY KEY,
                     `employee_id` VARCHAR(50) NOT NULL UNIQUE,
+                    `nik` VARCHAR(50) DEFAULT NULL,
                     `name` VARCHAR(100) NOT NULL,
                     `rfid_uid` VARCHAR(50) DEFAULT NULL UNIQUE,
                     `is_active` TINYINT(1) NOT NULL DEFAULT 1,
                     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_employees_nik` (`nik`),
                     INDEX `idx_employees_rfid` (`rfid_uid`),
                     INDEX `idx_employees_active` (`is_active`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             """)
+
+            # Migrasi skema jika tabel lama belum memiliki kolom nik
+            try:
+                cursor.execute("ALTER TABLE `employees` ADD COLUMN IF NOT EXISTS `nik` VARCHAR(50) DEFAULT NULL AFTER `employee_id`;")
+                cursor.execute("UPDATE `employees` SET `nik` = `employee_id` WHERE `nik` IS NULL OR `nik` = '';")
+            except Exception as e:
+                logger.debug(f"[Database] Migrasi kolom nik: {e}")
 
             # Tabel riwayat absensi
             cursor.execute("""
@@ -111,13 +120,14 @@ def init_database_tables() -> bool:
                     emp_data = json.load(f)
                     for key, val in emp_data.items():
                         emp_id = val.get("employee_id", key)
+                        nik = val.get("nik") or emp_id
                         name = val.get("name", "")
                         rfid = key if key != emp_id else None
                         cursor.execute("""
-                            INSERT INTO `employees` (`employee_id`, `name`, `rfid_uid`, `is_active`)
-                            VALUES (%s, %s, %s, 1)
-                            ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
-                        """, (emp_id, name, rfid))
+                            INSERT INTO `employees` (`employee_id`, `nik`, `name`, `rfid_uid`, `is_active`)
+                            VALUES (%s, %s, %s, %s, 1)
+                            ON DUPLICATE KEY UPDATE `nik` = VALUES(`nik`), `name` = VALUES(`name`), `rfid_uid` = VALUES(`rfid_uid`);
+                        """, (emp_id, nik, name, rfid))
 
         db_conn.close()
         logger.info("[Database] Skema MariaDB berhasil diinisialisasi.")
@@ -129,7 +139,7 @@ def init_database_tables() -> bool:
 
 def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
     """
-    Mencari data karyawan berdasarkan nomor UID RFID atau Employee ID.
+    Mencari data karyawan berdasarkan nomor UID RFID, NIK, atau Employee ID.
     Menggunakan MariaDB dengan fallback otomatis ke file JSON lokal jika database offline.
     """
     clean_id = identifier.strip()
@@ -142,17 +152,19 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
         try:
             with conn.cursor() as cursor:
                 sql = """
-                    SELECT employee_id, name, rfid_uid, is_active
+                    SELECT employee_id, nik, name, rfid_uid, is_active
                     FROM employees
-                    WHERE (rfid_uid = %s OR employee_id = %s) AND is_active = 1
+                    WHERE (rfid_uid = %s OR employee_id = %s OR nik = %s) AND is_active = 1
                     LIMIT 1
                 """
-                cursor.execute(sql, (clean_id, clean_id))
+                cursor.execute(sql, (clean_id, clean_id, clean_id))
                 row = cursor.fetchone()
                 if row:
-                    logger.info(f"[Database] Karyawan ditemukan di MariaDB: {row['name']} ({row['employee_id']})")
+                    nik_val = row.get("nik") or row["employee_id"]
+                    logger.info(f"[Database] Karyawan ditemukan di MariaDB: {row['name']} (NIK: {nik_val})")
                     return {
                         "employee_id": row["employee_id"],
+                        "nik": nik_val,
                         "name": row["name"],
                         "rfid_uid": row.get("rfid_uid") or row["employee_id"],
                         "source": "mariadb"
@@ -174,17 +186,22 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
                 if clean_id in data:
                     emp = data[clean_id]
                     rfid = clean_id if clean_id != emp.get("employee_id") else None
+                    emp_id = emp.get("employee_id", clean_id)
                     return {
-                        "employee_id": emp.get("employee_id", clean_id),
+                        "employee_id": emp_id,
+                        "nik": emp.get("nik") or emp_id,
                         "name": emp.get("name", "Unknown"),
                         "rfid_uid": rfid or emp.get("rfid_uid", clean_id),
                         "source": "json_fallback"
                     }
                 for key, emp in data.items():
-                    if emp.get("employee_id") == clean_id:
-                        rfid = key if key != emp.get("employee_id") else None
+                    emp_id = emp.get("employee_id")
+                    emp_nik = emp.get("nik")
+                    if emp_id == clean_id or emp_nik == clean_id:
+                        rfid = key if key != emp_id else None
                         return {
-                            "employee_id": emp.get("employee_id"),
+                            "employee_id": emp_id,
+                            "nik": emp_nik or emp_id,
                             "name": emp.get("name", "Unknown"),
                             "rfid_uid": rfid or emp.get("rfid_uid", key),
                             "source": "json_fallback"
@@ -255,7 +272,7 @@ def record_attendance(employee_id: str, captured_at: datetime.datetime, image_pa
 def get_all_employees() -> list:
     """
     Mengambil seluruh daftar karyawan aktif dari MariaDB atau fallback dari file JSON.
-    Mengembalikan list berisi dict: [{'employee_id', 'name', 'rfid_uid', 'is_active', 'source'}]
+    Mengembalikan list berisi dict: [{'employee_id', 'nik', 'name', 'rfid_uid', 'is_active', 'source'}]
     """
     employees = []
 
@@ -264,12 +281,13 @@ def get_all_employees() -> list:
     if conn:
         try:
             with conn.cursor() as cursor:
-                sql = "SELECT employee_id, name, rfid_uid, is_active FROM employees WHERE is_active = 1 ORDER BY employee_id ASC;"
+                sql = "SELECT employee_id, nik, name, rfid_uid, is_active FROM employees WHERE is_active = 1 ORDER BY id ASC;"
                 cursor.execute(sql)
                 rows = cursor.fetchall()
                 for r in rows:
                     employees.append({
                         "employee_id": r["employee_id"],
+                        "nik": r.get("nik") or r["employee_id"],
                         "name": r["name"],
                         "rfid_uid": r.get("rfid_uid") or "-",
                         "is_active": bool(r.get("is_active", 1)),
@@ -288,10 +306,12 @@ def get_all_employees() -> list:
                 data = json.load(f)
                 for key, val in data.items():
                     emp_id = val.get("employee_id", key)
+                    nik = val.get("nik") or emp_id
                     name = val.get("name", "Unknown")
                     rfid = key if key != emp_id else val.get("rfid_uid", key)
                     employees.append({
                         "employee_id": emp_id,
+                        "nik": nik,
                         "name": name,
                         "rfid_uid": rfid,
                         "is_active": True,
@@ -303,40 +323,43 @@ def get_all_employees() -> list:
     return employees
 
 
-def add_employee(employee_id: str, name: str, rfid_uid: str) -> tuple:
+def add_employee(employee_id: str, name: str, rfid_uid: str, nik: str = None) -> tuple:
     """
     Menambahkan karyawan baru ke MariaDB dan menyinkronkannya ke employees.json.
-    Mengembalikan (success: bool, message: str).
+    Mendukung NIK resmi karyawan. Mengembalikan (success: bool, message: str).
     """
-    emp_id = employee_id.strip().upper()
+    clean_nik = (nik or employee_id).strip()
+    emp_id = (employee_id or clean_nik).strip().upper()
     emp_name = name.strip()
     rfid = rfid_uid.strip()
 
-    if not emp_id or not emp_name or not rfid:
-        return False, "Semua bidang (Employee ID, Nama, RFID UID) wajib diisi."
+    if not emp_name or not rfid or not (clean_nik or emp_id):
+        return False, "Semua bidang (NIK / ID Karyawan, Nama, RFID UID) wajib diisi."
 
     # 1. Simpan ke MariaDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                # Periksa apakah ID atau RFID sudah terdaftar
+                # Periksa apakah ID, NIK, atau RFID sudah terdaftar
                 cursor.execute(
-                    "SELECT employee_id, rfid_uid FROM employees WHERE employee_id = %s OR rfid_uid = %s LIMIT 1;",
-                    (emp_id, rfid)
+                    "SELECT employee_id, nik, rfid_uid FROM employees WHERE employee_id = %s OR rfid_uid = %s OR (nik IS NOT NULL AND nik = %s) LIMIT 1;",
+                    (emp_id, rfid, clean_nik)
                 )
                 existing = cursor.fetchone()
                 if existing:
                     if existing.get("employee_id") == emp_id:
-                        return False, f"Employee ID '{emp_id}' sudah terdaftar!"
+                        return False, f"ID Karyawan '{emp_id}' sudah terdaftar!"
+                    if existing.get("nik") == clean_nik:
+                        return False, f"NIK '{clean_nik}' sudah digunakan oleh karyawan lain!"
                     if existing.get("rfid_uid") == rfid:
                         return False, f"Nomor RFID UID '{rfid}' sudah digunakan oleh karyawan lain!"
 
                 cursor.execute(
-                    "INSERT INTO employees (employee_id, name, rfid_uid, is_active) VALUES (%s, %s, %s, 1);",
-                    (emp_id, emp_name, rfid)
+                    "INSERT INTO employees (employee_id, nik, name, rfid_uid, is_active) VALUES (%s, %s, %s, %s, 1);",
+                    (emp_id, clean_nik, emp_name, rfid)
                 )
-                logger.info(f"[Database] Karyawan berhasil ditambahkan ke MariaDB: {emp_name} ({emp_id})")
+                logger.info(f"[Database] Karyawan berhasil ditambahkan ke MariaDB: {emp_name} (NIK: {clean_nik})")
         except Exception as err:
             logger.warning(f"[Database] Gagal menambahkan karyawan ke MariaDB: {err}")
         finally:
@@ -354,6 +377,7 @@ def add_employee(employee_id: str, name: str, rfid_uid: str) -> tuple:
 
         data[rfid] = {
             "employee_id": emp_id,
+            "nik": clean_nik,
             "name": emp_name
         }
 

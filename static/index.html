@@ -43,7 +43,7 @@
                 <div class="card-header">
                     <div class="section-title">
                         <span class="title-icon">📷</span>
-                        <h2>CAMERA PREVIEW</h2>
+                        <h2 id="cameraTitle">CAMERA PREVIEW (Logitech C930e)</h2>
                     </div>
                     <span class="badge" id="cameraStatus">STANDBY</span>
                 </div>
@@ -96,8 +96,8 @@
                     </div>
 
                     <div class="info-group">
-                        <label>Nomor Kartu RFID (UID)</label>
-                        <div class="info-value highlight" id="employeeId">-</div>
+                        <label>Nomor Induk Karyawan (NIK)</label>
+                        <div class="info-value highlight" id="employeeNik">-</div>
                     </div>
 
                     <div class="info-group-inline">
@@ -117,12 +117,12 @@
                         <div class="status-text" id="statusText">TEMPELKAN KARTU RFID DI READER</div>
                     </div>
 
-                    <!-- RFID / Keyboard Input Area -->
+                    <!-- RFID / Keyboard Input Area (QinHeng Electronics RFID Reader) -->
                     <div class="input-container">
-                        <label for="rfidInput">SENSOR RFID CARD READER</label>
+                        <label for="rfidInput">SENSOR RFID CARD READER (QinHeng)</label>
                         <div class="input-wrapper">
                             <span class="input-icon">💳</span>
-                            <input type="text" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Dekatkan kartu RFID ke sensor reader (UID)..." autocomplete="off" autofocus>
+                            <input type="password" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Tempelkan kartu RFID pada reader..." autocomplete="off" autofocus>
                         </div>
                     </div>
                 </div>

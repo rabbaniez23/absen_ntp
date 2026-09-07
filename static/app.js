@@ -51,7 +51,9 @@ const attendanceTime = document.getElementById("attendanceTime");
 
 // Elemen DOM - Informasi Karyawan & Status
 const employeeName = document.getElementById("employeeName");
-const employeeId = document.getElementById("employeeId");
+const employeeNik = document.getElementById("employeeNik");
+const employeeId = document.getElementById("employeeId") || employeeNik;
+const cameraTitle = document.getElementById("cameraTitle");
 const statusBanner = document.getElementById("statusBanner");
 const statusText = document.getElementById("statusText");
 
@@ -226,7 +228,8 @@ function resetToIdle() {
     }
     currentEmployeeId = null;
     if (employeeName) employeeName.textContent = "-";
-    if (employeeId) employeeId.textContent = "-";
+    if (employeeNik) employeeNik.textContent = "-";
+    if (employeeId && employeeId !== employeeNik) employeeId.textContent = "-";
     if (rfidInput) rfidInput.value = "";
 
     // Pastikan video kamera tetap berputar
@@ -307,13 +310,17 @@ async function lookupEmployee(id) {
         const data = await parseJsonResponse(response);
 
         if (response.ok && data.success) {
-            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (${data.employee_id})`);
+            const nikDisplay = data.nik || data.employee_id;
+            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (NIK: ${nikDisplay})`);
             currentEmployeeId = data.employee_id;
 
+            // Tampilkan HANYA Nama Karyawan dan NIK (Jangan tampilkan Nomor RFID)
             if (employeeName) employeeName.textContent = data.name;
-            if (employeeId) employeeId.textContent = data.rfid_uid || data.employee_id;
+            if (employeeNik) employeeNik.textContent = nikDisplay;
+            if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
+            if (rfidInput) rfidInput.value = "";
 
-            setApplicationState(AppState.EMPLOYEE_FOUND, `KARTU TERDETEKSI: ${data.name.toUpperCase()}`);
+            setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
 
             // Transisi: KARTU TERDETEKSI -> ARAHKAN WAJAH
             setTimeout(() => {
@@ -535,20 +542,60 @@ function handleEmployeeInput(rawInput) {
     lookupEmployee(cleanId);
 }
 
+// Variabel penampung karakter scanner RFID global
+let rfidBuffer = "";
+let rfidBufferTimer = null;
+
 /**
  * Menginisialisasi pendengar event keyboard dan kartu RFID.
+ * Mendukung QinHeng Electronics RFID Reader (Bus 005 Device 002: ID 1a86:dd01).
  */
 function initializeInputHandler() {
-    if (!rfidInput) return;
+    // 1. Tangani input langsung pada elemen rfidInput
+    if (rfidInput) {
+        rfidInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                const cleanVal = rfidInput.value.trim();
+                rfidInput.value = "";
+                if (cleanVal) handleEmployeeInput(cleanVal);
+            }
+        });
+    }
 
-    rfidInput.addEventListener("keydown", (event) => {
+    // 2. Global Keydown listener untuk menangkap input QinHeng Electronics RFID Reader
+    // di mana pun posisi kursor / fokus mouse berada
+    document.addEventListener("keydown", (event) => {
+        // Jika fokus sedang di input teks lain (misal modal atau form admin), abaikan
+        if (event.target !== rfidInput && (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA")) {
+            return;
+        }
+
         if (event.key === "Enter") {
-            event.preventDefault();
-            handleEmployeeInput(rfidInput.value);
+            const rawVal = rfidBuffer.trim() || (rfidInput ? rfidInput.value.trim() : "");
+            rfidBuffer = "";
+            if (rfidInput) rfidInput.value = "";
+            if (rawVal) {
+                event.preventDefault();
+                handleEmployeeInput(rawVal);
+            }
+            return;
+        }
+
+        // Tampung karakter dari reader RFID (kecepatan tinggi)
+        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            rfidBuffer += event.key;
+            clearTimeout(rfidBufferTimer);
+            rfidBufferTimer = setTimeout(() => {
+                rfidBuffer = "";
+            }, 600);
         }
     });
 
     document.addEventListener("click", () => {
+        focusInputField();
+    });
+    window.addEventListener("focus", () => {
         focusInputField();
     });
 
@@ -556,7 +603,39 @@ function initializeInputHandler() {
 }
 
 /**
- * Mengakses webcam peramban dengan penanganan kendala dan percobaan ulang otomatis.
+ * Mencari kamera Logitech C930e (046d:0843) atau kamera eksternal USB terbaik
+ */
+async function findLogitechOrExternalCameraId() {
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return null;
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === "videoinput");
+        if (videoDevices.length === 0) return null;
+
+        // 1. Prioritaskan Logitech C930e (046d:0843)
+        const logitech = videoDevices.find(d => /c930|logitech/i.test(d.label));
+        if (logitech) {
+            console.log(`[Presensi] Kamera Logitech C930e ditemukan: "${logitech.label}"`);
+            return logitech.deviceId;
+        }
+
+        // 2. Prioritaskan kamera eksternal USB
+        const usbCam = videoDevices.find(d => /usb|external/i.test(d.label));
+        if (usbCam) {
+            console.log(`[Presensi] Kamera USB terdeteksi: "${usbCam.label}"`);
+            return usbCam.deviceId;
+        }
+
+        // 3. Fallback: kamera pertama
+        return videoDevices[0].deviceId;
+    } catch (e) {
+        console.warn("[Presensi] Gagal menginventarisasi perangkat kamera:", e);
+        return null;
+    }
+}
+
+/**
+ * Mengakses webcam peramban dengan prioritas Logitech Webcam C930e (046d:0843).
  */
 async function initializeCamera(retryCount = 0) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -576,16 +655,27 @@ async function initializeCamera(retryCount = 0) {
     setCameraConnecting(retryCount > 0 ? `Menunggu kamera dilepas oleh sistem (${retryCount}/3)...` : "Menghubungkan kamera...");
 
     try {
-        const constraints = {
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: "user"
-            },
-            audio: false
-        };
+        // Cari kamera Logitech C930e terlebih dahulu
+        const preferredDeviceId = await findLogitechOrExternalCameraId();
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        const videoConstraints = {
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+        };
+        if (preferredDeviceId) {
+            videoConstraints.deviceId = { exact: preferredDeviceId };
+        } else {
+            videoConstraints.facingMode = "user";
+        }
+
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+        } catch (exactErr) {
+            console.warn("[Presensi] Gagal menggunakan deviceId spesifik, fallback ke kamera standar:", exactErr);
+            stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        }
+
         mediaStream = stream;
         webcamVideo.srcObject = stream;
 
@@ -595,7 +685,20 @@ async function initializeCamera(retryCount = 0) {
             });
             isCameraOnline = true;
             setCameraActive();
-            console.log("[Presensi] Feed video kamera berhasil aktif.");
+
+            // Tampilkan info kamera aktif pada judul
+            try {
+                const track = stream.getVideoTracks()[0];
+                const trackLabel = track ? track.label : "";
+                if (cameraTitle) {
+                    if (/c930|logitech/i.test(trackLabel)) {
+                        cameraTitle.textContent = "CAMERA PREVIEW (Logitech C930e)";
+                    } else if (trackLabel) {
+                        cameraTitle.textContent = `CAMERA PREVIEW (${trackLabel.slice(0, 24)})`;
+                    }
+                }
+                console.log(`[Presensi] Feed video kamera aktif: "${trackLabel || 'Standard Camera'}"`);
+            } catch (lblErr) { }
         };
 
         // Deteksi jika kabel kamera terputus

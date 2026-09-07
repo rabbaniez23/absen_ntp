@@ -35,27 +35,23 @@
                     <div class="section-title">
                         <span class="title-icon">➕</span>
                         <h2>TAMBAH KARYAWAN</h2>
-                    </div>
                 </div>
-
                 <form id="addEmployeeForm" class="admin-form" autocomplete="off">
                     <div class="admin-input-group">
-                        <label for="empIdInput">Nomor ID Karyawan</label>
-                        <input type="text" id="empIdInput" class="admin-input" placeholder="Contoh: EMP003" required>
-                        <span class="admin-hint">ID unik karyawan di perusahaan.</span>
+                        <label for="empNikInput">Nomor Induk Karyawan (NIK)</label>
+                        <input type="text" id="empNikInput" class="admin-input" placeholder="Contoh: 3201010101900001 atau NIK001" required>
+                        <span class="admin-hint">Nomor identitas unik resmi karyawan.</span>
                     </div>
 
                     <div class="admin-input-group">
                         <label for="empNameInput">Nama Lengkap Karyawan</label>
-                        <input type="text" id="empNameInput" class="admin-input" placeholder="Contoh: Siti Rahmawati"
-                            required>
+                        <input type="text" id="empNameInput" class="admin-input" placeholder="Contoh: Siti Rahmawati" required>
                         <span class="admin-hint">Nama yang akan tampil saat absensi.</span>
                     </div>
 
                     <div class="admin-input-group">
                         <label for="empRfidInput">Nomor Kartu RFID (UID)</label>
-                        <input type="text" id="empRfidInput" class="admin-input"
-                            placeholder="Tempelkan kartu atau ketik UID..." required>
+                        <input type="text" id="empRfidInput" class="admin-input" placeholder="Tempelkan kartu ke QinHeng RFID Reader atau ketik UID..." required>
                         <span class="admin-hint">Bisa langsung di-tap dari USB RFID reader.</span>
                     </div>
 
@@ -79,7 +75,7 @@
 
                 <div class="table-toolbar">
                     <input type="text" id="searchInput" class="admin-input search-input"
-                        placeholder="🔍 Cari nama / ID / RFID...">
+                        placeholder="🔍 Cari nama / NIK / RFID...">
                     <button type="button" id="refreshBtn" class="absen-ntp-toggle-btn" title="Muat Ulang Data">
                         🔄 Refresh
                     </button>
@@ -89,12 +85,12 @@
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="width: 50px;">No</th>
-                                <th style="width: 120px;">ID Karyawan</th>
+                                <th style="width: 45px;">No</th>
+                                <th style="width: 140px;">NIK</th>
                                 <th>Nama Karyawan</th>
-                                <th style="width: 140px;">RFID UID</th>
-                                <th style="width: 90px;">Status</th>
-                                <th style="width: 90px; text-align: center;">Aksi</th>
+                                <th style="width: 130px;">RFID UID</th>
+                                <th style="width: 80px;">Status</th>
+                                <th style="width: 80px; text-align: center;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="employeeTableBody">
@@ -117,9 +113,8 @@
 
     <script>
         let allEmployees = [];
-
         const form = document.getElementById("addEmployeeForm");
-        const empIdInput = document.getElementById("empIdInput");
+        const empNikInput = document.getElementById("empNikInput");
         const empNameInput = document.getElementById("empNameInput");
         const empRfidInput = document.getElementById("empRfidInput");
         const submitBtn = document.getElementById("submitBtn");
@@ -178,9 +173,10 @@
 
             list.forEach((emp, index) => {
                 const tr = document.createElement("tr");
+                const nikDisplay = emp.nik || emp.employee_id;
                 tr.innerHTML = `
                     <td>${index + 1}</td>
-                    <td><strong style="color: var(--accent);">${escapeHtml(emp.employee_id)}</strong></td>
+                    <td><strong style="color: var(--accent);">${escapeHtml(nikDisplay)}</strong></td>
                     <td>${escapeHtml(emp.name)}</td>
                     <td><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${escapeHtml(emp.rfid_uid)}</code></td>
                     <td><span class="badge-active">AKTIF</span></td>
@@ -202,6 +198,7 @@
                 return;
             }
             const filtered = allEmployees.filter(emp =>
+                (emp.nik && emp.nik.toLowerCase().includes(query)) ||
                 emp.employee_id.toLowerCase().includes(query) ||
                 emp.name.toLowerCase().includes(query) ||
                 (emp.rfid_uid && emp.rfid_uid.toLowerCase().includes(query))
@@ -212,12 +209,12 @@
         // Pengiriman form tambah karyawan
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const employee_id = empIdInput.value.trim().toUpperCase();
+            const nik = empNikInput.value.trim();
             const name = empNameInput.value.trim();
             const rfid_uid = empRfidInput.value.trim();
 
-            if (!employee_id || !name || !rfid_uid) {
-                showAlert("Semua bidang wajib diisi!", false);
+            if (!nik || !name || !rfid_uid) {
+                showAlert("Semua bidang (NIK, Nama, RFID UID) wajib diisi!", false);
                 return;
             }
 
@@ -228,7 +225,7 @@
                 const res = await fetch(getApiUrl("api/employees"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ employee_id, name, rfid_uid })
+                    body: JSON.stringify({ employee_id: nik, nik, name, rfid_uid })
                 });
                 const result = await res.json();
 
