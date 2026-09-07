@@ -77,11 +77,25 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def get_clean_path(self, raw_path: str) -> str:
-        """Menghapus prefix rute seperti /debian/attendance jika diakses melalui reverse proxy Apache."""
-        if raw_path == "/debian/attendance":
-            return "/"
-        if raw_path.startswith("/debian/attendance/"):
-            return raw_path[len("/debian/attendance"):]
+        """Menghapus prefix rute jika diakses via /debian/attendance, /attendance, /debian, /public, dll."""
+        root_aliases = {
+            "", "/", "/index.html",
+            "/debian", "/debian/",
+            "/attendance", "/attendance/",
+            "/debian/attendance", "/debian/attendance/",
+            "/public", "/public/"
+        }
+        if raw_path in root_aliases:
+            return "/index.html"
+
+        prefixes = ["/debian/attendance", "/attendance", "/debian", "/public"]
+        for prefix in prefixes:
+            if raw_path.startswith(prefix + "/"):
+                sub_path = raw_path[len(prefix):]
+                if sub_path in ["", "/"]:
+                    return "/index.html"
+                return sub_path
+
         return raw_path
 
     def do_GET(self):
