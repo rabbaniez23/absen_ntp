@@ -114,5 +114,33 @@
     "image_path": "captures/test_audit.png",
     "attendance_status": "SUCCESS",
     "db_synced": false
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-07T09:50:21",
+    "image_path": "captures/2026/09/07/EMP001_20260907_095021.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-07T09:50:23",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
+  },
+  {
+    "employee_id": "EMP001",
+    "captured_at": "2026-09-07T09:50:52",
+    "image_path": "captures/2026/09/07/EMP001_20260907_095052.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
+  },
+  {
+    "employee_id": "EMP002",
+    "captured_at": "2026-09-07T09:50:54",
+    "image_path": "captures/test_audit.png",
+    "attendance_status": "SUCCESS",
+    "db_synced": false
   }
 ]

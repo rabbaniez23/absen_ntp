@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manajemen Karyawan - absen_ntp</title>
-    <link rel="stylesheet" href="/style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
     <div class="absen-ntp-container kiosk-container">
@@ -19,7 +19,7 @@
             </div>
 
             <div class="header-right">
-                <a href="/" class="absen-ntp-toggle-btn" title="Kembali ke Mesin Absensi">
+                <a href="./" class="absen-ntp-toggle-btn" title="Kembali ke Mesin Absensi">
                     <span class="btn-icon">⬅️</span> KEMBALI KE ABSENSI
                 </a>
             </div>
@@ -134,7 +134,7 @@
 
         async function loadEmployees() {
             try {
-                const response = await fetch("/api/employees");
+                const response = await fetch("api/employees");
                 const result = await response.json();
                 if (result.success && Array.isArray(result.employees)) {
                     allEmployees = result.employees;
@@ -206,7 +206,7 @@
             submitBtn.innerHTML = "<span>⏳</span> Menyimpan...";
 
             try {
-                const res = await fetch("/api/employees", {
+                const res = await fetch("api/employees", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ employee_id, name, rfid_uid })
@@ -235,7 +235,7 @@
             }
 
             try {
-                const res = await fetch(`/api/employees?id=${encodeURIComponent(id)}`, {
+                const res = await fetch(`api/employees?id=${encodeURIComponent(id)}`, {
                     method: "DELETE"
                 });
                 const result = await res.json();

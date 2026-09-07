@@ -5,10 +5,10 @@ Wants=mariadb.service
 
 [Service]
 Type=simple
-User=attendance
-Group=attendance
-WorkingDirectory=/opt/employee-attendance
-ExecStart=/opt/employee-attendance/venv/bin/python3 /opt/employee-attendance/server.py
+User=debian
+Group=debian
+WorkingDirectory=/home/debian/www/attendance
+ExecStart=/home/debian/www/attendance/venv/bin/python3 /home/debian/www/attendance/server.py
 
 # Restart policy: otomatis nyalakan ulang jika terjadi crash/kill
 Restart=always

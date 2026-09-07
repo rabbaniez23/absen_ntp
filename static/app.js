@@ -294,7 +294,7 @@ async function lookupEmployee(id) {
     setApplicationState(AppState.IDENTIFYING);
 
     try {
-        const response = await fetchWithTimeout(`/api/employee?id=${encodeURIComponent(id)}`, {}, 6000);
+        const response = await fetchWithTimeout(`api/employee?id=${encodeURIComponent(id)}`, {}, 6000);
         const data = await parseJsonResponse(response);
 
         if (response.ok && data.success) {
@@ -467,7 +467,7 @@ async function uploadCapture(empId, blob) {
     formData.append("image", blob, "webcam.png");
 
     try {
-        const response = await fetchWithTimeout("/api/upload", {
+        const response = await fetchWithTimeout("api/upload", {
             method: "POST",
             body: formData
         }, 10000);

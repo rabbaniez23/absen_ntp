@@ -10,18 +10,15 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_NAME="attendance-server.service"
-TARGET_DIR="/opt/employee-attendance"
+TARGET_DIR="/home/debian/www/attendance"
 
 echo "======================================================================"
 echo "       KONFIGURASI LAYANAN LATAR BELAKANG SYSTEMD PRESENSI"
 echo "======================================================================"
 
-# 1. Pastikan user 'attendance' ada di sistem
-if ! id "attendance" &>/dev/null; then
-    echo "  -> Menyiapkan user sistem 'attendance'..."
-    useradd -m -s /bin/bash attendance
-    usermod -a -G video,dialout attendance 2>/dev/null || true
-fi
+# 1. Pastikan user 'debian' memiliki hak akses video dan dialout
+echo "  -> Menambahkan hak akses hardware (video, dialout) ke user 'debian'..."
+usermod -a -G video,dialout debian 2>/dev/null || true
 
 # 2. Pasang berkas Systemd Service ke direktori sistem
 echo "[1/3] Memasang konfigurasi systemd service (${SERVICE_NAME})..."

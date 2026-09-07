@@ -76,29 +76,44 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def get_clean_path(self, raw_path: str) -> str:
+        """Menghapus prefix rute seperti /debian/attendance jika diakses melalui reverse proxy Apache."""
+        if raw_path == "/debian/attendance":
+            return "/"
+        if raw_path.startswith("/debian/attendance/"):
+            return raw_path[len("/debian/attendance"):]
+        return raw_path
+
     def do_GET(self):
         """Mengarahkan request GET ke file statis web atau endpoint API."""
         parsed_url = urlparse(self.path)
+        clean_path = self.get_clean_path(parsed_url.path)
 
-        if parsed_url.path == "/api/employee":
+        if clean_path == "/api/employee":
             self.handle_get_employee(parsed_url)
-        elif parsed_url.path == "/api/employees":
+        elif clean_path == "/api/employees":
             self.handle_get_employees()
         else:
-            super().do_GET()
+            original_path = self.path
+            self.path = clean_path
+            try:
+                super().do_GET()
+            finally:
+                self.path = original_path
 
     def do_POST(self):
         """Mengarahkan request POST ke endpoint API."""
         parsed_url = urlparse(self.path)
+        clean_path = self.get_clean_path(parsed_url.path)
 
-        if parsed_url.path == "/api/upload":
+        if clean_path == "/api/upload":
             self.handle_post_upload()
-        elif parsed_url.path == "/api/employees":
+        elif clean_path == "/api/employees":
             self.handle_post_employee()
-        elif parsed_url.path == "/api/employees/delete":
+        elif clean_path == "/api/employees/delete":
             self.handle_delete_employee()
         else:
-            logger.warning(f"ENDPOINT NOT FOUND: {parsed_url.path}")
+            logger.warning(f"ENDPOINT TIDAK DITEMUKAN: {parsed_url.path}")
             self.send_json(404, {
                 "success": False,
                 "message": f"Endpoint tidak ditemukan: {parsed_url.path}"
@@ -107,7 +122,8 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_DELETE(self):
         """Mengarahkan request DELETE ke endpoint API."""
         parsed_url = urlparse(self.path)
-        if parsed_url.path == "/api/employees":
+        clean_path = self.get_clean_path(parsed_url.path)
+        if clean_path == "/api/employees":
             self.handle_delete_employee(parsed_url)
         else:
             self.send_json(404, {
