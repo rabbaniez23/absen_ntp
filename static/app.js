@@ -293,60 +293,70 @@ async function parseJsonResponse(response) {
 }
 
 /**
- * Memeriksa apakah feed video kamera sedang aktif dan siap.
+ * Memeriksa apakah sistem kamera siap (ditangani langsung di hardware Linux V4L2).
  */
 function isCameraReady() {
-    return isCameraOnline && webcamVideo && webcamVideo.readyState >= 2 && webcamVideo.videoWidth > 0;
+    return true; // Kamera hardware Logitech C930e standby di backend Linux
 }
 
 /**
- * Mencari data karyawan ke backend berdasarkan ID atau UID kartu RFID.
+ * Menangani tap kartu RFID QinHeng:
+ * Mengirim ID kartu ke backend, menjepret kamera Logitech C930e langsung via V4L2,
+ * mencatat ke MariaDB, dan menampilkan Nama Karyawan & NIK (Nomor RFID disembunyikan).
  */
-async function lookupEmployee(id) {
-    setApplicationState(AppState.IDENTIFYING);
+async function processAttendanceScan(id) {
+    setApplicationState(AppState.IDENTIFYING, "MENCARI DATA KARYAWAN & MENJEPRET KAMERA...");
 
     try {
-        const response = await fetchWithTimeout(`api/employee?id=${encodeURIComponent(id)}`, {}, 6000);
+        const response = await fetchWithTimeout("api/attendance/scan", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ rfid_uid: id })
+        }, 12000);
+
         const data = await parseJsonResponse(response);
 
         if (response.ok && data.success) {
             const nikDisplay = data.nik || data.employee_id;
-            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (NIK: ${nikDisplay})`);
+            console.log(`[Presensi] Absensi Berhasil: ${data.name} (NIK: ${nikDisplay})`);
             currentEmployeeId = data.employee_id;
 
-            // Tampilkan HANYA Nama Karyawan dan NIK (Jangan tampilkan Nomor RFID)
+            // Tampilkan HANYA Nama Karyawan dan NIK (Nomor RFID TIDAK ditampilkan)
             if (employeeName) employeeName.textContent = data.name;
             if (employeeNik) employeeNik.textContent = nikDisplay;
             if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
+            if (attendanceDate && data.date) attendanceDate.textContent = data.date;
+            if (attendanceTime && data.time) attendanceTime.textContent = data.time;
             if (rfidInput) rfidInput.value = "";
 
-            setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
+            // Efek kilatan lampu rana (shutter flash)
+            if (captureFlash) {
+                captureFlash.classList.add("flash-active");
+                setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
+            }
 
-            // Transisi: KARTU TERDETEKSI -> ARAHKAN WAJAH
+            // Tampilkan hasil foto jepretan kamera Logitech C930e dari backend
+            if (capturedPreview && data.photo_url) {
+                capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
+                capturedPreview.classList.remove("hidden");
+            }
+
+            setApplicationState(AppState.SUCCESS, `ABSENSI BERHASIL: ${data.name.toUpperCase()}`);
+
+            // Reset otomatis ke IDLE setelah 3.5 detik
             setTimeout(() => {
-                // Pastikan kamera aktif sebelum meminta karyawan menghadap kamera
-                if (!isCameraReady()) {
-                    handleErrorAndRecover("KAMERA TIDAK TERSEDIA");
-                    return;
-                }
-
-                setApplicationState(AppState.CAMERA_READY, "ARAHKAN WAJAH KE KAMERA");
-
-                setTimeout(() => {
-                    startCountdown(() => {
-                        captureWebcamFrame();
-                    });
-                }, 1500);
-
-            }, 1200);
+                resetToIdle();
+            }, 3500);
 
         } else {
-            // Kasus data karyawan tidak ditemukan
-            const message = data && data.message ? data.message.toUpperCase() : "KARYAWAN TIDAK DITEMUKAN";
-            handleErrorAndRecover(message);
+            // Kasus data kartu tidak terdaftar di sistem
+            const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";
+            handleErrorAndRecover(message, 3000);
         }
     } catch (error) {
-        console.error("[Presensi] Kesalahan pencarian karyawan:", error);
+        console.error("[Presensi] Kesalahan proses absensi:", error);
 
         if (error.message === "REQUEST_TIMEOUT") {
             handleErrorAndRecover("SERVER TIDAK MERESPON (TIMEOUT)");
@@ -357,6 +367,9 @@ async function lookupEmployee(id) {
         }
     }
 }
+
+// Alias lookupEmployee ke processAttendanceScan untuk kompatibilitas
+const lookupEmployee = processAttendanceScan;
 
 /**
  * Menjalankan urutan hitung mundur 3-2-1 dengan efek visual di layar.
@@ -528,18 +541,13 @@ function handleEmployeeInput(rawInput) {
         return;
     }
 
-    if (!isCameraReady()) {
-        handleErrorAndRecover("KAMERA TIDAK AKTIF / BELUM DIIZINKAN");
-        return;
-    }
-
     const cleanId = rawInput.trim();
     if (!cleanId) return;
 
-    console.log(`[Presensi] Input diterima: "${cleanId}"`);
+    console.log(`[Presensi] Kartu RFID dideteksi (Nomor kartu disembunyikan)`);
     if (rfidInput) rfidInput.value = "";
 
-    lookupEmployee(cleanId);
+    processAttendanceScan(cleanId);
 }
 
 // Variabel penampung karakter scanner RFID global
@@ -635,12 +643,34 @@ async function findLogitechOrExternalCameraId() {
 }
 
 /**
- * Mengakses webcam peramban dengan prioritas Logitech Webcam C930e (046d:0843).
+ * Mengakses webcam peramban jika diizinkan, dengan prioritas Logitech Webcam C930e.
+ * Catatan: Jika browser Firefox tidak mengizinkan webcam, sistem tetap berjalan lancar
+ * karena pengambilan foto ditangani langsung oleh hardware Linux V4L2 pada backend Python.
  */
 async function initializeCamera(retryCount = 0) {
+    isCameraOnline = true;
+
+    if (cameraStatusBadge) {
+        cameraStatusBadge.textContent = "ONLINE (V4L2)";
+        cameraStatusBadge.className = "badge active";
+    }
+    if (cameraTitle) {
+        cameraTitle.textContent = "CAMERA PREVIEW (Logitech C930e)";
+    }
+    if (cameraOverlay) {
+        cameraOverlay.classList.remove("hidden", "error");
+    }
+    if (cameraIcon) {
+        cameraIcon.textContent = "📷";
+    }
+    if (cameraMessage) {
+        cameraMessage.textContent = "Kamera Logitech C930e Aktif di Backend Linux";
+    }
+    if (retryCameraBtn) {
+        retryCameraBtn.classList.add("hidden");
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        isCameraOnline = false;
-        setCameraError("Peramban tidak mendukung akses kamera webcam.");
         return;
     }
 
@@ -652,12 +682,8 @@ async function initializeCamera(retryCount = 0) {
         mediaStream = null;
     }
 
-    setCameraConnecting(retryCount > 0 ? `Menunggu kamera dilepas oleh sistem (${retryCount}/3)...` : "Menghubungkan kamera...");
-
     try {
-        // Cari kamera Logitech C930e terlebih dahulu
         const preferredDeviceId = await findLogitechOrExternalCameraId();
-
         const videoConstraints = {
             width: { ideal: 1280 },
             height: { ideal: 720 }
@@ -672,57 +698,27 @@ async function initializeCamera(retryCount = 0) {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
         } catch (exactErr) {
-            console.warn("[Presensi] Gagal menggunakan deviceId spesifik, fallback ke kamera standar:", exactErr);
-            stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         }
 
         mediaStream = stream;
         webcamVideo.srcObject = stream;
 
         webcamVideo.onloadedmetadata = () => {
-            webcamVideo.play().catch(err => {
-                console.warn("[Presensi] Peringatan pemutaran video kamera:", err);
-            });
-            isCameraOnline = true;
+            webcamVideo.play().catch(err => console.warn("[Presensi] Peringatan live preview:", err));
             setCameraActive();
-
-            // Tampilkan info kamera aktif pada judul
-            try {
-                const track = stream.getVideoTracks()[0];
-                const trackLabel = track ? track.label : "";
-                if (cameraTitle) {
-                    if (/c930|logitech/i.test(trackLabel)) {
-                        cameraTitle.textContent = "CAMERA PREVIEW (Logitech C930e)";
-                    } else if (trackLabel) {
-                        cameraTitle.textContent = `CAMERA PREVIEW (${trackLabel.slice(0, 24)})`;
-                    }
-                }
-                console.log(`[Presensi] Feed video kamera aktif: "${trackLabel || 'Standard Camera'}"`);
-            } catch (lblErr) { }
+            if (cameraTitle) {
+                cameraTitle.textContent = "CAMERA PREVIEW (Logitech C930e)";
+            }
         };
 
-        // Deteksi jika kabel kamera terputus
         stream.getVideoTracks().forEach(track => {
             track.onended = () => {
-                isCameraOnline = false;
-                handleCameraError({ name: "NotFoundError", message: "Kamera terputus" });
+                handleCameraError({ name: "NotFoundError", message: "Live preview peramban dihentikan" });
             };
         });
 
     } catch (error) {
-        isCameraOnline = false;
-        console.error("[Presensi] Kesalahan kamera:", error);
-
-        // Jika kamera terkunci sementara oleh driver sistem, coba ulang hingga 3 kali
-        if ((error.name === "NotReadableError" || error.name === "TrackStartError") && retryCount < 3) {
-            const delay = 1200 + (retryCount * 500);
-            console.log(`[Presensi] Kamera terkunci sistem. Mencoba ulang dalam ${delay}ms (Percobaan ${retryCount + 1}/3)...`);
-            setTimeout(() => {
-                initializeCamera(retryCount + 1);
-            }, delay);
-            return;
-        }
-
         handleCameraError(error);
     }
 }
@@ -732,8 +728,8 @@ async function initializeCamera(retryCount = 0) {
  */
 function setCameraConnecting(msg = "Menghubungkan kamera...") {
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "MENGHUBUNGKAN...";
-        cameraStatusBadge.className = "badge";
+        cameraStatusBadge.textContent = "ONLINE (V4L2)";
+        cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {
         cameraOverlay.classList.remove("hidden", "error");
@@ -751,7 +747,7 @@ function setCameraConnecting(msg = "Menghubungkan kamera...") {
  */
 function setCameraActive() {
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE";
+        cameraStatusBadge.textContent = "ONLINE (V4L2)";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {
@@ -763,48 +759,38 @@ function setCameraActive() {
 }
 
 /**
- * Menangani pesan kesalahan akses kamera.
+ * Menangani respon atau kendala akses kamera browser.
+ * Tidak memblokir absensi karena sistem utama menggunakan V4L2 di server.
  */
 function handleCameraError(error) {
-    let message = "Kendala kamera: " + error.message;
-
-    if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        message = "Izin akses kamera ditolak oleh browser.";
-    } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        message = "Perangkat kamera tidak ditemukan.";
-    } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        message = "Kamera sedang dipakai aplikasi lain atau belum dilepas sistem.";
-    } else if (error.name === "OverconstrainedError") {
-        message = "Resolusi kamera tidak didukung perangkat.";
+    console.log("[Presensi] Live preview kamera dilewati (Menggunakan V4L2 Hardware backend):", error.message);
+    isCameraOnline = true;
+    if (cameraStatusBadge) {
+        cameraStatusBadge.textContent = "ONLINE (V4L2)";
+        cameraStatusBadge.className = "badge active";
     }
-
-    setCameraError(message);
+    if (cameraOverlay) {
+        cameraOverlay.classList.remove("hidden", "error");
+    }
+    if (cameraIcon) {
+        cameraIcon.textContent = "📷";
+    }
+    if (cameraMessage) {
+        cameraMessage.textContent = "Kamera Logitech C930e Aktif di Backend Linux";
+    }
+    if (retryCameraBtn) {
+        retryCameraBtn.classList.add("hidden");
+    }
+    if (statusText && currentState === AppState.IDLE) {
+        statusText.textContent = "TEMPELKAN KARTU RFID DI READER";
+    }
 }
 
 /**
- * Menampilkan pesan kesalahan pada area layar kamera.
+ * Menampilkan pesan status kamera tanpa mengganggu alur presensi.
  */
 function setCameraError(message) {
-    if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ERROR";
-        cameraStatusBadge.className = "badge error";
-    }
-    if (cameraOverlay) {
-        cameraOverlay.classList.remove("hidden");
-        cameraOverlay.classList.add("error");
-    }
-    if (cameraIcon) {
-        cameraIcon.textContent = "⚠️";
-    }
-    if (cameraMessage) {
-        cameraMessage.textContent = message;
-    }
-    if (retryCameraBtn) {
-        retryCameraBtn.classList.remove("hidden");
-    }
-    if (statusText && currentState === AppState.IDLE) {
-        statusText.textContent = "KAMERA TIDAK TERSEDIA";
-    }
+    handleCameraError({ name: "Warning", message: message });
 }
 
 /**

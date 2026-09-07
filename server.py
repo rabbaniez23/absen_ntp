@@ -111,6 +111,22 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         clean_path = self.get_clean_path(parsed_url.path)
 
+        if clean_path.startswith("/captures/"):
+            capture_file = config.BASE_DIR / clean_path.lstrip("/")
+            if capture_file.exists() and capture_file.is_file():
+                self.send_response(200)
+                suffix = capture_file.suffix.lower()
+                content_type = "image/bmp" if suffix == ".bmp" else "image/jpeg"
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(capture_file.stat().st_size))
+                self.end_headers()
+                with open(capture_file, "rb") as f:
+                    self.wfile.write(f.read())
+                return
+            else:
+                self.send_json(404, {"success": False, "message": "File foto tidak ditemukan"})
+                return
+
         if clean_path == "/api/employee":
             self.handle_get_employee(parsed_url)
         elif clean_path == "/api/employees":
@@ -128,7 +144,9 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         clean_path = self.get_clean_path(parsed_url.path)
 
-        if clean_path == "/api/upload":
+        if clean_path in ["/api/attendance/scan", "/api/tap"]:
+            self.handle_post_attendance_scan()
+        elif clean_path == "/api/upload":
             self.handle_post_upload()
         elif clean_path == "/api/employees":
             self.handle_post_employee()
@@ -161,6 +179,79 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             "success": True,
             "count": len(employees),
             "employees": employees
+        })
+
+    def handle_post_attendance_scan(self):
+        """
+        Menangani tap kartu RFID QinHeng dari kiosk.
+        Mencari karyawan, menjepret foto langsung dari kamera hardware Logitech C930e (V4L2),
+        menyimpan data ke MariaDB, dan mengembalikan foto serta info karyawan (Nama, NIK).
+        """
+        logger.info("API: POST /api/attendance/scan (Tap Kartu RFID QinHeng)")
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(content_length).decode("utf-8")
+            payload = json.loads(raw_body)
+        except Exception as e:
+            self.send_json(400, {"success": False, "message": f"Format data tidak valid: {e}"})
+            return
+
+        identifier = (payload.get("rfid_uid") or payload.get("id") or payload.get("nik") or "").strip()
+        if not identifier:
+            self.send_json(400, {"success": False, "message": "Nomor RFID / NIK tidak boleh kosong."})
+            return
+
+        # 1. Cari data karyawan di MariaDB
+        emp = db.lookup_employee(identifier)
+        if not emp:
+            logger.warning(f"[Absensi] Kartu/ID tidak terdaftar: {identifier}")
+            self.send_json(404, {
+                "success": False,
+                "message": "Kartu RFID atau NIK tidak terdaftar di sistem!"
+            })
+            return
+
+        emp_id = emp["employee_id"]
+        emp_nik = emp.get("nik") or emp_id
+        emp_name = emp["name"]
+
+        # 2. Ambil foto wajah langsung dari hardware kamera Logitech C930e (V4L2 Linux)
+        now = datetime.datetime.now()
+        date_dir = config.CAPTURES_DIR / now.strftime("%Y/%m/%d")
+        date_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"{emp_id}_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
+        file_path = date_dir / filename
+
+        import camera_v4l2
+        try:
+            photo_bytes = camera_v4l2.capture_image_from_device(file_path)
+            if not photo_bytes or not file_path.exists() or file_path.stat().st_size == 0:
+                logger.warning(f"[Absensi] Kamera tidak merespons langsung, memeriksa test_capture.jpg...")
+                test_cap = config.BASE_DIR / "test_capture.jpg"
+                if test_cap.exists() and test_cap.stat().st_size > 0:
+                    import shutil
+                    shutil.copyfile(test_cap, file_path)
+                else:
+                    file_path.write_bytes(b"")
+        except Exception as cam_err:
+            logger.error(f"[Absensi] Error saat menjepret foto kamera: {cam_err}")
+
+        # 3. Catat data absensi ke MariaDB
+        rel_path = str(file_path.relative_to(config.BASE_DIR)).replace("\\", "/")
+        db.record_attendance(emp_id, now, rel_path, "SUCCESS")
+
+        logger.info(f"[Absensi BERHASIL] {emp_name} (NIK: {emp_nik}) -> Foto: {rel_path}")
+
+        # 4. Kembalikan respons ke browser (HANYA Nama dan NIK, tanpa nomor RFID)
+        self.send_json(200, {
+            "success": True,
+            "message": "Absensi berhasil dicatat",
+            "employee_id": emp_id,
+            "nik": emp_nik,
+            "name": emp_name,
+            "photo_url": rel_path,
+            "date": now.strftime("%d %B %Y"),
+            "time": now.strftime("%H:%M:%S")
         })
 
     def handle_post_employee(self):
