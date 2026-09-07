@@ -21,11 +21,35 @@
             </div>
 
             <div class="header-right">
-                <a href="./" class="absen-ntp-toggle-btn" title="Kembali ke Mesin Absensi">
-                    <span class="btn-icon">⬅️</span> KEMBALI KE ABSENSI
-                </a>
+                <nav class="nav-tabs">
+                    <a href="index.html" class="nav-btn" title="Mesin Absensi Kiosk">
+                        <span>📷</span> KIOSK
+                    </a>
+                    <a href="employees.html" class="nav-btn active" title="Kelola Master Karyawan">
+                        <span>👥</span> KARYAWAN
+                    </a>
+                    <a href="history.html" class="nav-btn" title="Lihat Riwayat & Foto Absensi">
+                        <span>🖼️</span> RIWAYAT FOTO
+                    </a>
+                </nav>
             </div>
         </header>
+
+        <!-- Stats Bar Ringkasan -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <span class="stat-label">Total Karyawan Terdaftar</span>
+                <span class="stat-value highlight" id="statTotalEmployees">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Status Sinkronisasi</span>
+                <span class="stat-value success" id="statDbStatus">MariaDB / JSON</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Kartu RFID Terdaftar</span>
+                <span class="stat-value" id="statRfidCount">0</span>
+            </div>
+        </div>
 
         <!-- Main Admin Grid -->
         <main class="admin-grid">
@@ -35,32 +59,35 @@
                     <div class="section-title">
                         <span class="title-icon">➕</span>
                         <h2>TAMBAH KARYAWAN</h2>
+                    </div>
                 </div>
-                <form id="addEmployeeForm" class="admin-form" autocomplete="off">
-                    <div class="admin-input-group">
-                        <label for="empNikInput">Nomor Induk Karyawan (NIK)</label>
-                        <input type="text" id="empNikInput" class="admin-input" placeholder="Contoh: 3201010101900001 atau NIK001" required>
-                        <span class="admin-hint">Nomor identitas unik resmi karyawan.</span>
-                    </div>
+                <div style="padding: 18px 20px;">
+                    <form id="addEmployeeForm" class="admin-form" autocomplete="off">
+                        <div class="admin-input-group">
+                            <label for="empNikInput">Nomor Induk Karyawan (NIK)</label>
+                            <input type="text" id="empNikInput" class="admin-input" placeholder="Contoh: 3201010101900001 atau NIK001" required>
+                            <span class="admin-hint">Nomor identitas resmi yang tampil saat absensi.</span>
+                        </div>
 
-                    <div class="admin-input-group">
-                        <label for="empNameInput">Nama Lengkap Karyawan</label>
-                        <input type="text" id="empNameInput" class="admin-input" placeholder="Contoh: Siti Rahmawati" required>
-                        <span class="admin-hint">Nama yang akan tampil saat absensi.</span>
-                    </div>
+                        <div class="admin-input-group">
+                            <label for="empNameInput">Nama Lengkap Karyawan</label>
+                            <input type="text" id="empNameInput" class="admin-input" placeholder="Contoh: Siti Rahmawati" required>
+                            <span class="admin-hint">Nama yang akan disapa saat karyawan tap kartu.</span>
+                        </div>
 
-                    <div class="admin-input-group">
-                        <label for="empRfidInput">Nomor Kartu RFID (UID)</label>
-                        <input type="text" id="empRfidInput" class="admin-input" placeholder="Tempelkan kartu ke QinHeng RFID Reader atau ketik UID..." required>
-                        <span class="admin-hint">Bisa langsung di-tap dari USB RFID reader.</span>
-                    </div>
+                        <div class="admin-input-group">
+                            <label for="empRfidInput">Nomor Kartu RFID (UID)</label>
+                            <input type="text" id="empRfidInput" class="admin-input" placeholder="Tap kartu ke QinHeng RFID Reader atau ketik UID..." required>
+                            <span class="admin-hint">Dapat langsung di-tap dari USB RFID reader QinHeng.</span>
+                        </div>
 
-                    <button type="submit" id="submitBtn" class="btn-primary" style="margin-top: 8px;">
-                        <span>💾</span> SIMPAN KE DATABASE
-                    </button>
+                        <button type="submit" id="submitBtn" class="btn-primary" style="margin-top: 10px;">
+                            <span>💾</span> SIMPAN KE DATABASE
+                        </button>
 
-                    <div id="formAlert" class="alert-box"></div>
-                </form>
+                        <div id="formAlert" class="alert-box"></div>
+                    </form>
+                </div>
             </section>
 
             <!-- Right Panel: Tabel Daftar Karyawan -->
@@ -70,37 +97,39 @@
                         <span class="title-icon">👥</span>
                         <h2>DAFTAR KARYAWAN TERDAFTAR</h2>
                     </div>
-                    <span class="badge" id="employeeTotalBadge">0 Karyawan</span>
+                    <span class="badge active" id="employeeTotalBadge">0 Karyawan</span>
                 </div>
 
-                <div class="table-toolbar">
-                    <input type="text" id="searchInput" class="admin-input search-input"
-                        placeholder="🔍 Cari nama / NIK / RFID...">
-                    <button type="button" id="refreshBtn" class="absen-ntp-toggle-btn" title="Muat Ulang Data">
-                        🔄 Refresh
-                    </button>
-                </div>
+                <div style="padding: 16px 20px; display: flex; flex-direction: column; flex-grow: 1; min-height: 0;">
+                    <div class="table-toolbar">
+                        <input type="text" id="searchInput" class="admin-input search-input"
+                            placeholder="🔍 Cari nama / NIK / RFID...">
+                        <button type="button" id="refreshBtn" class="absen-ntp-toggle-btn" title="Muat Ulang Data">
+                            🔄 Refresh
+                        </button>
+                    </div>
 
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 45px;">No</th>
-                                <th style="width: 140px;">NIK</th>
-                                <th>Nama Karyawan</th>
-                                <th style="width: 130px;">RFID UID</th>
-                                <th style="width: 80px;">Status</th>
-                                <th style="width: 80px; text-align: center;">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="employeeTableBody">
-                            <tr>
-                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
-                                    Memuat data dari database...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">No</th>
+                                    <th style="width: 150px;">NIK</th>
+                                    <th>Nama Karyawan</th>
+                                    <th style="width: 140px;">RFID UID</th>
+                                    <th style="width: 90px;">Status</th>
+                                    <th style="width: 90px; text-align: center;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeeTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                        Memuat data dari database...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
         </main>
@@ -165,6 +194,14 @@
         function renderTable(list) {
             tableBody.innerHTML = "";
             employeeTotalBadge.textContent = `${list.length} Karyawan`;
+
+            const statTotalEmployees = document.getElementById("statTotalEmployees");
+            const statRfidCount = document.getElementById("statRfidCount");
+            if (statTotalEmployees) statTotalEmployees.textContent = allEmployees.length;
+            if (statRfidCount) {
+                const withRfid = allEmployees.filter(e => e.rfid_uid && e.rfid_uid.trim() !== "").length;
+                statRfidCount.textContent = withRfid;
+            }
 
             if (list.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 30px;">Tidak ada data karyawan ditemukan.</td></tr>`;

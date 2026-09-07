@@ -135,6 +135,8 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_get_employee(parsed_url)
         elif clean_path == "/api/employees":
             self.handle_get_employees()
+        elif clean_path in ["/api/attendance", "/api/attendance/records"]:
+            self.handle_get_attendance(parsed_url)
         else:
             original_path = self.path
             self.path = clean_path
@@ -225,6 +227,24 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
             "success": True,
             "count": len(employees),
             "employees": employees
+        })
+
+    def handle_get_attendance(self, parsed_url):
+        """Mengambil daftar riwayat absensi beserta foto untuk galeri dan laporan."""
+        logger.info("API: GET /api/attendance")
+        query_params = parse_qs(parsed_url.query)
+        date_filter = query_params.get("date", [None])[0]
+        search = query_params.get("search", [None])[0]
+        try:
+            limit = int(query_params.get("limit", [100])[0])
+        except (ValueError, TypeError):
+            limit = 100
+
+        records = db.get_attendance_records(limit=limit, date_filter=date_filter, search=search)
+        self.send_json(200, {
+            "success": True,
+            "count": len(records),
+            "records": records
         })
 
     def handle_post_attendance_scan(self):

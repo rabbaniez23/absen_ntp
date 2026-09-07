@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat & Galeri Foto Absensi - absen_ntp</title>
+    <link rel="stylesheet" href="style.css?v=4">
+</head>
+
+<body>
+    <div class="absen-ntp-container kiosk-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <span class="status-dot"></span>
+                <div>
+                    <h1>RIWAYAT & GALERI FOTO ABSENSI</h1>
+                    <span class="subtitle">LOG MONITORING BIOMETRIK KAMERA LOGITECH C930e (absen_ntp)</span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <nav class="nav-tabs">
+                    <a href="index.html" class="nav-btn" title="Mesin Absensi Kiosk">
+                        <span>📷</span> KIOSK
+                    </a>
+                    <a href="employees.html" class="nav-btn" title="Kelola Master Karyawan">
+                        <span>👥</span> KARYAWAN
+                    </a>
+                    <a href="history.html" class="nav-btn active" title="Lihat Riwayat & Foto Absensi">
+                        <span>🖼️</span> RIWAYAT FOTO
+                    </a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Stats Bar Ringkasan -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <span class="stat-label">Total Absensi Tercatat</span>
+                <span class="stat-value highlight" id="statTotalAttendance">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Absensi Hari Ini</span>
+                <span class="stat-value success" id="statTodayAttendance">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Karyawan Hadir</span>
+                <span class="stat-value" id="statUniqueEmployees">0</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Hardware Kamera</span>
+                <span class="stat-value" style="color: #58a6ff; font-size: 1.1rem;">Logitech C930e</span>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="gallery-layout">
+            <section class="card" style="display: flex; flex-direction: column; flex-grow: 1; min-height: 0; padding-bottom: 0;">
+                <div class="card-header">
+                    <div class="section-title">
+                        <span class="title-icon">🖼️</span>
+                        <h2>FOTO & LOG ABSENSI KARYAWAN</h2>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="badge active" id="recordCountBadge">0 Foto Tersimpan</span>
+                    </div>
+                </div>
+
+                <div style="padding: 16px 20px 0 20px;">
+                    <!-- Toolbar Filter & View Switcher -->
+                    <div class="table-toolbar" style="flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-grow: 1; max-width: 600px;">
+                            <input type="text" id="searchInput" class="admin-input" style="max-width: 260px;" placeholder="🔍 Cari Nama / NIK...">
+                            <input type="date" id="dateFilter" class="admin-input" style="max-width: 170px;" title="Filter berdasarkan tanggal">
+                            <button type="button" id="clearFilterBtn" class="absen-ntp-toggle-btn" title="Reset filter tanggal" style="display: none; padding: 10px 12px;">✖</button>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button type="button" id="toggleViewBtn" class="absen-ntp-toggle-btn" title="Beralih Tampilan Galeri / Tabel">
+                                <span id="toggleViewIcon">📋</span> <span id="toggleViewText">Tabel</span>
+                            </button>
+                            <button type="button" id="refreshBtn" class="absen-ntp-toggle-btn" title="Muat Ulang Riwayat">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Area Tampilan: Mode Grid Galeri Foto -->
+                <div id="galleryView" class="gallery-grid" style="padding: 10px 20px 20px 20px;">
+                    <!-- Kartu foto absensi akan dimuat di sini secara dinamis -->
+                    <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 40px;">
+                        Memuat riwayat foto absensi...
+                    </div>
+                </div>
+
+                <!-- Area Tampilan: Mode Tabel Detail (Hidden by default) -->
+                <div id="tableView" class="table-wrapper" style="display: none; margin: 0 20px 20px 20px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">No</th>
+                                <th style="width: 75px;">Foto</th>
+                                <th style="width: 150px;">NIK</th>
+                                <th>Nama Karyawan</th>
+                                <th style="width: 170px;">Waktu Absensi</th>
+                                <th style="width: 100px;">Status</th>
+                                <th style="width: 90px; text-align: center;">Lihat</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                                    Memuat data tabel absensi...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <span>&bull; Foto wajah diambil otomatis oleh Logitech C930e dan tersimpan di server Linux &bull;</span>
+        </footer>
+    </div>
+
+    <!-- Modal Pratinjau Foto Resolusi Penuh -->
+    <div id="photoModal" class="photo-modal hidden">
+        <div class="photo-modal-content">
+            <div class="photo-modal-header">
+                <div>
+                    <h3 id="modalName" style="color: #ffffff; font-size: 1.15rem; margin: 0;">-</h3>
+                    <span id="modalNik" style="color: var(--accent); font-size: 0.85rem; font-weight: 600;">-</span>
+                </div>
+                <button type="button" id="modalCloseBtn" class="photo-modal-close" title="Tutup Foto">✖</button>
+            </div>
+            <img id="modalImg" class="photo-modal-img" src="" alt="Foto Absensi Resolusi Penuh">
+            <div style="display: flex; justify-content: space-between; align-items: center; color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">
+                <span id="modalTime">Waktu: -</span>
+                <span id="modalFile" style="font-family: monospace;">Path: -</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allRecords = [];
+        let isTableView = false;
+
+        const galleryView = document.getElementById("galleryView");
+        const tableView = document.getElementById("tableView");
+        const tableBody = document.getElementById("tableBody");
+        const searchInput = document.getElementById("searchInput");
+        const dateFilter = document.getElementById("dateFilter");
+        const clearFilterBtn = document.getElementById("clearFilterBtn");
+        const toggleViewBtn = document.getElementById("toggleViewBtn");
+        const toggleViewIcon = document.getElementById("toggleViewIcon");
+        const toggleViewText = document.getElementById("toggleViewText");
+        const refreshBtn = document.getElementById("refreshBtn");
+        const recordCountBadge = document.getElementById("recordCountBadge");
+
+        // Stats elements
+        const statTotalAttendance = document.getElementById("statTotalAttendance");
+        const statTodayAttendance = document.getElementById("statTodayAttendance");
+        const statUniqueEmployees = document.getElementById("statUniqueEmployees");
+
+        // Modal elements
+        const photoModal = document.getElementById("photoModal");
+        const modalImg = document.getElementById("modalImg");
+        const modalName = document.getElementById("modalName");
+        const modalNik = document.getElementById("modalNik");
+        const modalTime = document.getElementById("modalTime");
+        const modalFile = document.getElementById("modalFile");
+        const modalCloseBtn = document.getElementById("modalCloseBtn");
+
+        function getApiUrl(endpoint) {
+            const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
+            if (window.location.port !== "8000") {
+                return `http://${window.location.hostname}:8000/${cleanEndpoint}`;
+            }
+            return cleanEndpoint;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text || "";
+            return div.innerHTML;
+        }
+
+        async function loadAttendanceRecords() {
+            try {
+                const response = await fetch(getApiUrl("api/attendance?limit=150"));
+                const result = await response.json();
+
+                if (result.success && Array.isArray(result.records)) {
+                    allRecords = result.records;
+                    updateStats();
+                    filterAndRender();
+                } else {
+                    galleryView.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #f85149; padding: 40px;">Gagal memuat data: ${result.message || "Error"}</div>`;
+                }
+            } catch (err) {
+                galleryView.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: #f85149; padding: 40px;">Koneksi ke server gagal: ${err.message}</div>`;
+            }
+        }
+
+        function updateStats() {
+            statTotalAttendance.textContent = allRecords.length;
+
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayCount = allRecords.filter(r => r.captured_at && r.captured_at.startsWith(todayStr)).length;
+            statTodayAttendance.textContent = todayCount;
+
+            const uniqueEmps = new Set(allRecords.map(r => r.nik || r.employee_id)).size;
+            statUniqueEmployees.textContent = uniqueEmps;
+        }
+
+        function filterAndRender() {
+            const query = searchInput.value.toLowerCase().trim();
+            const selectedDate = dateFilter.value;
+
+            if (selectedDate) {
+                clearFilterBtn.style.display = "inline-flex";
+            } else {
+                clearFilterBtn.style.display = "none";
+            }
+
+            const filtered = allRecords.filter(item => {
+                const nameMatch = !query || (item.name && item.name.toLowerCase().includes(query));
+                const nikMatch = !query || (item.nik && item.nik.toLowerCase().includes(query));
+                const empIdMatch = !query || (item.employee_id && item.employee_id.toLowerCase().includes(query));
+                const textMatches = nameMatch || nikMatch || empIdMatch;
+
+                const dateMatches = !selectedDate || (item.captured_at && item.captured_at.startsWith(selectedDate));
+
+                return textMatches && dateMatches;
+            });
+
+            recordCountBadge.textContent = `${filtered.length} Foto Absensi`;
+
+            if (isTableView) {
+                renderTableView(filtered);
+            } else {
+                renderGalleryView(filtered);
+            }
+        }
+
+        function renderGalleryView(list) {
+            galleryView.innerHTML = "";
+
+            if (list.length === 0) {
+                galleryView.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 50px 20px;">
+                        <span style="font-size: 3rem; display: block; margin-bottom: 12px;">📷</span>
+                        <h3 style="color: var(--text-secondary); margin-bottom: 6px;">Tidak Ada Foto Absensi</h3>
+                        <p style="font-size: 0.9rem;">Belum ada catatan foto untuk filter yang dipilih.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "gallery-card";
+
+                const photoSrc = item.image_path ? getApiUrl(item.image_path) : "static/placeholder.jpg";
+                const nikDisplay = item.nik || item.employee_id;
+
+                card.innerHTML = `
+                    <div class="gallery-thumb-wrap" onclick="openPhotoModal('${escapeHtml(photoSrc)}', '${escapeHtml(item.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(item.captured_at)}', '${escapeHtml(item.image_path)}')">
+                        <img src="${escapeHtml(photoSrc)}" alt="Foto ${escapeHtml(item.name)}" loading="lazy" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'150\\' viewBox=\\'0 0 200 150\\'><rect fill=\\'%23161b22\\' width=\\'200\\' height=\\'150\\'/><text fill=\\'%238b949e\\' x=\\'50%\\' y=\\'50%\\' text-anchor=\\'middle\\'>Kamera V4L2</text></svg>'">
+                        <div class="gallery-thumb-overlay">🔍</div>
+                    </div>
+                    <div class="gallery-card-body">
+                        <div class="gallery-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+                        <div class="gallery-nik">NIK: ${escapeHtml(nikDisplay)}</div>
+                        <div class="gallery-time">
+                            <span>🕒</span> ${escapeHtml(item.captured_at)}
+                        </div>
+                    </div>
+                `;
+                galleryView.appendChild(card);
+            });
+        }
+
+        function renderTableView(list) {
+            tableBody.innerHTML = "";
+
+            if (list.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">Tidak ada riwayat absensi ditemukan.</td></tr>`;
+                return;
+            }
+
+            list.forEach((item, index) => {
+                const tr = document.createElement("tr");
+                const photoSrc = item.image_path ? getApiUrl(item.image_path) : "";
+                const nikDisplay = item.nik || item.employee_id;
+
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>
+                        <img src="${escapeHtml(photoSrc)}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid var(--card-border);"
+                             onclick="openPhotoModal('${escapeHtml(photoSrc)}', '${escapeHtml(item.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(item.captured_at)}', '${escapeHtml(item.image_path)}')">
+                    </td>
+                    <td><strong style="color: var(--accent);">${escapeHtml(nikDisplay)}</strong></td>
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td>${escapeHtml(item.captured_at)}</td>
+                    <td><span class="badge-active">HADIR</span></td>
+                    <td style="text-align: center;">
+                        <button class="absen-ntp-toggle-btn" style="padding: 4px 10px; font-size: 0.78rem;"
+                                onclick="openPhotoModal('${escapeHtml(photoSrc)}', '${escapeHtml(item.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(item.captured_at)}', '${escapeHtml(item.image_path)}')">
+                            🔍 Foto
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function openPhotoModal(src, name, nik, time, path) {
+            modalImg.src = src;
+            modalName.textContent = name;
+            modalNik.textContent = "NIK: " + nik;
+            modalTime.textContent = "Waktu Absensi: " + time;
+            modalFile.textContent = "Berkas: " + path;
+            photoModal.classList.remove("hidden");
+        }
+
+        function closePhotoModal() {
+            photoModal.classList.add("hidden");
+            modalImg.src = "";
+        }
+
+        modalCloseBtn.addEventListener("click", closePhotoModal);
+        photoModal.addEventListener("click", (e) => {
+            if (e.target === photoModal) closePhotoModal();
+        });
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && !photoModal.classList.contains("hidden")) {
+                closePhotoModal();
+            }
+        });
+
+        // Event listeners untuk filter
+        searchInput.addEventListener("input", filterAndRender);
+        dateFilter.addEventListener("change", filterAndRender);
+
+        clearFilterBtn.addEventListener("click", () => {
+            dateFilter.value = "";
+            filterAndRender();
+        });
+
+        refreshBtn.addEventListener("click", () => {
+            loadAttendanceRecords();
+        });
+
+        toggleViewBtn.addEventListener("click", () => {
+            isTableView = !isTableView;
+            if (isTableView) {
+                galleryView.style.display = "none";
+                tableView.style.display = "block";
+                toggleViewIcon.textContent = "🖼️";
+                toggleViewText.textContent = "Galeri";
+            } else {
+                galleryView.style.display = "grid";
+                tableView.style.display = "none";
+                toggleViewIcon.textContent = "📋";
+                toggleViewText.textContent = "Tabel";
+            }
+            filterAndRender();
+        });
+
+        // Muat data saat halaman selesai dibuka
+        window.addEventListener("DOMContentLoaded", () => {
+            loadAttendanceRecords();
+        });
+    </script>
+</body>
+
+</html>

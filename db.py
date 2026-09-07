@@ -280,6 +280,121 @@ def record_attendance(employee_id: str, captured_at: datetime.datetime, image_pa
     return True
 
 
+def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, search: Optional[str] = None) -> list:
+    """
+    Mengambil riwayat absensi beserta foto, nama, dan NIK karyawan.
+    Mendukung filter tanggal dan pencarian.
+    Mengutamakan MariaDB dan fallback ke data/attendance.json.
+    """
+    records = []
+
+    # 1. Ambil dari MariaDB
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                sql = """
+                    SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
+                           a.captured_at, a.image_path, a.attendance_status
+                    FROM attendance a
+                    LEFT JOIN employees e ON a.employee_id = e.employee_id
+                """
+                params = []
+                where_clauses = []
+
+                if date_filter:
+                    where_clauses.append("DATE(a.captured_at) = %s")
+                    params.append(date_filter)
+
+                if search:
+                    s = f"%{search.strip()}%"
+                    where_clauses.append("(e.name LIKE %s OR e.nik LIKE %s OR a.employee_id LIKE %s)")
+                    params.extend([s, s, s])
+
+                if where_clauses:
+                    sql += " WHERE " + " AND ".join(where_clauses)
+
+                sql += " ORDER BY a.captured_at DESC LIMIT %s;"
+                params.append(limit)
+
+                cursor.execute(sql, tuple(params))
+                rows = cursor.fetchall()
+                for r in rows:
+                    cap_at = r["captured_at"]
+                    cap_str = cap_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(cap_at, (datetime.datetime, datetime.date)) else str(cap_at)
+                    records.append({
+                        "id": r["id"],
+                        "employee_id": r["employee_id"],
+                        "nik": r.get("nik") or r["employee_id"],
+                        "name": r.get("name") or r["employee_id"],
+                        "captured_at": cap_str,
+                        "image_path": str(r.get("image_path") or "").replace("\\", "/"),
+                        "status": r.get("attendance_status") or "SUCCESS",
+                        "source": "mariadb"
+                    })
+                return records
+        except Exception as err:
+            logger.warning(f"[Database] Gagal mengambil riwayat absensi dari MariaDB: {err}")
+        finally:
+            conn.close()
+
+    # 2. Fallback: Baca dari data/attendance.json
+    attendance_file = config.DATA_DIR / "attendance.json"
+    if attendance_file.exists():
+        try:
+            with open(attendance_file, "r", encoding="utf-8") as f:
+                json_records = json.load(f)
+
+            # Muat mapping karyawan untuk mengisi NIK & Nama
+            emp_map = {}
+            if config.EMPLOYEES_FILE.exists():
+                try:
+                    with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
+                        emp_raw = json.load(f)
+                        for k, v in emp_raw.items():
+                            emp_map[v.get("employee_id", k)] = v
+                            if "nik" in v:
+                                emp_map[v["nik"]] = v
+                except Exception:
+                    pass
+
+            for idx, item in enumerate(reversed(json_records)):
+                emp_id = item.get("employee_id", "")
+                cap_at = item.get("captured_at", "")
+                emp = emp_map.get(emp_id, {})
+                emp_name = emp.get("name", emp_id)
+                emp_nik = emp.get("nik", emp_id)
+
+                if date_filter and not cap_at.startswith(date_filter):
+                    continue
+
+                if search:
+                    s_lower = search.lower()
+                    if (s_lower not in emp_name.lower() and
+                        s_lower not in emp_nik.lower() and
+                        s_lower not in emp_id.lower()):
+                        continue
+
+                records.append({
+                    "id": idx + 1,
+                    "employee_id": emp_id,
+                    "nik": emp_nik,
+                    "name": emp_name,
+                    "captured_at": cap_at.replace("T", " "),
+                    "image_path": str(item.get("image_path") or "").replace("\\", "/"),
+                    "status": item.get("attendance_status", "SUCCESS"),
+                    "source": "json"
+                })
+
+                if len(records) >= limit:
+                    break
+
+        except Exception as err:
+            logger.error(f"[Fallback] Gagal membaca attendance.json: {err}")
+
+    return records
+
+
 def get_all_employees() -> list:
     """
     Mengambil seluruh daftar karyawan aktif dari MariaDB atau fallback dari file JSON.
