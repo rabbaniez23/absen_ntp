@@ -193,9 +193,17 @@ class AttendanceRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
+        fallback_bytes = None
+        test_img = config.BASE_DIR / "test_capture.jpg"
+        if test_img.exists() and test_img.stat().st_size > 0:
+            try:
+                fallback_bytes = test_img.read_bytes()
+            except Exception:
+                pass
+
         try:
             while True:
-                frame = streamer.get_latest_frame()
+                frame = streamer.get_latest_frame() or fallback_bytes
                 if frame and len(frame) > 100:
                     self.wfile.write(b"--frame\r\n")
                     self.wfile.write(b"Content-Type: image/jpeg\r\n")

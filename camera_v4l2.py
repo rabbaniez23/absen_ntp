@@ -303,22 +303,24 @@ class CameraStreamer:
                 for i in range(num_bufs):
                     buf = bytearray(SIZEOF_V4L2_BUFFER)
                     struct.pack_into("=II", buf, 0, i, V4L2_BUF_TYPE_VIDEO_CAPTURE)
+                    struct.pack_into("=I", buf, 60, V4L2_MEMORY_MMAP)
                     fcntl.ioctl(fd, VIDIOC_QUERYBUF, buf)
-                    length = struct.unpack_from("=I", buf, 68)[0]
-                    offset = struct.unpack_from("=I", buf, 64)[0]
-                    mm = mmap.mmap(fd, length, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE, offset=offset)
-                    buffers.append((mm, length))
+                    buf_offset = struct.unpack_from("=I", buf, 64)[0]
+                    buf_length = struct.unpack_from("=I", buf, 72)[0]
+                    mm = mmap.mmap(fd, buf_length, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE, offset=buf_offset)
+                    buffers.append((mm, buf_length))
                     fcntl.ioctl(fd, VIDIOC_QBUF, buf)
 
                 buf_type = struct.pack("=I", V4L2_BUF_TYPE_VIDEO_CAPTURE)
                 fcntl.ioctl(fd, VIDIOC_STREAMON, buf_type)
+                print("[V4L2 Streamer] Live stream Logitech C930e berhasil aktif")
 
                 while self.running:
                     r, _, _ = select.select([fd], [], [], 0.5)
                     if not r:
                         continue
                     buf = bytearray(SIZEOF_V4L2_BUFFER)
-                    struct.pack_into("=I", buf, 4, V4L2_BUF_TYPE_VIDEO_CAPTURE)
+                    struct.pack_into("=II", buf, 0, 0, V4L2_BUF_TYPE_VIDEO_CAPTURE)
                     struct.pack_into("=I", buf, 60, V4L2_MEMORY_MMAP)
                     fcntl.ioctl(fd, VIDIOC_DQBUF, buf)
                     idx = struct.unpack_from("=I", buf, 0)[0]
@@ -337,7 +339,8 @@ class CameraStreamer:
                 except Exception:
                     pass
 
-            except Exception:
+            except Exception as stream_err:
+                print(f"[V4L2 Streamer Error] {stream_err}")
                 time.sleep(1.0)
             finally:
                 for mm, _ in buffers:

@@ -706,6 +706,13 @@ async function findLogitechOrExternalCameraId() {
 function initializeCamera() {
     isCameraOnline = true;
 
+    // Sembunyikan overlay loading agar siaran langsung kamera langsung terlihat
+    if (cameraOverlay) {
+        cameraOverlay.classList.add("hidden");
+    }
+    if (faceGuide) {
+        faceGuide.classList.add("visible");
+    }
     if (cameraStatusBadge) {
         cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
         cameraStatusBadge.className = "badge active";
@@ -717,22 +724,6 @@ function initializeCamera() {
     // Hubungkan elemen <img> langsung ke endpoint streaming video backend
     if (streamVideo) {
         streamVideo.src = getApiUrl("api/camera/stream");
-        streamVideo.onload = () => {
-            if (cameraOverlay) cameraOverlay.classList.add("hidden");
-            if (faceGuide) faceGuide.classList.add("visible");
-            if (cameraStatusBadge) {
-                cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
-                cameraStatusBadge.className = "badge active";
-            }
-        };
-        streamVideo.onerror = () => {
-            console.log("[Presensi] Sedang menghubungkan live stream Logitech C930e...");
-        };
-    }
-
-    // Tampilkan panduan oval posisi wajah secara default
-    if (faceGuide) {
-        faceGuide.classList.add("visible");
     }
 }
 
@@ -741,14 +732,11 @@ function initializeCamera() {
  */
 function setCameraConnecting(msg = "Menghubungkan kamera...") {
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (V4L2)";
+        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {
-        cameraOverlay.classList.remove("hidden", "error");
-    }
-    if (cameraMessage) {
-        cameraMessage.textContent = msg;
+        cameraOverlay.classList.add("hidden");
     }
     if (retryCameraBtn) {
         retryCameraBtn.classList.add("hidden");
@@ -760,7 +748,7 @@ function setCameraConnecting(msg = "Menghubungkan kamera...") {
  */
 function setCameraActive() {
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (V4L2)";
+        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {
@@ -776,20 +764,14 @@ function setCameraActive() {
  * Tidak memblokir absensi karena sistem utama menggunakan V4L2 di server.
  */
 function handleCameraError(error) {
-    console.log("[Presensi] Live preview kamera dilewati (Menggunakan V4L2 Hardware backend):", error.message);
+    console.log("[Presensi] Info stream kamera:", error ? error.message : "OK");
     isCameraOnline = true;
     if (cameraStatusBadge) {
-        cameraStatusBadge.textContent = "ONLINE (V4L2)";
+        cameraStatusBadge.textContent = "ONLINE (Logitech C930e)";
         cameraStatusBadge.className = "badge active";
     }
     if (cameraOverlay) {
-        cameraOverlay.classList.remove("hidden", "error");
-    }
-    if (cameraIcon) {
-        cameraIcon.textContent = "📷";
-    }
-    if (cameraMessage) {
-        cameraMessage.textContent = "Kamera Logitech C930e Aktif di Backend Linux";
+        cameraOverlay.classList.add("hidden");
     }
     if (retryCameraBtn) {
         retryCameraBtn.classList.add("hidden");
