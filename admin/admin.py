@@ -417,8 +417,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def run_server():
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer((config.HOST, config.PORT), AdminRequestHandler) as httpd:
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    with socketserver.ThreadingTCPServer((config.HOST, config.PORT), AdminRequestHandler) as httpd:
         print("=" * 60)
         print("   SERVER ADMIN & DATABASE PUSAT (NTP ATTENDANCE)")
         print(f"   Status     : AKTIF")

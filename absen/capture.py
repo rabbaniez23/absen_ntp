@@ -275,8 +275,8 @@ class KioskRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def run_kiosk():
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer((config.HOST, config.PORT), KioskRequestHandler) as httpd:
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
+    with socketserver.ThreadingTCPServer((config.HOST, config.PORT), KioskRequestHandler) as httpd:
         print("=" * 60)
         print("   TERMINAL KIOSK ABSENSI NTP (EDGE CAPTURE)")
         print(f"   Status          : AKTIF (Tanpa Database Lokal)")
