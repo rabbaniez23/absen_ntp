@@ -424,7 +424,7 @@ def get_all_employees() -> list:
     if conn:
         try:
             with conn.cursor() as cursor:
-                sql = "SELECT employee_id, nik, name, rfid_uid, is_active FROM employees WHERE is_active = 1 ORDER BY id ASC;"
+                sql = "SELECT employee_id, nik, name, rfid_uid, is_active FROM employees ORDER BY id ASC;"
                 cursor.execute(sql)
                 rows = cursor.fetchall()
                 for r in rows:
@@ -573,9 +573,9 @@ def delete_employee(employee_id: str) -> tuple:
     return True, f"Karyawan '{emp_id}' berhasil dihapus."
 
 
-def update_employee(employee_id: str, name: str, nik: str, rfid_uid: str = None) -> tuple:
+def update_employee(employee_id: str, name: str, nik: str, rfid_uid: str = None, is_active: Optional[bool] = None) -> tuple:
     """
-    Memperbarui NIK, Nama, dan RFID UID karyawan di MariaDB dan employees.json.
+    Memperbarui NIK, Nama, RFID UID, dan status keaktifan karyawan di MariaDB dan employees.json.
     Mengembalikan (success: bool, message: str).
     """
     emp_id = (employee_id or "").strip().upper()
@@ -604,17 +604,18 @@ def update_employee(employee_id: str, name: str, nik: str, rfid_uid: str = None)
                 if conflict:
                     return False, f"NIK '{clean_nik}' atau RFID '{rfid}' sudah digunakan oleh karyawan lain ({conflict.get('employee_id')})!"
 
+                active_val = 1 if is_active is None or is_active else 0
                 if rfid:
                     cursor.execute(
-                        "UPDATE employees SET name = %s, nik = %s, rfid_uid = %s WHERE employee_id = %s;",
-                        (emp_name, clean_nik, rfid, emp_id)
+                        "UPDATE employees SET name = %s, nik = %s, rfid_uid = %s, is_active = %s WHERE employee_id = %s;",
+                        (emp_name, clean_nik, rfid, active_val, emp_id)
                     )
                 else:
                     cursor.execute(
-                        "UPDATE employees SET name = %s, nik = %s WHERE employee_id = %s;",
-                        (emp_name, clean_nik, emp_id)
+                        "UPDATE employees SET name = %s, nik = %s, is_active = %s WHERE employee_id = %s;",
+                        (emp_name, clean_nik, active_val, emp_id)
                     )
-                logger.info(f"[Database] Karyawan {emp_id} berhasil diperbarui di MariaDB (NIK: {clean_nik}, Nama: {emp_name})")
+                logger.info(f"[Database] Karyawan {emp_id} berhasil diperbarui di MariaDB (NIK: {clean_nik}, Nama: {emp_name}, Aktif: {active_val})")
         except Exception as err:
             logger.warning(f"[Database] Gagal memperbarui karyawan di MariaDB: {err}")
         finally:
@@ -639,7 +640,8 @@ def update_employee(employee_id: str, name: str, nik: str, rfid_uid: str = None)
             data[target_key] = {
                 "employee_id": emp_id,
                 "nik": clean_nik,
-                "name": emp_name
+                "name": emp_name,
+                "is_active": True if is_active is None or is_active else False
             }
 
             with open(config.EMPLOYEES_FILE, "w", encoding="utf-8") as f:
@@ -648,6 +650,112 @@ def update_employee(employee_id: str, name: str, nik: str, rfid_uid: str = None)
     except Exception as e:
         logger.error(f"[Storage] Gagal memperbarui data di employees.json: {e}")
 
-    return True, f"Data karyawan '{emp_name}' ({emp_id}) berhasil diperbarui ke NIK: {clean_nik}!"
+    return True, f"Data karyawan '{emp_name}' ({emp_id}) berhasil diperbarui!"
+
+
+def toggle_employee_status(employee_id: str, is_active: bool) -> tuple:
+    """Mengubah status aktif/nonaktif karyawan secara cepat."""
+    emp_id = (employee_id or "").strip().upper()
+    if not emp_id:
+        return False, "ID Karyawan tidak valid."
+
+    status_int = 1 if is_active else 0
+    status_str = "AKTIF" if is_active else "NONAKTIF"
+
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("UPDATE employees SET is_active = %s WHERE employee_id = %s;", (status_int, emp_id))
+                logger.info(f"[Database] Status karyawan {emp_id} diubah menjadi {status_str}")
+        except Exception as err:
+            logger.warning(f"[Database] Gagal mengubah status di MariaDB: {err}")
+        finally:
+            conn.close()
+
+    try:
+        if config.EMPLOYEES_FILE.exists():
+            with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            for k, v in data.items():
+                if v.get("employee_id") == emp_id:
+                    v["is_active"] = bool(is_active)
+            with open(config.EMPLOYEES_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+    except Exception as e:
+        logger.error(f"[Storage] Gagal mengubah status di employees.json: {e}")
+
+    return True, f"Status karyawan '{emp_id}' berhasil diubah menjadi {status_str}."
+
+
+def get_dashboard_stats() -> dict:
+    """Mengambil metrik ringkasan untuk dashboard utama."""
+    stats = {
+        "total_employees": 0,
+        "active_employees": 0,
+        "inactive_employees": 0,
+        "today_attendance": 0,
+        "recent_attendance": []
+    }
+
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                # 1. Total & Keaktifan
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*) AS total,
+                        COALESCE(SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END), 0) AS active_cnt,
+                        COALESCE(SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END), 0) AS inactive_cnt
+                    FROM employees;
+                """)
+                row = cursor.fetchone()
+                if row:
+                    stats["total_employees"] = row.get("total") or 0
+                    stats["active_employees"] = int(row.get("active_cnt") or 0)
+                    stats["inactive_employees"] = int(row.get("inactive_cnt") or 0)
+
+                # 2. Total Absensi Hari Ini
+                cursor.execute("SELECT COUNT(*) AS today_cnt FROM attendance WHERE DATE(captured_at) = CURDATE();")
+                att_row = cursor.fetchone()
+                if att_row:
+                    stats["today_attendance"] = att_row.get("today_cnt") or 0
+
+                # 3. Absensi Terkini (Maks 6)
+                cursor.execute("""
+                    SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
+                           a.captured_at, a.image_path, a.attendance_status
+                    FROM attendance a
+                    LEFT JOIN employees e ON a.employee_id = e.employee_id
+                    ORDER BY a.captured_at DESC LIMIT 6;
+                """)
+                recent_rows = cursor.fetchall()
+                for r in recent_rows:
+                    stats["recent_attendance"].append({
+                        "id": r["id"],
+                        "employee_id": r["employee_id"],
+                        "nik": r.get("nik") or r["employee_id"],
+                        "name": r["name"],
+                        "captured_at": str(r["captured_at"]),
+                        "image_path": str(r.get("image_path") or "").replace("\\", "/"),
+                        "status": r.get("attendance_status", "SUCCESS")
+                    })
+                return stats
+        except Exception as err:
+            logger.warning(f"[Database] Gagal mengambil statistik dari MariaDB: {err}")
+        finally:
+            conn.close()
+
+    # Fallback jika MariaDB offline
+    all_emps = get_all_employees()
+    stats["total_employees"] = len(all_emps)
+    stats["active_employees"] = sum(1 for e in all_emps if e.get("is_active", True))
+    stats["inactive_employees"] = stats["total_employees"] - stats["active_employees"]
+    all_att = get_attendance_records(limit=6)
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    stats["today_attendance"] = sum(1 for a in all_att if str(a.get("captured_at", "")).startswith(today_str))
+    stats["recent_attendance"] = all_att[:6]
+    return stats
 
 

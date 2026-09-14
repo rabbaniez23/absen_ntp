@@ -119,6 +119,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_get_employee(parsed_url)
         elif clean_path == "/api/employees":
             self.handle_get_employees()
+        elif clean_path == "/api/stats":
+            self.handle_get_stats()
         elif clean_path in ["/api/attendance", "/api/attendance/records"]:
             self.handle_get_attendance(parsed_url)
         else:
@@ -141,6 +143,8 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_post_employee()
         elif clean_path in ["/api/employees/update", "/api/employees/edit"]:
             self.handle_update_employee()
+        elif clean_path == "/api/employees/toggle-status":
+            self.handle_toggle_status()
         elif clean_path == "/api/employees/delete":
             self.handle_delete_employee()
         else:
@@ -346,10 +350,49 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(400, {"success": False, "message": "ID Karyawan, Nama, dan NIK wajib diisi."})
             return
 
-        success, msg = db.update_employee(emp_id, name, nik, rfid_uid=rfid)
+        is_active = payload.get("is_active")
+        if is_active is not None:
+            is_active = bool(is_active)
+
+        success, msg = db.update_employee(emp_id, name, nik, rfid_uid=rfid, is_active=is_active)
         self.send_json(200 if success else 400, {
             "success": success,
             "message": msg
+        })
+
+    def handle_toggle_status(self):
+        """Mengubah status aktif/nonaktif karyawan secara cepat."""
+        logger.info("API: POST /api/employees/toggle-status")
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            raw_body = self.rfile.read(content_length).decode("utf-8")
+            payload = json.loads(raw_body)
+        except Exception as err:
+            self.send_json(400, {"success": False, "message": f"Format data JSON tidak valid: {err}"})
+            return
+
+        emp_id = payload.get("employee_id", "").strip()
+        is_active = bool(payload.get("is_active", True))
+
+        if not emp_id:
+            self.send_json(400, {"success": False, "message": "ID Karyawan wajib diisi."})
+            return
+
+        success, msg = db.toggle_employee_status(emp_id, is_active)
+        self.send_json(200 if success else 400, {
+            "success": success,
+            "message": msg,
+            "employee_id": emp_id,
+            "is_active": is_active
+        })
+
+    def handle_get_stats(self):
+        """Mengambil data statistik untuk dashboard ringkasan."""
+        logger.info("API: GET /api/stats")
+        stats = db.get_dashboard_stats()
+        self.send_json(200, {
+            "success": True,
+            "stats": stats
         })
 
     def handle_delete_employee(self, parsed_url=None):

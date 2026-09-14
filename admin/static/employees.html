@@ -1,134 +1,234 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Karyawan - absen_ntp</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <title>Admin Dashboard - Absen NTP Biometric Attendance</title>
+    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
-
-<body>
-    <div class="absen-ntp-container kiosk-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="logo-area">
-                <span class="status-dot"></span>
-                <div>
-                    <h1>MANAJEMEN DATA KARYAWAN</h1>
-                    <span class="subtitle">SISTEM DATABASE & SMART CARD RFID (absen_ntp)</span>
+<body class="admin-body">
+    <div class="admin-app-layout">
+        <!-- Top Navigation Header -->
+        <header class="admin-navbar">
+            <div class="nav-brand-container">
+                <div class="brand-logo-mark">
+                    <span class="logo-icon">🛡️</span>
+                    <span class="pulse-indicator"></span>
+                </div>
+                <div class="brand-text">
+                    <div class="brand-title">ABSEN NTP <span class="badge-role">ADMIN</span></div>
+                    <div class="brand-sub">Central Management & Attendance Monitoring</div>
                 </div>
             </div>
 
-            <div class="header-right">
-                <nav class="nav-tabs">
-                    <a href="index.html" class="nav-btn" title="Mesin Absensi Absen NTP">
-                        <span>📷</span> ABSEN NTP
-                    </a>
-                    <a href="employees.html" class="nav-btn active" title="Kelola Master Karyawan">
-                        <span>👥</span> KARYAWAN
-                    </a>
-                    <a href="history.html" class="nav-btn" title="Lihat Riwayat Absen">
-                        <span>📋</span> RIWAYAT ABSEN
-                    </a>
-                    <button id="fullscreenBtn" class="nav-btn fullscreen-toggle-btn" type="button" title="Mode Layar Penuh">
-                        <span class="fs-icon">⛶</span> FULLSCREEN
-                    </button>
-                </nav>
+            <!-- Tab Navigation Menu -->
+            <nav class="admin-tab-nav">
+                <button type="button" class="tab-btn active" data-tab="tab-overview" id="navTabOverview">
+                    <span class="tab-icon">📊</span> Ringkasan
+                </button>
+                <button type="button" class="tab-btn" data-tab="tab-employees" id="navTabEmployees">
+                    <span class="tab-icon">👥</span> Data Karyawan
+                </button>
+                <button type="button" class="tab-btn" data-tab="tab-attendance" id="navTabAttendance">
+                    <span class="tab-icon">🕒</span> Riwayat Absensi
+                </button>
+            </nav>
+
+            <div class="nav-status-container">
+                <div class="live-clock-badge">
+                    <span id="navLiveDate">-- --- ----</span>
+                    <span class="clock-divider">|</span>
+                    <span id="navLiveTime" class="mono-time">--:--:--</span>
+                </div>
+                <button id="globalRefreshBtn" class="action-btn-secondary" title="Muat Ulang Data">
+                    <span>🔄</span> Refresh
+                </button>
             </div>
         </header>
 
-        <!-- Stats Bar Ringkasan -->
-        <div class="stats-bar">
-            <div class="stat-card">
-                <span class="stat-label">Total Karyawan Terdaftar</span>
-                <span class="stat-value highlight" id="statTotalEmployees">0</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Status Sinkronisasi</span>
-                <span class="stat-value success" id="statDbStatus">MariaDB / JSON</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-label">Kartu RFID Terdaftar</span>
-                <span class="stat-value" id="statRfidCount">0</span>
-            </div>
-        </div>
+        <!-- Main Content Area -->
+        <main class="admin-main-content">
+            <!-- Toast Notification Container -->
+            <div id="toastNotification" class="toast-container hidden"></div>
 
-        <!-- Main Admin Grid -->
-        <main class="admin-grid">
-            <!-- Left Panel: Form Tambah Karyawan -->
-            <section class="card form-card">
-                <div class="card-header">
-                    <div class="section-title">
-                        <span class="title-icon">➕</span>
-                        <h2>TAMBAH KARYAWAN</h2>
+            <!-- ========================================================= -->
+            <!-- TAB 1: RINGKASAN / OVERVIEW                               -->
+            <!-- ========================================================= -->
+            <section id="tab-overview" class="tab-content active">
+                <div class="section-top-bar">
+                    <div>
+                        <h2 class="view-title">Ringkasan Sistem Presensi</h2>
+                        <p class="view-subtitle">Pemantauan metrik master karyawan dan riwayat absensi secara real-time.</p>
+                    </div>
+                    <button type="button" class="action-btn-primary" onclick="switchTab('tab-employees', true)">
+                        <span>➕</span> Tambah Karyawan
+                    </button>
+                </div>
+
+                <!-- KPI Metric Cards Grid -->
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon-box blue">👥</div>
+                        <div class="kpi-details">
+                            <span class="kpi-label">TOTAL KARYAWAN</span>
+                            <div class="kpi-value" id="kpiTotalEmployees">0</div>
+                            <span class="kpi-subtext">Terdaftar di sistem</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon-box green">🟢</div>
+                        <div class="kpi-details">
+                            <span class="kpi-label">KARYAWAN AKTIF</span>
+                            <div class="kpi-value" id="kpiActiveEmployees">0</div>
+                            <span class="kpi-subtext text-success">Dapat melakukan absensi</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon-box amber">🔴</div>
+                        <div class="kpi-details">
+                            <span class="kpi-label">KARYAWAN NONAKTIF</span>
+                            <div class="kpi-value" id="kpiInactiveEmployees">0</div>
+                            <span class="kpi-subtext text-warning">Akses absensi dinonaktifkan</span>
+                        </div>
+                    </div>
+
+                    <div class="kpi-card">
+                        <div class="kpi-icon-box purple">📸</div>
+                        <div class="kpi-details">
+                            <span class="kpi-label">ABSENSI HARI INI</span>
+                            <div class="kpi-value" id="kpiTodayAttendance">0</div>
+                            <span class="kpi-subtext text-accent">Tap tercatat hari ini</span>
+                        </div>
                     </div>
                 </div>
-                <div class="form-scrollable-area" style="padding: 16px 20px; overflow-y: auto; flex-grow: 1; min-height: 0;">
-                    <form id="addEmployeeForm" class="admin-form" autocomplete="off">
-                        <div class="admin-input-group">
-                            <label for="empNikInput">Nomor Induk Karyawan (NIK)</label>
-                            <input type="text" id="empNikInput" class="admin-input" placeholder="Contoh: 3201010101900001 atau NIK001" required>
-                            <span class="admin-hint">Nomor identitas resmi yang tampil saat absensi.</span>
-                        </div>
 
-                        <div class="admin-input-group">
-                            <label for="empNameInput">Nama Lengkap Karyawan</label>
-                            <input type="text" id="empNameInput" class="admin-input" placeholder="Contoh: Siti Rahmawati" required>
-                            <span class="admin-hint">Nama yang akan disapa saat karyawan tap kartu.</span>
+                <!-- Recent Attendance Live Feed -->
+                <div class="dashboard-panel">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <span class="panel-icon">⚡</span>
+                            <h3>Absensi Terkini</h3>
+                            <span class="badge-counter" id="recentBadge">Terbaru</span>
                         </div>
-
-                        <div class="admin-input-group">
-                            <label for="empRfidInput">Nomor Kartu RFID (UID)</label>
-                            <input type="text" id="empRfidInput" class="admin-input" placeholder="Tap kartu ke QinHeng RFID Reader atau ketik UID..." required>
-                            <span class="admin-hint">Dapat langsung di-tap dari USB RFID reader QinHeng.</span>
-                        </div>
-
-                        <button type="submit" id="submitBtn" class="btn-primary" style="margin-top: 10px;">
-                            <span>💾</span> SIMPAN KE DATABASE
+                        <button type="button" class="link-btn" onclick="switchTab('tab-attendance')">
+                            Lihat Semua Riwayat ➔
                         </button>
-
-                        <div id="formAlert" class="alert-box"></div>
-                    </form>
+                    </div>
+                    <div class="recent-feed-grid" id="recentFeedContainer">
+                        <div class="feed-empty-state">Memuat data absensi terbaru...</div>
+                    </div>
                 </div>
             </section>
 
-            <!-- Right Panel: Tabel Daftar Karyawan -->
-            <section class="card table-card">
-                <div class="card-header">
-                    <div class="section-title">
-                        <span class="title-icon">👥</span>
-                        <h2>DAFTAR KARYAWAN TERDAFTAR</h2>
+            <!-- ========================================================= -->
+            <!-- TAB 2: DATA KARYAWAN (CRUD + STATUS AKTIF/NONAKTIF)        -->
+            <!-- ========================================================= -->
+            <section id="tab-employees" class="tab-content">
+                <div class="section-top-bar">
+                    <div>
+                        <h2 class="view-title">Manajemen Data Karyawan</h2>
+                        <p class="view-subtitle">Kelola NIK, Nama, ID Kartu RFID, dan status keaktifan karyawan.</p>
                     </div>
-                    <span class="badge active" id="employeeTotalBadge">0 Karyawan</span>
+                    <button type="button" class="action-btn-primary" id="openAddModalBtn">
+                        <span>➕</span> Tambah Karyawan Baru
+                    </button>
                 </div>
 
-                <div style="padding: 16px 20px; display: flex; flex-direction: column; flex-grow: 1; min-height: 0;">
-                    <div class="table-toolbar">
-                        <input type="text" id="searchInput" class="admin-input search-input"
-                            placeholder="🔍 Cari nama / NIK / RFID...">
-                        <button type="button" id="refreshBtn" class="absen-ntp-toggle-btn" title="Muat Ulang Data">
-                            🔄 Refresh
-                        </button>
+                <!-- Controls Bar -->
+                <div class="table-controls-bar">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="employeeSearchInput" placeholder="Cari NIK, Nama, atau RFID..." autocomplete="off">
                     </div>
 
-                    <div class="table-wrapper">
-                        <table class="data-table">
+                    <div class="filter-group">
+                        <label for="employeeStatusFilter">Filter Status:</label>
+                        <select id="employeeStatusFilter" class="select-filter">
+                            <option value="ALL">Semua Status</option>
+                            <option value="ACTIVE">Hanya Aktif</option>
+                            <option value="INACTIVE">Hanya Nonaktif</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Employee Table Card -->
+                <div class="dashboard-panel no-padding">
+                    <div class="table-responsive">
+                        <table class="modern-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px;">No</th>
-                                    <th style="width: 150px;">NIK</th>
-                                    <th>Nama Karyawan</th>
-                                    <th style="width: 140px;">RFID UID</th>
-                                    <th style="width: 90px;">Status</th>
-                                    <th style="width: 90px; text-align: center;">Aksi</th>
+                                    <th style="width: 60px;">NO</th>
+                                    <th>NOMOR INDUK (NIK)</th>
+                                    <th>NAMA KARYAWAN</th>
+                                    <th>NOMOR RFID UID</th>
+                                    <th>STATUS KEAKTIFAN</th>
+                                    <th style="width: 180px; text-align: center;">AKSI</th>
                                 </tr>
                             </thead>
                             <tbody id="employeeTableBody">
                                 <tr>
-                                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
-                                        Memuat data dari database...
-                                    </td>
+                                    <td colspan="6" class="table-loading">Memuat data karyawan...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================= -->
+            <!-- TAB 3: RIWAYAT ABSENSI & FOTO                              -->
+            <!-- ========================================================= -->
+            <section id="tab-attendance" class="tab-content">
+                <div class="section-top-bar">
+                    <div>
+                        <h2 class="view-title">Riwayat Log Absensi</h2>
+                        <p class="view-subtitle">Semua catatan absensi lengkap dengan verifikasi foto jepretan kamera.</p>
+                    </div>
+                    <div class="header-actions">
+                        <button type="button" class="action-btn-secondary" id="exportCsvBtn">
+                            <span>📥</span> Ekspor CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Controls Bar -->
+                <div class="table-controls-bar">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="attendanceSearchInput" placeholder="Cari nama karyawan atau NIK..." autocomplete="off">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="attendanceDateFilter">Filter Tanggal:</label>
+                        <input type="date" id="attendanceDateFilter" class="date-filter-input">
+                        <button type="button" id="todayFilterBtn" class="pill-filter-btn active">Hari Ini</button>
+                        <button type="button" id="allDatesFilterBtn" class="pill-filter-btn">Semua</button>
+                    </div>
+                </div>
+
+                <!-- Attendance Table Card -->
+                <div class="dashboard-panel no-padding">
+                    <div class="table-responsive">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;">NO</th>
+                                    <th style="width: 90px; text-align: center;">FOTO</th>
+                                    <th>NOMOR INDUK (NIK)</th>
+                                    <th>NAMA KARYAWAN</th>
+                                    <th>TANGGAL & WAKTU</th>
+                                    <th>STATUS</th>
+                                    <th style="width: 110px; text-align: center;">PRATINJAU</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceTableBody">
+                                <tr>
+                                    <td colspan="7" class="table-loading">Memuat data absensi...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -136,320 +236,636 @@
                 </div>
             </section>
         </main>
-
-        <!-- Footer -->
-        <footer class="app-footer">
-            <span>&bull; Data otomatis tersinkronisasi ke MariaDB & JSON Storage lokal &bull;</span>
-        </footer>
     </div>
 
-    <!-- Modal Edit Karyawan -->
-    <div id="editModal" class="photo-modal hidden">
-        <div class="photo-modal-content" style="max-width: 480px;">
-            <div class="photo-modal-header">
-                <div>
-                    <h3 style="color: #ffffff; font-size: 1.15rem; margin: 0;">✏️ Edit Data Karyawan</h3>
-                    <span id="editEmpIdLabel" style="color: var(--accent); font-size: 0.85rem; font-weight: 600;">-</span>
+    <!-- ========================================================= -->
+    <!-- MODAL 1: TAMBAH KARYAWAN BARU                              -->
+    <!-- ========================================================= -->
+    <div id="addModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">➕</span>
+                    <h3>Tambah Karyawan Baru</h3>
                 </div>
-                <button type="button" id="editModalCloseBtn" class="photo-modal-close" title="Tutup Modal">✖</button>
+                <button type="button" class="modal-close-btn" id="closeAddModalBtn">&times;</button>
             </div>
-            <form id="editEmployeeForm" class="admin-form" style="padding: 6px 0;">
-                <input type="hidden" id="editEmpId">
-                <div class="admin-input-group">
-                    <label for="editNikInput">Nomor Induk Karyawan (NIK)</label>
-                    <input type="text" id="editNikInput" class="admin-input" required>
+            <form id="addEmployeeForm">
+                <div class="form-group">
+                    <label for="addNik">Nomor Induk Karyawan (NIK) <span class="required">*</span></label>
+                    <input type="text" id="addNik" placeholder="Contoh: 210019 atau EMP003" required autocomplete="off">
+                    <span class="field-hint">NIK digunakan sebagai identifikasi resmi dan login manual</span>
                 </div>
-                <div class="admin-input-group">
-                    <label for="editNameInput">Nama Lengkap</label>
-                    <input type="text" id="editNameInput" class="admin-input" required>
+
+                <div class="form-group">
+                    <label for="addName">Nama Lengkap Karyawan <span class="required">*</span></label>
+                    <input type="text" id="addName" placeholder="Contoh: Ahmad Fadilah" required autocomplete="off">
                 </div>
-                <div class="admin-input-group">
-                    <label for="editRfidInput">Nomor Kartu RFID (UID)</label>
-                    <input type="text" id="editRfidInput" class="admin-input">
+
+                <div class="form-group">
+                    <label for="addRfid">Nomor Kartu RFID UID <span class="required">*</span></label>
+                    <div class="input-with-action">
+                        <input type="text" id="addRfid" placeholder="Tempelkan kartu ke reader..." required autocomplete="off">
+                        <span class="badge-input-hint">Reader RFID</span>
+                    </div>
+                    <span class="field-hint">ID kartu yang terbaca otomatis saat kartu didekatkan</span>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button type="button" id="editCancelBtn" class="absen-ntp-toggle-btn" style="flex: 1; justify-content: center;">Batal</button>
-                    <button type="submit" id="editSubmitBtn" class="btn-primary" style="flex: 1.5;">💾 Simpan Perubahan</button>
+
+                <div class="form-group">
+                    <label for="addStatus">Status Keaktifan Awal</label>
+                    <select id="addStatus" class="form-select">
+                        <option value="1" selected>🟢 AKTIF (Dapat melakukan absensi)</option>
+                        <option value="0">🔴 NONAKTIF (Akses dibekukan sementara)</option>
+                    </select>
                 </div>
-                <div id="editFormAlert" class="alert-box"></div>
+
+                <div class="modal-footer">
+                    <button type="button" class="action-btn-secondary" id="cancelAddBtn">Batal</button>
+                    <button type="submit" class="action-btn-primary" id="saveAddBtn">
+                        <span>💾</span> Simpan Karyawan
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
-    <script>
-        let allEmployees = [];
-        const form = document.getElementById("addEmployeeForm");
-        const empNikInput = document.getElementById("empNikInput");
-        const empNameInput = document.getElementById("empNameInput");
-        const empRfidInput = document.getElementById("empRfidInput");
-        const submitBtn = document.getElementById("submitBtn");
-        const formAlert = document.getElementById("formAlert");
-        const tableBody = document.getElementById("employeeTableBody");
-        const searchInput = document.getElementById("searchInput");
-        const refreshBtn = document.getElementById("refreshBtn");
-        const employeeTotalBadge = document.getElementById("employeeTotalBadge");
+    <!-- ========================================================= -->
+    <!-- MODAL 2: EDIT KARYAWAN                                     -->
+    <!-- ========================================================= -->
+    <div id="editModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">✏️</span>
+                    <h3>Edit Data Karyawan</h3>
+                </div>
+                <button type="button" class="modal-close-btn" id="closeEditModalBtn">&times;</button>
+            </div>
+            <form id="editEmployeeForm">
+                <input type="hidden" id="editOriginalId">
 
+                <div class="form-group">
+                    <label for="editNik">Nomor Induk Karyawan (NIK) <span class="required">*</span></label>
+                    <input type="text" id="editNik" required autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label for="editName">Nama Lengkap Karyawan <span class="required">*</span></label>
+                    <input type="text" id="editName" required autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label for="editRfid">Nomor Kartu RFID UID <span class="required">*</span></label>
+                    <input type="text" id="editRfid" required autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label for="editStatus">Status Keaktifan</label>
+                    <select id="editStatus" class="form-select">
+                        <option value="1">🟢 AKTIF</option>
+                        <option value="0">🔴 NONAKTIF</option>
+                    </select>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="action-btn-secondary" id="cancelEditBtn">Batal</button>
+                    <button type="submit" class="action-btn-primary" id="saveEditBtn">
+                        <span>💾</span> Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MODAL 3: ZOOM FOTO ABSENSI HD                              -->
+    <!-- ========================================================= -->
+    <div id="photoZoomModal" class="modal-backdrop hidden">
+        <div class="modal-card photo-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">📷</span>
+                    <h3 id="photoModalTitle">Bukti Foto Absensi</h3>
+                </div>
+                <button type="button" class="modal-close-btn" id="closePhotoModalBtn">&times;</button>
+            </div>
+            <div class="photo-viewer-body">
+                <div class="photo-frame">
+                    <img id="photoModalImg" src="" alt="Bukti Foto Absensi">
+                </div>
+                <div class="photo-meta-box">
+                    <div class="meta-item">
+                        <span class="meta-label">Nama Karyawan</span>
+                        <span class="meta-val" id="photoModalName">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Nomor Induk (NIK)</span>
+                        <span class="meta-val mono" id="photoModalNik">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Waktu Presensi</span>
+                        <span class="meta-val" id="photoModalTime">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Status Presensi</span>
+                        <span class="badge-status success" id="photoModalStatus">BERHASIL</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State Management
+        let allEmployees = [];
+        let allAttendanceRecords = [];
+        let dashboardStats = {};
+        let currentTab = "tab-overview";
+
+        // DOM Elements
+        const toastEl = document.getElementById("toastNotification");
+        const navLiveDate = document.getElementById("navLiveDate");
+        const navLiveTime = document.getElementById("navLiveTime");
+
+        // Helper API URL Generator (Relative to port 8001)
         function getApiUrl(endpoint) {
             const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
             return "/" + cleanEndpoint;
         }
 
         function escapeHtml(text) {
-            const div = document.createElement('div');
+            if (!text) return "";
+            const div = document.createElement("div");
             div.textContent = text;
             return div.innerHTML;
         }
 
-        function showAlert(message, isSuccess = true) {
-            formAlert.textContent = message;
-            formAlert.className = "alert-box " + (isSuccess ? "success" : "error");
-            formAlert.style.display = "block";
-            setTimeout(() => {
-                formAlert.style.display = "none";
-            }, 5000);
+        function showToast(message, type = "success") {
+            toastEl.textContent = message;
+            toastEl.className = `toast-container visible toast-${type}`;
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                toastEl.classList.remove("visible");
+            }, 3500);
         }
 
-        async function loadEmployees() {
-            try {
-                const response = await fetch(getApiUrl("api/employees"));
-                const result = await response.json();
-                if (result.success && Array.isArray(result.employees)) {
-                    allEmployees = result.employees;
-                    renderTable(allEmployees);
-                } else {
-                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: #f85149; padding: 20px;">Gagal memuat data: ${result.message || "Error"}</td></tr>`;
-                }
-            } catch (err) {
-                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: #f85149; padding: 20px;">Koneksi ke server gagal.</td></tr>`;
-            }
+        // Clock Function
+        function updateClock() {
+            const now = new Date();
+            const dateOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+            if (navLiveDate) navLiveDate.textContent = now.toLocaleDateString('id-ID', dateOptions);
+            if (navLiveTime) navLiveTime.textContent = now.toTimeString().split(' ')[0];
         }
+        setInterval(updateClock, 1000);
+        updateClock();
 
-        function renderTable(list) {
-            tableBody.innerHTML = "";
-            employeeTotalBadge.textContent = `${list.length} Karyawan`;
-
-            const statTotalEmployees = document.getElementById("statTotalEmployees");
-            const statRfidCount = document.getElementById("statRfidCount");
-            if (statTotalEmployees) statTotalEmployees.textContent = allEmployees.length;
-            if (statRfidCount) {
-                const withRfid = allEmployees.filter(e => e.rfid_uid && e.rfid_uid.trim() !== "").length;
-                statRfidCount.textContent = withRfid;
-            }
-
-            if (list.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted); padding: 30px;">Tidak ada data karyawan ditemukan.</td></tr>`;
-                return;
-            }
-
-            list.forEach((emp, index) => {
-                const tr = document.createElement("tr");
-                const nikDisplay = emp.nik || emp.employee_id;
-                tr.innerHTML = `
-                    <td>${index + 1}</td>
-                    <td><strong style="color: var(--accent);">${escapeHtml(nikDisplay)}</strong></td>
-                    <td>${escapeHtml(emp.name)}</td>
-                    <td><code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">${escapeHtml(emp.rfid_uid)}</code></td>
-                    <td><span class="badge-active">AKTIF</span></td>
-                    <td style="text-align: center; white-space: nowrap;">
-                        <button class="absen-ntp-toggle-btn" style="padding: 5px 10px; font-size: 0.78rem; display: inline-flex; margin-right: 4px;"
-                                onclick="openEditModal('${escapeHtml(emp.employee_id)}', '${escapeHtml(emp.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(emp.rfid_uid || '')}')" title="Edit Data Karyawan">
-                            ✏️ Edit
-                        </button>
-                        <button class="btn-delete" style="display: inline-flex; padding: 5px 10px; font-size: 0.78rem;" onclick="deleteEmployee('${escapeHtml(emp.employee_id)}', '${escapeHtml(emp.name)}')" title="Hapus Karyawan">
-                            🗑️ Hapus
-                        </button>
-                    </td>
-                `;
-                tableBody.appendChild(tr);
+        // Tab Navigation
+        function switchTab(tabId, openAddModal = false) {
+            currentTab = tabId;
+            document.querySelectorAll(".tab-btn").forEach(btn => {
+                btn.classList.toggle("active", btn.dataset.tab === tabId);
             });
+            document.querySelectorAll(".tab-content").forEach(content => {
+                content.classList.toggle("active", content.id === tabId);
+            });
+
+            if (tabId === "tab-overview") loadDashboardStats();
+            if (tabId === "tab-employees") loadEmployees();
+            if (tabId === "tab-attendance") loadAttendanceRecords();
+
+            if (openAddModal) {
+                setTimeout(openAddModalDialog, 150);
+            }
         }
 
-        // Filter pencarian data karyawan
-        searchInput.addEventListener("input", () => {
-            const query = searchInput.value.toLowerCase().trim();
-            if (!query) {
-                renderTable(allEmployees);
-                return;
-            }
-            const filtered = allEmployees.filter(emp =>
-                (emp.nik && emp.nik.toLowerCase().includes(query)) ||
-                emp.employee_id.toLowerCase().includes(query) ||
-                emp.name.toLowerCase().includes(query) ||
-                (emp.rfid_uid && emp.rfid_uid.toLowerCase().includes(query))
-            );
-            renderTable(filtered);
+        document.querySelectorAll(".tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => switchTab(btn.dataset.tab));
         });
 
-        // Pengiriman form tambah karyawan
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const nik = empNikInput.value.trim();
-            const name = empNameInput.value.trim();
-            const rfid_uid = empRfidInput.value.trim();
+        document.getElementById("globalRefreshBtn").addEventListener("click", () => {
+            loadDashboardStats();
+            loadEmployees();
+            loadAttendanceRecords();
+            showToast("Data sistem diperbarui", "info");
+        });
 
-            if (!nik || !name || !rfid_uid) {
-                showAlert("Semua bidang (NIK, Nama, RFID UID) wajib diisi!", false);
+        // =================================================================
+        // 1. DATA LOADER: STATISTIK DASHBOARD
+        // =================================================================
+        async function loadDashboardStats() {
+            try {
+                const res = await fetch(getApiUrl("api/stats"));
+                const data = await res.json();
+                if (data.success && data.stats) {
+                    dashboardStats = data.stats;
+                    document.getElementById("kpiTotalEmployees").textContent = dashboardStats.total_employees;
+                    document.getElementById("kpiActiveEmployees").textContent = dashboardStats.active_employees;
+                    document.getElementById("kpiInactiveEmployees").textContent = dashboardStats.inactive_employees;
+                    document.getElementById("kpiTodayAttendance").textContent = dashboardStats.today_attendance;
+
+                    renderRecentFeed(dashboardStats.recent_attendance || []);
+                }
+            } catch (err) {
+                console.error("Gagal memuat stats:", err);
+            }
+        }
+
+        function renderRecentFeed(recentList) {
+            const container = document.getElementById("recentFeedContainer");
+            if (!recentList || recentList.length === 0) {
+                container.innerHTML = `<div class="feed-empty-state">Belum ada absensi tercatat hari ini.</div>`;
                 return;
             }
 
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = "<span>⏳</span> Menyimpan...";
+            container.innerHTML = recentList.map(item => {
+                const imgPath = item.image_path ? `/${item.image_path}` : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' fill='%2364748b' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4'/><path d='M12 14c-6.1 0-8 4-8 4v2h16v-2s-1.9-4-8-4z'/></svg>";
+                return `
+                    <div class="recent-feed-card" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}')">
+                        <div class="feed-thumb-box">
+                            <img src="${escapeHtml(imgPath)}" alt="${escapeHtml(item.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'48\\' height=\\'48\\' fill=\\'%2364748b\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'8\\' r=\\'4\\'/><path d=\\'M12 14c-6.1 0-8 4-8 4v2h16v-2s-1.9-4-8-4z\\'/></svg>'">
+                            <span class="thumb-zoom-badge">🔍</span>
+                        </div>
+                        <div class="feed-info">
+                            <span class="feed-name">${escapeHtml(item.name)}</span>
+                            <span class="feed-nik mono">NIK: ${escapeHtml(item.nik)}</span>
+                            <span class="feed-time">🕒 ${escapeHtml(item.captured_at)}</span>
+                        </div>
+                        <div class="feed-badge">
+                            <span class="badge-status success">HADIR</span>
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        // =================================================================
+        // 2. DATA LOADER: MASTER KARYAWAN (CRUD + STATUS TOGGLE)
+        // =================================================================
+        async function loadEmployees() {
+            const tableBody = document.getElementById("employeeTableBody");
+            try {
+                const res = await fetch(getApiUrl("api/employees"));
+                const data = await res.json();
+                if (data.success && Array.isArray(data.employees)) {
+                    allEmployees = data.employees;
+                    filterAndRenderEmployees();
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="6" class="table-error">Gagal memuat data: ${data.message || "Error"}</td></tr>`;
+                }
+            } catch (err) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="table-error">Koneksi ke server database gagal.</td></tr>`;
+            }
+        }
+
+        function filterAndRenderEmployees() {
+            const query = document.getElementById("employeeSearchInput").value.toLowerCase().trim();
+            const statusFilter = document.getElementById("employeeStatusFilter").value;
+            const tableBody = document.getElementById("employeeTableBody");
+
+            let filtered = allEmployees.filter(emp => {
+                const nikStr = (emp.nik || emp.employee_id || "").toLowerCase();
+                const nameStr = (emp.name || "").toLowerCase();
+                const rfidStr = (emp.rfid_uid || "").toLowerCase();
+
+                const matchQuery = !query || nikStr.includes(query) || nameStr.includes(query) || rfidStr.includes(query);
+
+                let matchStatus = true;
+                if (statusFilter === "ACTIVE") matchStatus = emp.is_active === true;
+                if (statusFilter === "INACTIVE") matchStatus = emp.is_active === false;
+
+                return matchQuery && matchStatus;
+            });
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="6" class="table-empty">Tidak ada karyawan yang sesuai filter.</td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = filtered.map((emp, index) => {
+                const isActive = emp.is_active !== false;
+                const nikDisplay = emp.nik || emp.employee_id;
+                const statusBadge = isActive
+                    ? `<span class="status-pill active"><span class="dot green"></span> AKTIF</span>`
+                    : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`;
+
+                const toggleBtn = isActive
+                    ? `<button type="button" class="btn-toggle-deactivate" onclick="toggleStatus('${escapeHtml(emp.employee_id)}', false)" title="Nonaktifkan Karyawan">Nonaktifkan</button>`
+                    : `<button type="button" class="btn-toggle-activate" onclick="toggleStatus('${escapeHtml(emp.employee_id)}', true)" title="Aktifkan Karyawan">Aktifkan</button>`;
+
+                return `
+                    <tr>
+                        <td class="text-center text-muted">${index + 1}</td>
+                        <td><strong class="mono text-accent">${escapeHtml(nikDisplay)}</strong></td>
+                        <td class="font-medium">${escapeHtml(emp.name)}</td>
+                        <td><code class="rfid-code">${escapeHtml(emp.rfid_uid || "-")}</code></td>
+                        <td>
+                            <div class="status-cell-wrapper">
+                                ${statusBadge}
+                                ${toggleBtn}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="action-btn-group">
+                                <button type="button" class="btn-action edit" onclick="openEditModalDialog('${escapeHtml(emp.employee_id)}', '${escapeHtml(emp.name)}', '${escapeHtml(nikDisplay)}', '${escapeHtml(emp.rfid_uid || '')}', ${isActive})" title="Edit Data">
+                                    ✏️ Edit
+                                </button>
+                                <button type="button" class="btn-action delete" onclick="confirmDeleteEmployee('${escapeHtml(emp.employee_id)}', '${escapeHtml(emp.name)}')" title="Hapus Karyawan">
+                                    🗑️ Hapus
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        document.getElementById("employeeSearchInput").addEventListener("input", filterAndRenderEmployees);
+        document.getElementById("employeeStatusFilter").addEventListener("change", filterAndRenderEmployees);
+
+        // Quick Status Toggle
+        async function toggleStatus(employeeId, newActiveStatus) {
+            try {
+                const res = await fetch(getApiUrl("api/employees/toggle-status"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ employee_id: employeeId, is_active: newActiveStatus })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, "success");
+                    loadEmployees();
+                    loadDashboardStats();
+                } else {
+                    showToast(data.message || "Gagal mengubah status", "error");
+                }
+            } catch (err) {
+                showToast("Gagal menghubungi server", "error");
+            }
+        }
+
+        // Add Employee Dialog
+        const addModal = document.getElementById("addModal");
+        function openAddModalDialog() {
+            document.getElementById("addEmployeeForm").reset();
+            addModal.classList.remove("hidden");
+            document.getElementById("addNik").focus();
+        }
+        function closeAddModalDialog() {
+            addModal.classList.add("hidden");
+        }
+        document.getElementById("openAddModalBtn").addEventListener("click", openAddModalDialog);
+        document.getElementById("closeAddModalBtn").addEventListener("click", closeAddModalDialog);
+        document.getElementById("cancelAddBtn").addEventListener("click", closeAddModalDialog);
+
+        document.getElementById("addEmployeeForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const nik = document.getElementById("addNik").value.trim();
+            const name = document.getElementById("addName").value.trim();
+            const rfid = document.getElementById("addRfid").value.trim();
+            const isActive = document.getElementById("addStatus").value === "1";
+
+            if (!nik || !name || !rfid) {
+                showToast("Semua bidang wajib diisi!", "error");
+                return;
+            }
+
+            const saveBtn = document.getElementById("saveAddBtn");
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = "Menyimpan...";
 
             try {
                 const res = await fetch(getApiUrl("api/employees"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ employee_id: nik, nik, name, rfid_uid })
+                    body: JSON.stringify({ employee_id: nik, nik, name, rfid_uid: rfid, is_active: isActive })
                 });
                 const result = await res.json();
-
                 if (result.success) {
-                    showAlert(result.message, true);
-                    form.reset();
+                    showToast(result.message, "success");
+                    closeAddModalDialog();
                     loadEmployees();
+                    loadDashboardStats();
                 } else {
-                    showAlert(result.message || "Gagal menyimpan karyawan", false);
+                    showToast(result.message || "Gagal menyimpan", "error");
                 }
             } catch (err) {
-                showAlert("Gagal menghubungi server: " + err.message, false);
+                showToast("Kesalahan jaringan: " + err.message, "error");
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = "<span>💾</span> SIMPAN KE DATABASE";
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = "<span>💾</span> Simpan Karyawan";
             }
         });
 
-        // Hapus data karyawan
-        async function deleteEmployee(id, name) {
-            if (!confirm(`Apakah Anda yakin ingin menghapus karyawan "${name}" (${id})?`)) {
-                return;
-            }
+        // Edit Employee Dialog
+        const editModal = document.getElementById("editModal");
+        function openEditModalDialog(empId, name, nik, rfid, isActive) {
+            document.getElementById("editOriginalId").value = empId;
+            document.getElementById("editNik").value = nik;
+            document.getElementById("editName").value = name;
+            document.getElementById("editRfid").value = rfid;
+            document.getElementById("editStatus").value = isActive ? "1" : "0";
+            editModal.classList.remove("hidden");
+        }
+        function closeEditModalDialog() {
+            editModal.classList.add("hidden");
+        }
+        document.getElementById("closeEditModalBtn").addEventListener("click", closeEditModalDialog);
+        document.getElementById("cancelEditBtn").addEventListener("click", closeEditModalDialog);
+
+        document.getElementById("editEmployeeForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const empId = document.getElementById("editOriginalId").value;
+            const nik = document.getElementById("editNik").value.trim();
+            const name = document.getElementById("editName").value.trim();
+            const rfid = document.getElementById("editRfid").value.trim();
+            const isActive = document.getElementById("editStatus").value === "1";
+
+            const saveBtn = document.getElementById("saveEditBtn");
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = "Menyimpan...";
 
             try {
-                const res = await fetch(getApiUrl(`api/employees?id=${encodeURIComponent(id)}`), {
+                const res = await fetch(getApiUrl("api/employees/update"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ employee_id: empId, nik, name, rfid_uid: rfid, is_active: isActive })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast(result.message, "success");
+                    closeEditModalDialog();
+                    loadEmployees();
+                    loadDashboardStats();
+                } else {
+                    showToast(result.message || "Gagal memperbarui", "error");
+                }
+            } catch (err) {
+                showToast("Kesalahan server: " + err.message, "error");
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = "<span>💾</span> Simpan Perubahan";
+            }
+        });
+
+        // Delete Employee
+        async function confirmDeleteEmployee(empId, name) {
+            if (!confirm(`Hapus karyawan "${name}" (${empId}) dari sistem? Data yang dihapus tidak dapat dikembalikan.`)) {
+                return;
+            }
+            try {
+                const res = await fetch(getApiUrl(`api/employees?id=${encodeURIComponent(empId)}`), {
                     method: "DELETE"
                 });
                 const result = await res.json();
                 if (result.success) {
-                    showAlert(result.message, true);
+                    showToast(result.message, "success");
                     loadEmployees();
+                    loadDashboardStats();
                 } else {
-                    showAlert(result.message || "Gagal menghapus karyawan", false);
+                    showToast(result.message || "Gagal menghapus", "error");
                 }
             } catch (err) {
-                showAlert("Gagal menghubungi server: " + err.message, false);
+                showToast("Gagal menghubungi server", "error");
             }
         }
 
-        // Modal Edit Karyawan Logic
-        const editModal = document.getElementById("editModal");
-        const editEmpId = document.getElementById("editEmpId");
-        const editEmpIdLabel = document.getElementById("editEmpIdLabel");
-        const editNikInput = document.getElementById("editNikInput");
-        const editNameInput = document.getElementById("editNameInput");
-        const editRfidInput = document.getElementById("editRfidInput");
-        const editModalCloseBtn = document.getElementById("editModalCloseBtn");
-        const editCancelBtn = document.getElementById("editCancelBtn");
-        const editFormAlert = document.getElementById("editFormAlert");
-        const editEmployeeForm = document.getElementById("editEmployeeForm");
-        const editSubmitBtn = document.getElementById("editSubmitBtn");
+        // =================================================================
+        // 3. DATA LOADER: RIWAYAT ABSENSI & FOTO HD
+        // =================================================================
+        async function loadAttendanceRecords() {
+            const tableBody = document.getElementById("attendanceTableBody");
+            const dateVal = document.getElementById("attendanceDateFilter").value;
+            let url = "api/attendance?limit=200";
+            if (dateVal) {
+                url += `&date=${encodeURIComponent(dateVal)}`;
+            }
 
-        function openEditModal(empId, name, nik, rfid) {
-            editEmpId.value = empId;
-            editEmpIdLabel.textContent = "ID: " + empId;
-            editNikInput.value = nik;
-            editNameInput.value = name;
-            editRfidInput.value = rfid || "";
-            editFormAlert.style.display = "none";
-            editModal.classList.remove("hidden");
-            editNikInput.focus();
+            try {
+                const res = await fetch(getApiUrl(url));
+                const data = await res.json();
+                if (data.success && Array.isArray(data.records)) {
+                    allAttendanceRecords = data.records;
+                    filterAndRenderAttendance();
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="7" class="table-error">Gagal memuat riwayat absensi.</td></tr>`;
+                }
+            } catch (err) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="table-error">Koneksi ke server gagal saat mengambil riwayat.</td></tr>`;
+            }
         }
 
-        function closeEditModal() {
-            editModal.classList.add("hidden");
-            editFormAlert.style.display = "none";
-        }
+        function filterAndRenderAttendance() {
+            const query = document.getElementById("attendanceSearchInput").value.toLowerCase().trim();
+            const tableBody = document.getElementById("attendanceTableBody");
 
-        editModalCloseBtn.addEventListener("click", closeEditModal);
-        editCancelBtn.addEventListener("click", closeEditModal);
-        editModal.addEventListener("click", (e) => {
-            if (e.target === editModal) closeEditModal();
-        });
+            let filtered = allAttendanceRecords.filter(item => {
+                const nameStr = (item.name || "").toLowerCase();
+                const nikStr = (item.nik || item.employee_id || "").toLowerCase();
+                return !query || nameStr.includes(query) || nikStr.includes(query);
+            });
 
-        editEmployeeForm.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const empId = editEmpId.value.trim();
-            const nik = editNikInput.value.trim();
-            const name = editNameInput.value.trim();
-            const rfid_uid = editRfidInput.value.trim();
-
-            if (!nik || !name) {
-                editFormAlert.textContent = "NIK dan Nama wajib diisi!";
-                editFormAlert.className = "alert-box error";
-                editFormAlert.style.display = "block";
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="table-empty">Tidak ada catatan riwayat absensi.</td></tr>`;
                 return;
             }
 
-            editSubmitBtn.disabled = true;
-            editSubmitBtn.innerHTML = "Menyimpan...";
+            tableBody.innerHTML = filtered.map((item, index) => {
+                const imgPath = item.image_path ? `/${item.image_path}` : "";
+                const thumbHtml = imgPath
+                    ? `<img src="${escapeHtml(imgPath)}" class="table-thumb" alt="Foto" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}')">`
+                    : `<span class="no-thumb">📷</span>`;
 
-            try {
-                const response = await fetch(getApiUrl("api/employees/update"), {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ employee_id: empId, nik, name, rfid_uid })
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    closeEditModal();
-                    showAlert(result.message, true);
-                    loadEmployees();
-                } else {
-                    editFormAlert.textContent = result.message || "Gagal memperbarui data.";
-                    editFormAlert.className = "alert-box error";
-                    editFormAlert.style.display = "block";
-                }
-            } catch (err) {
-                editFormAlert.textContent = "Koneksi ke server gagal: " + err.message;
-                editFormAlert.className = "alert-box error";
-                editFormAlert.style.display = "block";
-            } finally {
-                editSubmitBtn.disabled = false;
-                editSubmitBtn.innerHTML = "💾 Simpan Perubahan";
-            }
-        });
-
-        // Handler Tombol Fullscreen
-        const fullscreenBtn = document.getElementById("fullscreenBtn");
-        if (fullscreenBtn) {
-            fullscreenBtn.addEventListener("click", () => {
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(err => {
-                        console.warn("[Presensi] Kendala fullscreen:", err);
-                    });
-                } else {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen().catch(err => {
-                            console.warn("[Presensi] Kendala keluar fullscreen:", err);
-                        });
-                    }
-                }
-            });
-
-            document.addEventListener("fullscreenchange", () => {
-                if (document.fullscreenElement) {
-                    fullscreenBtn.innerHTML = '<span class="fs-icon">🗗</span> JENDELA';
-                } else {
-                    fullscreenBtn.innerHTML = '<span class="fs-icon">⛶</span> FULLSCREEN';
-                }
-            });
+                return `
+                    <tr>
+                        <td class="text-center text-muted">${index + 1}</td>
+                        <td class="text-center">${thumbHtml}</td>
+                        <td><strong class="mono text-accent">${escapeHtml(item.nik || item.employee_id)}</strong></td>
+                        <td class="font-medium">${escapeHtml(item.name)}</td>
+                        <td class="mono text-muted">${escapeHtml(item.captured_at)}</td>
+                        <td><span class="badge-status success">${escapeHtml(item.status || "SUCCESS")}</span></td>
+                        <td class="text-center">
+                            ${imgPath ? `<button type="button" class="action-btn-secondary btn-sm" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}')">🔍 Foto HD</button>` : `<span class="text-muted">-</span>`}
+                        </td>
+                    </tr>
+                `;
+            }).join("");
         }
 
-        // Muat data karyawan saat halaman selesai terbuka
-        window.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("attendanceSearchInput").addEventListener("input", filterAndRenderAttendance);
+        document.getElementById("attendanceDateFilter").addEventListener("change", () => {
+            document.querySelectorAll(".pill-filter-btn").forEach(b => b.classList.remove("active"));
+            loadAttendanceRecords();
+        });
+
+        // Quick Date Buttons
+        document.getElementById("todayFilterBtn").addEventListener("click", () => {
+            const todayStr = new Date().toISOString().split("T")[0];
+            document.getElementById("attendanceDateFilter").value = todayStr;
+            document.getElementById("todayFilterBtn").classList.add("active");
+            document.getElementById("allDatesFilterBtn").classList.remove("active");
+            loadAttendanceRecords();
+        });
+
+        document.getElementById("allDatesFilterBtn").addEventListener("click", () => {
+            document.getElementById("attendanceDateFilter").value = "";
+            document.getElementById("allDatesFilterBtn").classList.add("active");
+            document.getElementById("todayFilterBtn").classList.remove("active");
+            loadAttendanceRecords();
+        });
+
+        // Photo Modal Zoom
+        const photoModal = document.getElementById("photoZoomModal");
+        function openPhotoModal(imgPath, name, nik, time) {
+            document.getElementById("photoModalImg").src = imgPath;
+            document.getElementById("photoModalName").textContent = name;
+            document.getElementById("photoModalNik").textContent = nik;
+            document.getElementById("photoModalTime").textContent = time;
+            photoModal.classList.remove("hidden");
+        }
+        function closePhotoModal() {
+            photoModal.classList.add("hidden");
+        }
+        document.getElementById("closePhotoModalBtn").addEventListener("click", closePhotoModal);
+        photoModal.addEventListener("click", (e) => {
+            if (e.target === photoModal) closePhotoModal();
+        });
+
+        // Export to CSV
+        document.getElementById("exportCsvBtn").addEventListener("click", () => {
+            if (allAttendanceRecords.length === 0) {
+                showToast("Tidak ada data untuk diekspor", "warning");
+                return;
+            }
+
+            let csvContent = "No,NIK,Nama Karyawan,Tanggal & Waktu,Status,File Foto\n";
+            allAttendanceRecords.forEach((item, idx) => {
+                const nik = `"${(item.nik || item.employee_id || '').replace(/"/g, '""')}"`;
+                const name = `"${(item.name || '').replace(/"/g, '""')}"`;
+                const time = `"${(item.captured_at || '').replace(/"/g, '""')}"`;
+                const status = `"${(item.status || 'SUCCESS').replace(/"/g, '""')}"`;
+                const file = `"${(item.image_path || '').replace(/"/g, '""')}"`;
+                csvContent += `${idx + 1},${nik},${name},${time},${status},${file}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const dateStr = new Date().toISOString().slice(0, 10);
+            link.href = URL.createObjectURL(blob);
+            link.download = `Rekap_Absensi_NTP_${dateStr}.csv`;
+            link.click();
+            showToast("File CSV absensi berhasil diunduh!", "success");
+        });
+
+        // Initial Load on Page Open
+        document.addEventListener("DOMContentLoaded", () => {
+            // Default tanggal hari ini untuk filter absensi
+            const todayStr = new Date().toISOString().split("T")[0];
+            document.getElementById("attendanceDateFilter").value = todayStr;
+
+            loadDashboardStats();
             loadEmployees();
         });
     </script>
 </body>
-
 </html>
