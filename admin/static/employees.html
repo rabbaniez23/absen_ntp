@@ -191,10 +191,7 @@
 
         function getApiUrl(endpoint) {
             const cleanEndpoint = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint;
-            if (window.location.port !== "8000") {
-                return `http://${window.location.hostname}:8000/${cleanEndpoint}`;
-            }
-            return cleanEndpoint;
+            return "/" + cleanEndpoint;
         }
 
         function escapeHtml(text) {

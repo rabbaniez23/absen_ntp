@@ -106,8 +106,8 @@ class KioskRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_get_camera_stream()
             return
 
-        # 2. Cek identitas karyawan ke Server Pusat (Forwarding)
-        if clean_path == "/api/employee":
+        # 2. Cek identitas karyawan atau daftar karyawan ke Server Pusat (Forwarding)
+        if clean_path in ["/api/employee", "/api/employees", "/api/attendance"]:
             self.forward_get_to_admin(self.path)
             return
 
