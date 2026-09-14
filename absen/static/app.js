@@ -339,20 +339,8 @@ async function handleEmployeeInput(rawInput) {
 
             setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
 
-            // Tampilkan lingkaran oval panduan wajah khusus saat hitung mundur dimulai
-            if (faceGuide) faceGuide.classList.add("visible");
-
-            // Beri jeda 600ms lalu jalankan hitung mundur 3-2-1
-            setTimeout(() => {
-                setApplicationState(AppState.CAMERA_READY, "ARAHKAN WAJAH KE DALAM LINGKARAN OVAL");
-
-                startCountdown(() => {
-                    // Setelah hitung mundur 3-2-1 selesai: Sembunyikan lingkaran lalu jepret & simpan!
-                    if (faceGuide) faceGuide.classList.remove("visible");
-                    processAttendanceScan(cleanId, data);
-                });
-
-            }, 600);
+            // Langsung jepret foto absensi seketika tanpa jeda hitung mundur
+            processAttendanceScan(cleanId, data);
 
         } else {
             const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";

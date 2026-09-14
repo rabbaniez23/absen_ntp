@@ -248,8 +248,8 @@ class CameraStreamer:
         self.running = False
         self.latest_frame: Optional[bytes] = None
         self.thread: Optional[threading.Thread] = None
-        self.width = 1280
-        self.height = 720
+        self.width = 640
+        self.height = 480
 
     @classmethod
     def get_instance(cls):
@@ -355,7 +355,7 @@ class CameraStreamer:
                         pass
 
 
-def capture_image_from_device(output_file: Optional[Path] = None, width: int = 1280, height: int = 720) -> Optional[bytes]:
+def capture_image_from_device(output_file: Optional[Path] = None, width: int = 640, height: int = 480) -> Optional[bytes]:
     """
     Mengambil foto dari kamera Logitech C930e.
     Jika CameraStreamer aktif, mengambil frame realtime yang sedang mengalir (instan 0ms).
