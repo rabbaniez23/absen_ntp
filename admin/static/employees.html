@@ -226,19 +226,21 @@
                         <table class="modern-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50px;">NO</th>
-                                    <th style="width: 80px; text-align: center;">FOTO</th>
+                                    <th style="width: 45px;">NO</th>
+                                    <th style="width: 70px; text-align: center;">FOTO</th>
+                                    <th style="width: 175px;">RAW DATA</th>
                                     <th>NOMOR INDUK (NIK)</th>
                                     <th>NAMA KARYAWAN</th>
                                     <th>STATUS KARYAWAN</th>
                                     <th>TANGGAL & WAKTU</th>
-                                    <th>STATUS ABSENSI</th>
-                                    <th style="width: 110px; text-align: center;">PRATINJAU</th>
+                                    <th>TIPE</th>
+                                    <th>FILE GAMBAR (IMAGE)</th>
+                                    <th style="width: 100px; text-align: center;">PRATINJAU</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceTableBody">
                                 <tr>
-                                    <td colspan="8" class="table-loading">Memuat data absensi...</td>
+                                    <td colspan="10" class="table-loading">Memuat data absensi...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -365,6 +367,14 @@
                 </div>
                 <div class="photo-meta-box">
                     <div class="meta-item">
+                        <span class="meta-label">Raw Data Presensi</span>
+                        <span class="meta-val mono text-accent" id="photoModalRawData" style="font-weight: 700; font-size: 0.95rem;">-</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Nama File Image</span>
+                        <span class="meta-val mono text-muted" id="photoModalImageName">-</span>
+                    </div>
+                    <div class="meta-item">
                         <span class="meta-label">Nama Karyawan</span>
                         <span class="meta-val" id="photoModalName">-</span>
                     </div>
@@ -381,8 +391,8 @@
                         <span class="meta-val" id="photoModalTime">-</span>
                     </div>
                     <div class="meta-item">
-                        <span class="meta-label">Status Presensi</span>
-                        <span class="badge-status success" id="photoModalStatus">BERHASIL</span>
+                        <span class="meta-label">Tipe Presensi</span>
+                        <span class="badge-status success" id="photoModalType">MASUK (IN)</span>
                     </div>
                 </div>
             </div>
@@ -495,12 +505,15 @@
             container.innerHTML = recentList.map(item => {
                 const imgPath = item.image_path ? `/${item.image_path}` : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' fill='%2364748b' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4'/><path d='M12 14c-6.1 0-8 4-8 4v2h16v-2s-1.9-4-8-4z'/></svg>";
                 const isActive = item.is_active !== false;
+                const rawVal = item.raw_data || "";
+                const imgVal = item.image || (rawVal ? rawVal + ".jpg" : "");
+                const typeVal = item.in_out_label || "MASUK (IN)";
                 const statusPill = isActive
                     ? `<span class="status-pill active" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot green"></span> AKTIF</span>`
                     : `<span class="status-pill inactive" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot red"></span> NONAKTIF</span>`;
 
                 return `
-                    <div class="recent-feed-card" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive})">
+                    <div class="recent-feed-card" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive}, '${escapeHtml(rawVal)}', '${escapeHtml(imgVal)}', '${escapeHtml(typeVal)}')">
                         <div class="feed-thumb-box">
                             <img src="${escapeHtml(imgPath)}" alt="${escapeHtml(item.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'48\\' height=\\'48\\' fill=\\'%2364748b\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'8\\' r=\\'4\\'/><path d=\\'M12 14c-6.1 0-8 4-8 4v2h16v-2s-1.9-4-8-4z\\'/></svg>'">
                             <span class="thumb-zoom-badge">🔍</span>
@@ -770,10 +783,10 @@
                     allAttendanceRecords = data.records;
                     filterAndRenderAttendance();
                 } else {
-                    tableBody.innerHTML = `<tr><td colspan="8" class="table-error">Gagal memuat riwayat absensi.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="10" class="table-error">Gagal memuat riwayat absensi.</td></tr>`;
                 }
             } catch (err) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="table-error">Koneksi ke server gagal saat mengambil riwayat.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="10" class="table-error">Koneksi ke server gagal saat mengambil riwayat.</td></tr>`;
             }
         }
 
@@ -785,7 +798,9 @@
             let filtered = allAttendanceRecords.filter(item => {
                 const nameStr = (item.name || "").toLowerCase();
                 const nikStr = (item.nik || item.employee_id || "").toLowerCase();
-                const matchQuery = !query || nameStr.includes(query) || nikStr.includes(query);
+                const rawStr = (item.raw_data || "").toLowerCase();
+                const imgStr = (item.image || "").toLowerCase();
+                const matchQuery = !query || nameStr.includes(query) || nikStr.includes(query) || rawStr.includes(query) || imgStr.includes(query);
 
                 const isActive = item.is_active !== false;
                 let matchStatus = true;
@@ -796,32 +811,40 @@
             });
 
             if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="8" class="table-empty">Tidak ada catatan riwayat absensi yang cocok.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="10" class="table-empty">Tidak ada catatan riwayat absensi yang cocok.</td></tr>`;
                 return;
             }
 
             tableBody.innerHTML = filtered.map((item, index) => {
                 const imgPath = item.image_path ? `/${item.image_path}` : "";
+                const rawVal = item.raw_data || "-";
+                const imgVal = item.image || (item.raw_data ? `${item.raw_data}.jpg` : "-");
+                const typeLabel = item.in_out_label || "MASUK (IN)";
                 const isActive = item.is_active !== false;
+
                 const statusBadge = isActive
                     ? `<span class="status-pill active"><span class="dot green"></span> AKTIF</span>`
                     : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`;
 
+                const typeBadge = `<span class="status-pill active" style="font-size: 0.72rem; padding: 2px 8px;"><span class="dot green"></span> MASUK (1)</span>`;
+
                 const thumbHtml = imgPath
-                    ? `<img src="${escapeHtml(imgPath)}" class="table-thumb" alt="Foto" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive})">`
+                    ? `<img src="${escapeHtml(imgPath)}" class="table-thumb" alt="Foto" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive}, '${escapeHtml(rawVal)}', '${escapeHtml(imgVal)}', '${escapeHtml(typeLabel)}')">`
                     : `<span class="no-thumb">📷</span>`;
 
                 return `
                     <tr>
                         <td class="text-center text-muted">${index + 1}</td>
                         <td class="text-center">${thumbHtml}</td>
-                        <td><strong class="mono text-accent">${escapeHtml(item.nik || item.employee_id)}</strong></td>
+                        <td><code class="rfid-code mono text-accent" style="font-weight: 700; letter-spacing: 0.5px; font-size: 0.82rem;">${escapeHtml(rawVal)}</code></td>
+                        <td><strong class="mono">${escapeHtml(item.nik || item.employee_id)}</strong></td>
                         <td class="font-medium">${escapeHtml(item.name)}</td>
                         <td>${statusBadge}</td>
                         <td class="mono text-muted">${escapeHtml(item.captured_at)}</td>
-                        <td><span class="badge-status success">${escapeHtml(item.status || "SUCCESS")}</span></td>
+                        <td>${typeBadge}</td>
+                        <td><code class="mono text-muted" style="font-size: 0.74rem;">${escapeHtml(imgVal)}</code></td>
                         <td class="text-center">
-                            ${imgPath ? `<button type="button" class="action-btn-secondary btn-sm" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive})">🔍 Foto HD</button>` : `<span class="text-muted">-</span>`}
+                            ${imgPath ? `<button type="button" class="action-btn-secondary btn-sm" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive}, '${escapeHtml(rawVal)}', '${escapeHtml(imgVal)}', '${escapeHtml(typeLabel)}')">🔍 Foto HD</button>` : `<span class="text-muted">-</span>`}
                         </td>
                     </tr>
                 `;
@@ -853,11 +876,20 @@
 
         // Photo Modal Zoom
         const photoModal = document.getElementById("photoZoomModal");
-        function openPhotoModal(imgPath, name, nik, time, isActive = true) {
+        function openPhotoModal(imgPath, name, nik, time, isActive = true, rawData = "", imageName = "", inOutLabel = "MASUK (IN)") {
             document.getElementById("photoModalImg").src = imgPath;
             document.getElementById("photoModalName").textContent = name;
             document.getElementById("photoModalNik").textContent = nik;
             document.getElementById("photoModalTime").textContent = time;
+
+            const rawEl = document.getElementById("photoModalRawData");
+            if (rawEl) rawEl.textContent = rawData || "-";
+
+            const imgEl = document.getElementById("photoModalImageName");
+            if (imgEl) imgEl.textContent = imageName || (rawData ? `${rawData}.jpg` : "-");
+
+            const typeEl = document.getElementById("photoModalType");
+            if (typeEl) typeEl.textContent = inOutLabel || "MASUK (IN)";
 
             const activeBadgeEl = document.getElementById("photoModalActiveBadge");
             if (activeBadgeEl) {
@@ -883,15 +915,17 @@
                 return;
             }
 
-            let csvContent = "No,NIK,Nama Karyawan,Status Karyawan,Tanggal & Waktu,Status Absensi,File Foto\n";
+            let csvContent = "No,RAW DATA,FILE GAMBAR (IMAGE),NIK,Nama Karyawan,Status Karyawan,Tanggal & Waktu,Tipe Presensi,Path Foto\n";
             allAttendanceRecords.forEach((item, idx) => {
+                const rawVal = `"${(item.raw_data || '').replace(/"/g, '""')}"`;
+                const imgVal = `"${(item.image || (item.raw_data ? item.raw_data + '.jpg' : '')).replace(/"/g, '""')}"`;
                 const nik = `"${(item.nik || item.employee_id || '').replace(/"/g, '""')}"`;
                 const name = `"${(item.name || '').replace(/"/g, '""')}"`;
                 const empStatus = item.is_active !== false ? '"AKTIF"' : '"NONAKTIF"';
                 const time = `"${(item.captured_at || '').replace(/"/g, '""')}"`;
-                const status = `"${(item.status || 'SUCCESS').replace(/"/g, '""')}"`;
+                const typeVal = `"${(item.in_out_label || 'MASUK (IN)').replace(/"/g, '""')}"`;
                 const file = `"${(item.image_path || '').replace(/"/g, '""')}"`;
-                csvContent += `${idx + 1},${nik},${name},${empStatus},${time},${status},${file}\n`;
+                csvContent += `${idx + 1},${rawVal},${imgVal},${nik},${name},${empStatus},${time},${typeVal},${file}\n`;
             });
 
             const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

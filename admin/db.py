@@ -8,6 +8,7 @@ Dilengkapi mekanisme fallback otomatis ke file JSON jika MariaDB sedang offline.
 import datetime
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -103,24 +104,44 @@ def init_database_tables() -> bool:
             except Exception as e:
                 logger.debug(f"[Database] Migrasi kolom nik: {e}")
 
-            # Tabel riwayat absensi
+            # Tabel riwayat absensi (Format baru: id, raw_data, image sesuai instruksi pembimbing)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS `attendance` (
                     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-                    `employee_id` VARCHAR(50) NOT NULL,
-                    `captured_at` DATETIME NOT NULL,
-                    `image_path` VARCHAR(255) NOT NULL,
-                    `attendance_status` VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+                    `raw_data` VARCHAR(100) NOT NULL,
+                    `image` VARCHAR(255) NOT NULL,
+                    `employee_id` VARCHAR(50) DEFAULT NULL,
+                    `captured_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    `image_path` VARCHAR(255) DEFAULT NULL,
+                    `attendance_status` VARCHAR(20) DEFAULT 'SUCCESS',
                     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    CONSTRAINT `fk_attendance_employee`
-                        FOREIGN KEY (`employee_id`)
-                        REFERENCES `employees` (`employee_id`)
-                        ON DELETE RESTRICT
-                        ON UPDATE CASCADE,
-                    INDEX `idx_attendance_emp_date` (`employee_id`, `captured_at`),
+                    INDEX `idx_attendance_raw` (`raw_data`),
                     INDEX `idx_attendance_captured_at` (`captured_at`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             """)
+
+            # Migrasi skema jika tabel lama belum memiliki kolom raw_data atau image
+            try:
+                cursor.execute("ALTER TABLE `attendance` ADD COLUMN IF NOT EXISTS `raw_data` VARCHAR(100) DEFAULT NULL AFTER `id`;")
+                cursor.execute("ALTER TABLE `attendance` ADD COLUMN IF NOT EXISTS `image` VARCHAR(255) DEFAULT NULL AFTER `raw_data`;")
+                cursor.execute("ALTER TABLE `attendance` MODIFY `employee_id` VARCHAR(50) DEFAULT NULL;")
+                cursor.execute("ALTER TABLE `attendance` MODIFY `captured_at` DATETIME DEFAULT CURRENT_TIMESTAMP;")
+                cursor.execute("ALTER TABLE `attendance` MODIFY `image_path` VARCHAR(255) DEFAULT NULL;")
+                cursor.execute("ALTER TABLE `attendance` MODIFY `attendance_status` VARCHAR(20) DEFAULT 'SUCCESS';")
+                # Konversi data lama yang raw_data-nya masih kosong
+                cursor.execute("""
+                    UPDATE `attendance` a
+                    LEFT JOIN `employees` e ON a.employee_id = e.employee_id
+                    SET a.raw_data = CONCAT(
+                        COALESCE(e.nik, a.employee_id, '000000'),
+                        DATE_FORMAT(COALESCE(a.captured_at, NOW()), '%H%i%d%m'),
+                        '1'
+                    ),
+                    a.image = COALESCE(NULLIF(SUBSTRING_INDEX(a.image_path, '/', -1), ''), CONCAT(COALESCE(e.nik, a.employee_id, '000000'), DATE_FORMAT(COALESCE(a.captured_at, NOW()), '%H%i%d%m'), '1.jpg'))
+                    WHERE a.raw_data IS NULL OR a.raw_data = '';
+                """)
+            except Exception as migr_err:
+                logger.debug(f"[Database] Catatan migrasi tabel attendance: {migr_err}")
 
             # Isi data awal karyawan dari employees.json jika tabel masih kosong
             cursor.execute("SELECT COUNT(*) AS total FROM `employees`;")
@@ -239,30 +260,142 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def record_attendance(employee_id: str, captured_at: datetime.datetime, image_path: str, status: str = "SUCCESS") -> bool:
+def generate_raw_data(nik: str, dt: Optional[datetime.datetime] = None, in_out: str = "1") -> str:
     """
-    Menyimpan data riwayat absensi ke tabel MariaDB.
+    Menghasilkan string raw_data sesuai spesifikasi pembimbing:
+    {NIK}{Jam:2}{Menit:2}{Tanggal:2}{Bulan:2}{In/Out:1}
+    Contoh: NIK 210019 pada 14 September pukul 07:45 (Masuk/In=1) -> 210019074514091
+    """
+    if dt is None:
+        dt = datetime.datetime.now()
+    clean_nik = re.sub(r'[^A-Za-z0-9]', '', str(nik or '')).strip()
+    if not clean_nik:
+        clean_nik = "000000"
+    hh = dt.strftime("%H")
+    mm = dt.strftime("%M")
+    dd = dt.strftime("%d")
+    month = dt.strftime("%m")
+    in_out_code = "1" if str(in_out).strip() in ["1", "in", "IN"] else "0"
+    return f"{clean_nik}{hh}{mm}{dd}{month}{in_out_code}"
+
+
+def parse_raw_data(raw_data: str, fallback_dt: Optional[datetime.datetime] = None) -> dict:
+    """
+    Mem-parse string raw_data menjadi dictionary komponen:
+    NIK, Jam, Menit, Tanggal, Bulan, In/Out, Datetime string terformat.
+    Contoh: 210019074514091 ->
+      nik: 210019
+      hh: 07, mm: 45, dd: 14, month: 09
+      in_out: 1 (label: MASUK (IN))
+      datetime_str: 2026-09-14 07:45:00
+    """
+    raw = str(raw_data or "").strip()
+    now = fallback_dt or datetime.datetime.now()
+    current_year = now.strftime("%Y")
+
+    if len(raw) >= 10:
+        nik = raw[:-9]
+        hh = raw[-9:-7]
+        mm = raw[-7:-5]
+        dd = raw[-5:-3]
+        month = raw[-3:-1]
+        in_out = raw[-1]
+        datetime_str = f"{current_year}-{month}-{dd} {hh}:{mm}:00"
+        in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
+        return {
+            "nik": nik,
+            "raw_data": raw,
+            "hh": hh,
+            "mm": mm,
+            "dd": dd,
+            "month": month,
+            "datetime_str": datetime_str,
+            "in_out": in_out,
+            "in_out_label": in_out_label
+        }
+
+    # Fallback jika raw_data tidak sesuai panjang standar
+    return {
+        "nik": raw,
+        "raw_data": raw,
+        "hh": now.strftime("%H"),
+        "mm": now.strftime("%M"),
+        "dd": now.strftime("%d"),
+        "month": now.strftime("%m"),
+        "datetime_str": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "in_out": "1",
+        "in_out_label": "MASUK (IN)"
+    }
+
+
+def record_attendance(
+    raw_data: str,
+    image: str,
+    employee_id: Optional[str] = None,
+    captured_at: Optional[datetime.datetime] = None,
+    status: str = "SUCCESS"
+) -> bool:
+    """
+    Menyimpan data riwayat absensi ke MariaDB dengan kolom utama: id, raw_data, image.
+    Mendukung skema baru sesuai instruksi pembimbing:
+    - id: auto increment
+    - raw_data: gabungan NIK + Jam + Menit + Tanggal + Bulan + In/Out (misal: 210019074514091)
+    - image: nama file foto persis sama dengan raw_data (misal: 210019074514091.jpg)
     Selalu mencadangkan catatan absensi ke file data/attendance.json.
     """
     db_success = False
+    now = captured_at or datetime.datetime.now()
 
-    # 1. Simpan ke MariaDB menggunakan parameterized query
+    # Pastikan nama file image berekstensi .jpg
+    clean_image = image if image.lower().endswith(".jpg") else f"{raw_data}.jpg"
+    clean_rel_path = f"captures/{clean_image}"
+
+    # 1. Simpan ke MariaDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                sql = """
-                    INSERT INTO attendance (employee_id, captured_at, image_path, attendance_status)
-                    VALUES (%s, %s, %s, %s)
-                """
-                cursor.execute(sql, (
-                    employee_id,
-                    captured_at.strftime("%Y-%m-%d %H:%M:%S"),
-                    str(image_path).replace("\\", "/"),
-                    status
-                ))
+                # Periksa struktur kolom pada tabel attendance
+                cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'raw_data';")
+                has_raw = cursor.fetchone() is not None
+
+                if has_raw:
+                    cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'employee_id';")
+                    has_emp_col = cursor.fetchone() is not None
+
+                    if has_emp_col:
+                        # Menyimpan ke tabel yang memiliki kolom raw_data, image, dan kolom pendukung
+                        sql = """
+                            INSERT INTO attendance (raw_data, image, employee_id, captured_at, image_path, attendance_status)
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """
+                        cursor.execute(sql, (
+                            raw_data,
+                            clean_image,
+                            employee_id or raw_data[:-9],
+                            now.strftime("%Y-%m-%d %H:%M:%S"),
+                            clean_rel_path,
+                            status
+                        ))
+                    else:
+                        # Tabel murni dengan 2 kolom data: raw_data dan image
+                        sql = "INSERT INTO attendance (raw_data, image) VALUES (%s, %s)"
+                        cursor.execute(sql, (raw_data, clean_image))
+                else:
+                    # Tabel skema lama
+                    sql = """
+                        INSERT INTO attendance (employee_id, captured_at, image_path, attendance_status)
+                        VALUES (%s, %s, %s, %s)
+                    """
+                    cursor.execute(sql, (
+                        employee_id or raw_data,
+                        now.strftime("%Y-%m-%d %H:%M:%S"),
+                        clean_rel_path,
+                        status
+                    ))
+
                 db_success = True
-                logger.info(f"[Database] Data absensi tersimpan di MariaDB: {employee_id} ({captured_at})")
+                logger.info(f"[Database] Absensi tersimpan: raw_data={raw_data}, image={clean_image}")
         except Exception as err:
             logger.warning(f"[Database] Gagal menyimpan absensi ke MariaDB: {err}")
         finally:
@@ -280,9 +413,13 @@ def record_attendance(employee_id: str, captured_at: datetime.datetime, image_pa
                     records = []
 
         records.append({
-            "employee_id": employee_id,
-            "captured_at": captured_at.isoformat(timespec="seconds"),
-            "image_path": str(image_path).replace("\\", "/"),
+            "id": len(records) + 1,
+            "raw_data": raw_data,
+            "image": clean_image,
+            "employee_id": employee_id or (raw_data[:-9] if len(raw_data) >= 10 else raw_data),
+            "nik": raw_data[:-9] if len(raw_data) >= 10 else raw_data,
+            "captured_at": now.isoformat(timespec="seconds"),
+            "image_path": clean_rel_path,
             "attendance_status": status,
             "db_synced": db_success
         })
@@ -298,59 +435,119 @@ def record_attendance(employee_id: str, captured_at: datetime.datetime, image_pa
 
 def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, search: Optional[str] = None) -> list:
     """
-    Mengambil riwayat absensi beserta foto, nama, dan NIK karyawan.
+    Mengambil riwayat absensi dengan kolom id, raw_data, image, beserta nama & status karyawan.
     Mendukung filter tanggal dan pencarian.
     Mengutamakan MariaDB dan fallback ke data/attendance.json.
     """
     records = []
+
+    # Siapkan mapping master karyawan (NIK & Employee ID -> Employee Data)
+    emp_map = {}
+    all_emps = get_all_employees()
+    for e in all_emps:
+        if e.get("nik"):
+            emp_map[str(e["nik"]).strip().lower()] = e
+        if e.get("employee_id"):
+            emp_map[str(e["employee_id"]).strip().lower()] = e
 
     # 1. Ambil dari MariaDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                sql = """
-                    SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
-                           COALESCE(e.is_active, 1) AS is_active,
-                           a.captured_at, a.image_path, a.attendance_status
-                    FROM attendance a
-                    LEFT JOIN employees e ON a.employee_id = e.employee_id
-                """
-                params = []
-                where_clauses = []
+                # Periksa apakah kolom raw_data sudah ada
+                cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'raw_data';")
+                has_raw = cursor.fetchone() is not None
 
-                if date_filter:
-                    where_clauses.append("DATE(a.captured_at) = %s")
-                    params.append(date_filter)
+                if has_raw:
+                    sql = "SELECT id, raw_data, image, employee_id, captured_at, image_path, attendance_status FROM attendance ORDER BY id DESC LIMIT %s;"
+                    cursor.execute(sql, (limit * 2,))
+                    rows = cursor.fetchall()
+                    for r in rows:
+                        raw = r.get("raw_data")
+                        cap_dt = r.get("captured_at")
+                        if not raw:
+                            # Jika data lama belum ada raw_data, generate on the fly
+                            emp_id_val = r.get("employee_id") or ""
+                            emp_obj = emp_map.get(emp_id_val.lower(), {})
+                            nik_val = emp_obj.get("nik") or emp_id_val
+                            raw = generate_raw_data(nik_val, cap_dt if isinstance(cap_dt, datetime.datetime) else None, "1")
 
-                if search:
-                    s = f"%{search.strip()}%"
-                    where_clauses.append("(e.name LIKE %s OR e.nik LIKE %s OR a.employee_id LIKE %s)")
-                    params.extend([s, s, s])
+                        parsed = parse_raw_data(raw, cap_dt if isinstance(cap_dt, datetime.datetime) else None)
+                        emp_id_lookup = parsed["nik"].lower()
+                        emp = emp_map.get(emp_id_lookup, {})
+                        emp_name = emp.get("name") or emp_id_lookup.upper()
+                        is_active = bool(emp.get("is_active", True))
 
-                if where_clauses:
-                    sql += " WHERE " + " AND ".join(where_clauses)
+                        img_name = r.get("image") or f"{raw}.jpg"
+                        img_path = f"captures/{img_name}"
 
-                sql += " ORDER BY a.captured_at DESC LIMIT %s;"
-                params.append(limit)
+                        # Filter Tanggal (YYYY-MM-DD)
+                        if date_filter and not parsed["datetime_str"].startswith(date_filter):
+                            continue
 
-                cursor.execute(sql, tuple(params))
-                rows = cursor.fetchall()
-                for r in rows:
-                    cap_at = r["captured_at"]
-                    cap_str = cap_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(cap_at, (datetime.datetime, datetime.date)) else str(cap_at)
-                    records.append({
-                        "id": r["id"],
-                        "employee_id": r["employee_id"],
-                        "nik": r.get("nik") or r["employee_id"],
-                        "name": r.get("name") or r["employee_id"],
-                        "is_active": bool(r.get("is_active", 1)),
-                        "captured_at": cap_str,
-                        "image_path": str(r.get("image_path") or "").replace("\\", "/"),
-                        "status": r.get("attendance_status") or "SUCCESS",
-                        "source": "mariadb"
-                    })
-                return records
+                        # Filter Pencarian (Nama, NIK, Raw Data)
+                        if search:
+                            s_lower = search.lower()
+                            if (s_lower not in emp_name.lower() and
+                                s_lower not in parsed["nik"].lower() and
+                                s_lower not in raw.lower()):
+                                continue
+
+                        records.append({
+                            "id": r["id"],
+                            "raw_data": raw,
+                            "image": img_name,
+                            "image_path": img_path,
+                            "employee_id": parsed["nik"],
+                            "nik": parsed["nik"],
+                            "name": emp_name,
+                            "is_active": is_active,
+                            "captured_at": parsed["datetime_str"],
+                            "in_out": parsed["in_out"],
+                            "in_out_label": parsed["in_out_label"],
+                            "status": r.get("attendance_status") or "SUCCESS",
+                            "source": "mariadb"
+                        })
+
+                        if len(records) >= limit:
+                            break
+
+                    return records
+                else:
+                    # Query backward-compatible jika kolom raw_data belum ada
+                    sql = """
+                        SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
+                               COALESCE(e.is_active, 1) AS is_active,
+                               a.captured_at, a.image_path, a.attendance_status
+                        FROM attendance a
+                        LEFT JOIN employees e ON a.employee_id = e.employee_id
+                        ORDER BY a.captured_at DESC LIMIT %s;
+                    """
+                    cursor.execute(sql, (limit,))
+                    rows = cursor.fetchall()
+                    for r in rows:
+                        cap_at = r["captured_at"]
+                        cap_str = cap_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(cap_at, (datetime.datetime, datetime.date)) else str(cap_at)
+                        emp_nik = r.get("nik") or r["employee_id"]
+                        raw = generate_raw_data(emp_nik, cap_at if isinstance(cap_at, datetime.datetime) else None, "1")
+                        records.append({
+                            "id": r["id"],
+                            "raw_data": raw,
+                            "image": f"{raw}.jpg",
+                            "image_path": str(r.get("image_path") or f"captures/{raw}.jpg").replace("\\", "/"),
+                            "employee_id": r["employee_id"],
+                            "nik": emp_nik,
+                            "name": r.get("name") or r["employee_id"],
+                            "is_active": bool(r.get("is_active", 1)),
+                            "captured_at": cap_str,
+                            "in_out": "1",
+                            "in_out_label": "MASUK (IN)",
+                            "status": r.get("attendance_status") or "SUCCESS",
+                            "source": "mariadb"
+                        })
+                    return records
+
         except Exception as err:
             logger.warning(f"[Database] Gagal mengambil riwayat absensi dari MariaDB: {err}")
         finally:
@@ -363,44 +560,48 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
             with open(attendance_file, "r", encoding="utf-8") as f:
                 json_records = json.load(f)
 
-            # Muat mapping karyawan untuk mengisi NIK & Nama
-            emp_map = {}
-            if config.EMPLOYEES_FILE.exists():
-                try:
-                    with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
-                        emp_raw = json.load(f)
-                        for k, v in emp_raw.items():
-                            emp_map[v.get("employee_id", k)] = v
-                            if "nik" in v:
-                                emp_map[v["nik"]] = v
-                except Exception:
-                    pass
-
             for idx, item in enumerate(reversed(json_records)):
+                raw = item.get("raw_data")
                 emp_id = item.get("employee_id", "")
                 cap_at = item.get("captured_at", "")
-                emp = emp_map.get(emp_id, {})
-                emp_name = emp.get("name", emp_id)
-                emp_nik = emp.get("nik", emp_id)
 
-                if date_filter and not cap_at.startswith(date_filter):
+                if not raw:
+                    emp = emp_map.get(emp_id.lower(), {})
+                    nik_val = emp.get("nik") or emp_id
+                    try:
+                        dt_obj = datetime.datetime.fromisoformat(cap_at.replace("Z", ""))
+                    except Exception:
+                        dt_obj = None
+                    raw = generate_raw_data(nik_val, dt_obj, "1")
+
+                parsed = parse_raw_data(raw)
+                emp = emp_map.get(parsed["nik"].lower(), {})
+                emp_name = emp.get("name", parsed["nik"])
+                is_active = bool(emp.get("is_active", True))
+
+                if date_filter and not parsed["datetime_str"].startswith(date_filter):
                     continue
 
                 if search:
                     s_lower = search.lower()
                     if (s_lower not in emp_name.lower() and
-                        s_lower not in emp_nik.lower() and
-                        s_lower not in emp_id.lower()):
+                        s_lower not in parsed["nik"].lower() and
+                        s_lower not in raw.lower()):
                         continue
 
+                img_name = item.get("image") or f"{raw}.jpg"
                 records.append({
-                    "id": idx + 1,
-                    "employee_id": emp_id,
-                    "nik": emp_nik,
+                    "id": item.get("id") or (idx + 1),
+                    "raw_data": raw,
+                    "image": img_name,
+                    "image_path": f"captures/{img_name}",
+                    "employee_id": parsed["nik"],
+                    "nik": parsed["nik"],
                     "name": emp_name,
-                    "is_active": bool(emp.get("is_active", True)),
-                    "captured_at": cap_at.replace("T", " "),
-                    "image_path": str(item.get("image_path") or "").replace("\\", "/"),
+                    "is_active": is_active,
+                    "captured_at": parsed["datetime_str"],
+                    "in_out": parsed["in_out"],
+                    "in_out_label": parsed["in_out_label"],
                     "status": item.get("attendance_status", "SUCCESS"),
                     "source": "json"
                 })
@@ -718,33 +919,11 @@ def get_dashboard_stats() -> dict:
                     stats["active_employees"] = int(row.get("active_cnt") or 0)
                     stats["inactive_employees"] = int(row.get("inactive_cnt") or 0)
 
-                # 2. Total Absensi Hari Ini
-                cursor.execute("SELECT COUNT(*) AS today_cnt FROM attendance WHERE DATE(captured_at) = CURDATE();")
-                att_row = cursor.fetchone()
-                if att_row:
-                    stats["today_attendance"] = att_row.get("today_cnt") or 0
-
-                # 3. Absensi Terkini (Maks 6)
-                cursor.execute("""
-                    SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
-                           COALESCE(e.is_active, 1) AS is_active,
-                           a.captured_at, a.image_path, a.attendance_status
-                    FROM attendance a
-                    LEFT JOIN employees e ON a.employee_id = e.employee_id
-                    ORDER BY a.captured_at DESC LIMIT 6;
-                """)
-                recent_rows = cursor.fetchall()
-                for r in recent_rows:
-                    stats["recent_attendance"].append({
-                        "id": r["id"],
-                        "employee_id": r["employee_id"],
-                        "nik": r.get("nik") or r["employee_id"],
-                        "name": r["name"],
-                        "is_active": bool(r.get("is_active", 1)),
-                        "captured_at": str(r["captured_at"]),
-                        "image_path": str(r.get("image_path") or "").replace("\\", "/"),
-                        "status": r.get("attendance_status", "SUCCESS")
-                    })
+                # 2. Total Absensi Hari Ini & Absensi Terkini
+                all_att = get_attendance_records(limit=200)
+                today_str = datetime.date.today().strftime("%Y-%m-%d")
+                stats["today_attendance"] = sum(1 for a in all_att if str(a.get("captured_at", "")).startswith(today_str))
+                stats["recent_attendance"] = all_att[:6]
                 return stats
         except Exception as err:
             logger.warning(f"[Database] Gagal mengambil statistik dari MariaDB: {err}")
@@ -756,7 +935,7 @@ def get_dashboard_stats() -> dict:
     stats["total_employees"] = len(all_emps)
     stats["active_employees"] = sum(1 for e in all_emps if e.get("is_active", True))
     stats["inactive_employees"] = stats["total_employees"] - stats["active_employees"]
-    all_att = get_attendance_records(limit=6)
+    all_att = get_attendance_records(limit=200)
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     stats["today_attendance"] = sum(1 for a in all_att if str(a.get("captured_at", "")).startswith(today_str))
     stats["recent_attendance"] = all_att[:6]

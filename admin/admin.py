@@ -100,6 +100,10 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # 1. Melayani file foto absensi (/captures/...)
         if clean_path.startswith("/captures/"):
             capture_file = config.BASE_DIR / clean_path.lstrip("/")
+            if not capture_file.exists() or not capture_file.is_file():
+                sub_name = clean_path[len("/captures/"):].lstrip("/")
+                capture_file = config.CAPTURES_DIR / sub_name
+
             if capture_file.exists() and capture_file.is_file():
                 self.send_response(200)
                 suffix = capture_file.suffix.lower()
@@ -255,12 +259,15 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         emp_nik = emp.get("nik") or emp_id
         emp_name = emp["name"]
 
-        # 2. Simpan Foto Hasil Jepretan Kamera Kiosk
+        # 2. Bentuk RAW_DATA dan Nama File IMAGE sesuai spesifikasi:
+        # format: {nik}{jam}{menit}{tanggal}{bulan}{in_out:1} (contoh: 210019074514091)
         now = datetime.datetime.now()
-        date_dir = config.CAPTURES_DIR / now.strftime("%Y/%m/%d")
-        date_dir.mkdir(parents=True, exist_ok=True)
-        filename = f"{emp_id}_{now.strftime('%Y%m%d_%H%M%S')}.jpg"
-        file_path = date_dir / filename
+        raw_data = db.generate_raw_data(nik=emp_nik, dt=now, in_out="1")
+        image_filename = f"{raw_data}.jpg"
+
+        # Simpan Foto langsung di config.CAPTURES_DIR dengan nama {raw_data}.jpg
+        config.CAPTURES_DIR.mkdir(parents=True, exist_ok=True)
+        file_path = config.CAPTURES_DIR / image_filename
 
         image_base64 = payload.get("image_base64", "")
         if image_base64:
@@ -276,16 +283,24 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         else:
             file_path.write_bytes(b"")
 
-        # 3. Catat ke MariaDB
-        rel_path = str(file_path.relative_to(config.BASE_DIR)).replace("\\", "/")
-        db.record_attendance(emp_id, now, rel_path, "SUCCESS")
+        # 3. Catat ke MariaDB (Kolom: id, raw_data, image)
+        rel_path = f"captures/{image_filename}"
+        db.record_attendance(
+            raw_data=raw_data,
+            image=image_filename,
+            employee_id=emp_id,
+            captured_at=now,
+            status="SUCCESS"
+        )
 
-        logger.info(f"[Absensi BERHASIL] {emp_name} (NIK: {emp_nik}) -> Foto tersimpan: {rel_path}")
+        logger.info(f"[Absensi BERHASIL] {emp_name} | RAW_DATA: {raw_data} | IMAGE: {image_filename}")
 
         # 4. Kembalikan respons sukses ke Kiosk
         self.send_json(200, {
             "success": True,
             "message": "Absensi berhasil dicatat",
+            "raw_data": raw_data,
+            "image": image_filename,
             "employee_id": emp_id,
             "nik": emp_nik,
             "name": emp_name,
@@ -446,15 +461,28 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
             now = datetime.datetime.now()
-            date_dir = config.CAPTURES_DIR / now.strftime("%Y/%m/%d")
-            date_dir.mkdir(parents=True, exist_ok=True)
-            filename = f"{employee_id}_{now.strftime('%Y%m%d_%H%M%S')}.png"
-            file_path = date_dir / filename
+            emp = db.lookup_employee(employee_id)
+            nik_val = (emp.get("nik") if emp else None) or employee_id
+            raw_data = db.generate_raw_data(nik_val, now, "1")
+            image_filename = f"{raw_data}.jpg"
+            file_path = config.CAPTURES_DIR / image_filename
             file_path.write_bytes(image_bytes)
 
-            rel_path = str(file_path.relative_to(config.BASE_DIR)).replace("\\", "/")
-            db.record_attendance(employee_id, now, rel_path, "SUCCESS")
-            self.send_json(200, {"success": True, "message": "Presensi berhasil dicatat", "photo_url": rel_path})
+            rel_path = f"captures/{image_filename}"
+            db.record_attendance(
+                raw_data=raw_data,
+                image=image_filename,
+                employee_id=employee_id,
+                captured_at=now,
+                status="SUCCESS"
+            )
+            self.send_json(200, {
+                "success": True,
+                "message": "Presensi berhasil dicatat",
+                "raw_data": raw_data,
+                "image": image_filename,
+                "photo_url": rel_path
+            })
         except Exception as e:
             self.send_json(500, {"success": False, "message": str(e)})
 
