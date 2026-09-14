@@ -1,0 +1,471 @@
+[2026-09-05 22:28:00] ============================================================
+[2026-09-05 22:28:00] SERVER STARTED at http://localhost:8000
+[2026-09-05 22:28:00] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-05 22:28:00] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-05 22:28:00] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-05 22:28:00] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-05 22:28:00] ============================================================
+[2026-09-05 22:28:06] EMPLOYEE LOOKUP EMP001
+[2026-09-05 22:28:06] EMPLOYEE FOUND EMP001 (Budi Santoso)
+[2026-09-05 22:28:06] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-05 22:30:53] ============================================================
+[2026-09-05 22:30:53] SERVER STARTED at http://localhost:8000
+[2026-09-05 22:30:53] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-05 22:30:53] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-05 22:30:53] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-05 22:30:53] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-05 22:30:53] ============================================================
+[2026-09-05 22:30:57] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 22:30:57] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 22:30:57] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 22:30:57] HTTP 127.0.0.1 - code 404, message File not found
+[2026-09-05 22:30:57] HTTP 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-09-05 22:31:49] EMPLOYEE LOOKUP 983746128
+[2026-09-05 22:31:49] EMPLOYEE FOUND EMP001 (Budi Santoso)
+[2026-09-05 22:31:49] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-05 22:31:55] IMAGE SAVED EMP001 -> EMP001_20260905_223155.png (1233324 bytes)
+[2026-09-05 22:31:55] ATTENDANCE SUCCESS EMP001
+[2026-09-05 22:31:55] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 22:32:45] HTTP 127.0.0.1 - "GET / HTTP/1.1" 304 -
+[2026-09-05 22:32:46] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 304 -
+[2026-09-05 22:32:46] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 304 -
+[2026-09-05 22:32:48] EMPLOYEE LOOKUP 827364928
+[2026-09-05 22:32:48] EMPLOYEE FOUND EMP002 (Andi Wijaya)
+[2026-09-05 22:32:48] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 22:32:54] IMAGE SAVED EMP002 -> EMP002_20260905_223254.png (1216174 bytes)
+[2026-09-05 22:32:54] ATTENDANCE SUCCESS EMP002
+[2026-09-05 22:32:54] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 22:33:44] HTTP 127.0.0.1 - "GET / HTTP/1.1" 304 -
+[2026-09-05 22:33:44] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 22:33:44] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 304 -
+[2026-09-05 22:33:53] EMPLOYEE LOOKUP 827364928
+[2026-09-05 22:33:53] EMPLOYEE FOUND EMP002 (Andi Wijaya)
+[2026-09-05 22:33:53] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 22:33:59] IMAGE SAVED EMP002 -> EMP002_20260905_223359.png (1486970 bytes)
+[2026-09-05 22:33:59] ATTENDANCE SUCCESS EMP002
+[2026-09-05 22:33:59] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 22:34:02] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 304 -
+[2026-09-05 22:34:16] HTTP 127.0.0.1 - "GET / HTTP/1.1" 304 -
+[2026-09-05 22:34:16] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 304 -
+[2026-09-05 22:34:16] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 304 -
+[2026-09-05 22:36:32] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 22:36:32] HTTP 127.0.0.1 - code 404, message File not found
+[2026-09-05 22:36:32] HTTP 127.0.0.1 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 -
+[2026-09-05 22:49:12] ============================================================
+[2026-09-05 22:49:12] SERVER STARTED at http://localhost:8000
+[2026-09-05 22:49:12] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-05 22:49:12] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-05 22:49:12] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-05 22:49:12] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-05 22:49:12] ============================================================
+[2026-09-05 22:49:29] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 22:49:29] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 304 -
+[2026-09-05 22:49:29] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 22:49:29] HTTP 127.0.0.1 - code 404, message File not found
+[2026-09-05 22:49:29] HTTP 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-09-05 22:52:46] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 22:52:46] HTTP 127.0.0.1 - "GET /style.css?v=2 HTTP/1.1" 200 -
+[2026-09-05 22:52:46] HTTP 127.0.0.1 - "GET /app.js?v=2 HTTP/1.1" 200 -
+[2026-09-05 22:52:53] HTTP 127.0.0.1 - "GET /app.js?v=2 HTTP/1.1" 304 -
+[2026-09-05 23:00:34] [Database] Schema auto-init notice: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+[2026-09-05 23:00:34] ============================================================
+[2026-09-05 23:00:34] SERVER STARTED at http://localhost:8000
+[2026-09-05 23:00:34] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-05 23:00:34] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-05 23:00:34] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-05 23:00:34] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-05 23:00:34] ============================================================
+[2026-09-05 23:00:41] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 23:00:41] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 23:00:41] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 23:00:41] EMPLOYEE LOOKUP EMP001
+[2026-09-05 23:00:43] [Fallback] Querying local employees.json for EMP001
+[2026-09-05 23:00:43] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: json_fallback]
+[2026-09-05 23:00:43] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-05 23:00:43] EMPLOYEE LOOKUP 983746128
+[2026-09-05 23:00:45] [Fallback] Querying local employees.json for 983746128
+[2026-09-05 23:00:45] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: json_fallback]
+[2026-09-05 23:00:45] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-05 23:00:45] EMPLOYEE LOOKUP 827364928
+[2026-09-05 23:00:47] [Fallback] Querying local employees.json for 827364928
+[2026-09-05 23:00:47] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: json_fallback]
+[2026-09-05 23:00:47] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 23:00:47] EMPLOYEE LOOKUP INVALID_999
+[2026-09-05 23:00:49] [Fallback] Querying local employees.json for INVALID_999
+[2026-09-05 23:00:49] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-05 23:00:49] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-05 23:00:49] IMAGE SAVED EMP001 -> EMP001_20260905_230049.png (67 bytes)
+[2026-09-05 23:00:51] ATTENDANCE SUCCESS EMP001
+[2026-09-05 23:00:51] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 23:19:07] [Database] Seeding initial employee data from employees.json...
+[2026-09-05 23:19:07] [Database] MariaDB schema initialized successfully.
+[2026-09-05 23:19:07] ============================================================
+[2026-09-05 23:19:07] SERVER STARTED at http://localhost:8000
+[2026-09-05 23:19:07] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-05 23:19:07] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-05 23:19:07] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-05 23:19:07] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-05 23:19:07] ============================================================
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 23:45:22] EMPLOYEE LOOKUP EMP001
+[2026-09-05 23:45:22] [Fallback] Querying local employees.json for EMP001
+[2026-09-05 23:45:22] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: json_fallback]
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-05 23:45:22] EMPLOYEE LOOKUP 983746128
+[2026-09-05 23:45:22] [Fallback] Querying local employees.json for 983746128
+[2026-09-05 23:45:22] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: json_fallback]
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-05 23:45:22] EMPLOYEE LOOKUP 827364928
+[2026-09-05 23:45:22] [Fallback] Querying local employees.json for 827364928
+[2026-09-05 23:45:22] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: json_fallback]
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 23:45:22] EMPLOYEE LOOKUP INVALID_999
+[2026-09-05 23:45:22] [Fallback] Querying local employees.json for INVALID_999
+[2026-09-05 23:45:22] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-05 23:45:22] IMAGE SAVED EMP001 -> EMP001_20260905_234522.png (67 bytes)
+[2026-09-05 23:45:22] ATTENDANCE SUCCESS EMP001
+[2026-09-05 23:45:22] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 23:53:05] [Database] MariaDB schema initialized successfully.
+[2026-09-05 23:53:05] ============================================================
+[2026-09-05 23:53:05] SERVER STARTED at http://localhost:8000
+[2026-09-05 23:53:05] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-05 23:53:05] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-05 23:53:05] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-05 23:53:05] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-05 23:53:05] ============================================================
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 23:53:11] EMPLOYEE LOOKUP EMP001
+[2026-09-05 23:53:11] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:53:11] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-05 23:53:11] EMPLOYEE LOOKUP 983746128
+[2026-09-05 23:53:11] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:53:11] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-05 23:53:11] EMPLOYEE LOOKUP 827364928
+[2026-09-05 23:53:11] [Database] Employee found in MariaDB: Andi Wijaya (EMP002)
+[2026-09-05 23:53:11] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: mariadb]
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 23:53:11] EMPLOYEE LOOKUP INVALID_999
+[2026-09-05 23:53:11] [Database] Employee not found in MariaDB: INVALID_999
+[2026-09-05 23:53:11] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-05 23:53:11] IMAGE SAVED EMP001 -> EMP001_20260905_235311.png (67 bytes)
+[2026-09-05 23:53:11] [Database] Attendance inserted into MariaDB: EMP001 at 2026-09-05 23:53:11.543202
+[2026-09-05 23:53:11] ATTENDANCE SUCCESS EMP001
+[2026-09-05 23:53:11] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 23:56:35] EMPLOYEE LOOKUP EMP001
+[2026-09-05 23:56:35] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:56:35] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-05 23:56:35] EMPLOYEE LOOKUP 983746128
+[2026-09-05 23:56:35] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:56:35] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-05 23:56:35] EMPLOYEE LOOKUP 827364928
+[2026-09-05 23:56:35] [Database] Employee found in MariaDB: Andi Wijaya (EMP002)
+[2026-09-05 23:56:35] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: mariadb]
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 23:56:35] EMPLOYEE LOOKUP INVALID_999
+[2026-09-05 23:56:35] [Database] Employee not found in MariaDB: INVALID_999
+[2026-09-05 23:56:35] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-05 23:56:35] IMAGE SAVED EMP001 -> EMP001_20260905_235635.png (67 bytes)
+[2026-09-05 23:56:35] [Database] Attendance inserted into MariaDB: EMP001 at 2026-09-05 23:56:35.783066
+[2026-09-05 23:56:35] ATTENDANCE SUCCESS EMP001
+[2026-09-05 23:56:35] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 23:57:11] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 23:57:11] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 23:57:11] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 23:57:11] EMPLOYEE LOOKUP EMP001
+[2026-09-05 23:57:11] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:57:11] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:57:11] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-05 23:57:11] EMPLOYEE LOOKUP 983746128
+[2026-09-05 23:57:11] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:57:11] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:57:11] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-05 23:57:11] EMPLOYEE LOOKUP 827364928
+[2026-09-05 23:57:11] [Database] Employee found in MariaDB: Andi Wijaya (EMP002)
+[2026-09-05 23:57:11] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: mariadb]
+[2026-09-05 23:57:11] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 23:57:12] EMPLOYEE LOOKUP INVALID_999
+[2026-09-05 23:57:12] [Database] Employee not found in MariaDB: INVALID_999
+[2026-09-05 23:57:12] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-05 23:57:12] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-05 23:57:12] IMAGE SAVED EMP001 -> EMP001_20260905_235712.png (67 bytes)
+[2026-09-05 23:57:12] [Database] Attendance inserted into MariaDB: EMP001 at 2026-09-05 23:57:12.074137
+[2026-09-05 23:57:12] ATTENDANCE SUCCESS EMP001
+[2026-09-05 23:57:12] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-05 23:59:52] EMPLOYEE LOOKUP EMP001
+[2026-09-05 23:59:52] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:59:52] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-05 23:59:52] EMPLOYEE LOOKUP 983746128
+[2026-09-05 23:59:52] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-05 23:59:52] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-05 23:59:52] EMPLOYEE LOOKUP 827364928
+[2026-09-05 23:59:52] [Database] Employee found in MariaDB: Andi Wijaya (EMP002)
+[2026-09-05 23:59:52] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: mariadb]
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-05 23:59:52] EMPLOYEE LOOKUP INVALID_999
+[2026-09-05 23:59:52] [Database] Employee not found in MariaDB: INVALID_999
+[2026-09-05 23:59:52] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-05 23:59:52] IMAGE SAVED EMP001 -> EMP001_20260905_235952.png (67 bytes)
+[2026-09-05 23:59:52] [Database] Attendance inserted into MariaDB: EMP001 at 2026-09-05 23:59:52.414835
+[2026-09-05 23:59:52] ATTENDANCE SUCCESS EMP001
+[2026-09-05 23:59:52] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-06 13:37:19] [Database] Schema auto-init notice: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+[2026-09-06 13:37:19] ============================================================
+[2026-09-06 13:37:19] SERVER STARTED at http://localhost:8000
+[2026-09-06 13:37:19] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-06 13:37:19] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-06 13:37:19] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-06 13:37:19] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-06 13:37:19] ============================================================
+[2026-09-06 13:37:23] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-06 13:37:23] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-06 13:37:23] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-06 13:37:23] EMPLOYEE LOOKUP EMP001
+[2026-09-06 13:37:25] [Fallback] Querying local employees.json for EMP001
+[2026-09-06 13:37:25] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: json_fallback]
+[2026-09-06 13:37:25] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-06 13:37:25] EMPLOYEE LOOKUP 983746128
+[2026-09-06 13:37:27] [Fallback] Querying local employees.json for 983746128
+[2026-09-06 13:37:27] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: json_fallback]
+[2026-09-06 13:37:27] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-06 13:37:27] EMPLOYEE LOOKUP 827364928
+[2026-09-06 13:37:29] [Fallback] Querying local employees.json for 827364928
+[2026-09-06 13:37:29] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: json_fallback]
+[2026-09-06 13:37:29] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-06 13:37:29] EMPLOYEE LOOKUP INVALID_999
+[2026-09-06 13:37:32] [Fallback] Querying local employees.json for INVALID_999
+[2026-09-06 13:37:32] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-06 13:37:32] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-06 13:37:32] IMAGE SAVED EMP001 -> EMP001_20260906_133732.png (67 bytes)
+[2026-09-06 13:37:34] ATTENDANCE SUCCESS EMP001
+[2026-09-06 13:37:34] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-06 15:07:17] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-06 15:07:17] HTTP 127.0.0.1 - "GET /app.js?v=3 HTTP/1.1" 200 -
+[2026-09-06 15:07:17] HTTP 127.0.0.1 - "GET /style.css?v=2 HTTP/1.1" 200 -
+[2026-09-06 15:07:18] HTTP 127.0.0.1 - code 404, message File not found
+[2026-09-06 15:07:18] HTTP 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-09-06 15:07:23] EMPLOYEE LOOKUP 983746128
+[2026-09-06 15:07:23] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-06 15:07:23] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-06 15:07:23] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-06 15:07:29] IMAGE SAVED EMP001 -> EMP001_20260906_150729.png (1258868 bytes)
+[2026-09-06 15:07:29] [Database] Attendance inserted into MariaDB: EMP001 at 2026-09-06 15:07:29.644270
+[2026-09-06 15:07:29] ATTENDANCE SUCCESS EMP001
+[2026-09-06 15:07:29] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-06 15:17:47] [Database] MariaDB schema initialized successfully.
+[2026-09-06 15:17:47] ============================================================
+[2026-09-06 15:17:47] SERVER STARTED at http://localhost:8000
+[2026-09-06 15:17:47] Serving static files from: D:\magang\projek\employee-attendance\static
+[2026-09-06 15:17:47] Captures stored under: D:\magang\projek\employee-attendance\captures
+[2026-09-06 15:17:47] Employee data loaded from: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-06 15:17:47] Log file active at: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-06 15:17:47] ============================================================
+[2026-09-06 15:17:51] API: GET /api/employees
+[2026-09-06 15:17:51] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:17:54] API: POST /api/employees
+[2026-09-06 15:17:54] INVALID JSON: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+[2026-09-06 15:17:54] HTTP 127.0.0.1 - "POST /api/employees HTTP/1.1" 400 -
+[2026-09-06 15:17:57] API: POST /api/employees
+[2026-09-06 15:17:58] [Database] Employee added to MariaDB: Siti Rahmawati (EMP003)
+[2026-09-06 15:17:58] [Storage] Synchronized employees.json with new employee: Siti Rahmawati (EMP003)
+[2026-09-06 15:17:58] HTTP 127.0.0.1 - "POST /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:18:03] API: GET /api/employees
+[2026-09-06 15:18:03] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:18:10] API: DELETE /api/employees
+[2026-09-06 15:18:10] [Database] Employee deleted from MariaDB: EMP003
+[2026-09-06 15:18:10] [Storage] Removed employee EMP003 from employees.json
+[2026-09-06 15:18:10] HTTP 127.0.0.1 - "DELETE /api/employees?id=EMP003 HTTP/1.1" 200 -
+[2026-09-06 15:18:16] API: GET /api/employees
+[2026-09-06 15:18:16] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:18:22] HTTP 127.0.0.1 - "HEAD /employees.html HTTP/1.1" 200 -
+[2026-09-06 15:18:35] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-06 15:18:35] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-06 15:18:35] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-06 15:18:35] EMPLOYEE LOOKUP EMP001
+[2026-09-06 15:18:35] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-06 15:18:35] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-06 15:18:35] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-06 15:18:35] EMPLOYEE LOOKUP 983746128
+[2026-09-06 15:18:35] [Database] Employee found in MariaDB: Budi Santoso (EMP001)
+[2026-09-06 15:18:35] EMPLOYEE FOUND EMP001 (Budi Santoso) [source: mariadb]
+[2026-09-06 15:18:35] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-06 15:18:35] EMPLOYEE LOOKUP 827364928
+[2026-09-06 15:18:36] [Database] Employee found in MariaDB: Andi Wijaya (EMP002)
+[2026-09-06 15:18:36] EMPLOYEE FOUND EMP002 (Andi Wijaya) [source: mariadb]
+[2026-09-06 15:18:36] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-06 15:18:36] EMPLOYEE LOOKUP INVALID_999
+[2026-09-06 15:18:36] [Database] Employee not found in MariaDB: INVALID_999
+[2026-09-06 15:18:36] EMPLOYEE NOT FOUND INVALID_999
+[2026-09-06 15:18:36] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-06 15:18:36] IMAGE SAVED EMP001 -> EMP001_20260906_151836.png (67 bytes)
+[2026-09-06 15:18:36] [Database] Attendance inserted into MariaDB: EMP001 at 2026-09-06 15:18:36.056752
+[2026-09-06 15:18:36] ATTENDANCE SUCCESS EMP001
+[2026-09-06 15:18:36] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-06 15:18:36] HTTP 127.0.0.1 - "GET /employees.html HTTP/1.1" 200 -
+[2026-09-06 15:18:36] API: GET /api/employees
+[2026-09-06 15:18:36] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:18:36] API: POST /api/employees
+[2026-09-06 15:18:36] [Database] Employee added to MariaDB: Testing Employee (TESTEMP99)
+[2026-09-06 15:18:36] [Storage] Synchronized employees.json with new employee: Testing Employee (TESTEMP99)
+[2026-09-06 15:18:36] HTTP 127.0.0.1 - "POST /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:18:36] API: DELETE /api/employees
+[2026-09-06 15:18:36] [Database] Employee deleted from MariaDB: TESTEMP99
+[2026-09-06 15:18:36] [Storage] Removed employee TESTEMP99 from employees.json
+[2026-09-06 15:18:36] HTTP 127.0.0.1 - "DELETE /api/employees?id=TESTEMP99 HTTP/1.1" 200 -
+[2026-09-06 15:24:13] HTTP 127.0.0.1 - "GET /employees.html HTTP/1.1" 200 -
+[2026-09-06 15:24:13] HTTP 127.0.0.1 - "GET /style.css?v=3 HTTP/1.1" 200 -
+[2026-09-06 15:24:13] API: GET /api/employees
+[2026-09-06 15:24:13] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:24:27] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-06 15:24:27] HTTP 127.0.0.1 - "GET /style.css?v=2 HTTP/1.1" 200 -
+[2026-09-06 15:24:27] HTTP 127.0.0.1 - "GET /app.js?v=3 HTTP/1.1" 200 -
+[2026-09-06 15:24:30] HTTP 127.0.0.1 - "GET /employees.html HTTP/1.1" 200 -
+[2026-09-06 15:24:30] HTTP 127.0.0.1 - "GET /style.css?v=3 HTTP/1.1" 200 -
+[2026-09-06 15:24:30] API: GET /api/employees
+[2026-09-06 15:24:30] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-06 15:24:32] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-06 15:24:32] HTTP 127.0.0.1 - "GET /style.css?v=2 HTTP/1.1" 200 -
+[2026-09-06 15:24:32] HTTP 127.0.0.1 - "GET /app.js?v=3 HTTP/1.1" 200 -
+[2026-09-06 22:28:58] [Database] Catatan inisialisasi basis data: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+[2026-09-06 22:28:58] ============================================================
+[2026-09-06 22:28:58] SERVER ABSEN_NTP AKTIF di http://localhost:8000
+[2026-09-06 22:28:58] Melayani aset statis dari: D:\magang\projek\employee-attendance\static
+[2026-09-06 22:28:58] Penyimpanan foto di: D:\magang\projek\employee-attendance\captures
+[2026-09-06 22:28:58] Data karyawan dimuat dari: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-06 22:28:58] Berkas log aktif di: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-06 22:28:58] ============================================================
+[2026-09-06 22:29:02] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-06 22:29:02] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-06 22:29:02] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-06 22:29:02] PENCARIAN KARYAWAN: EMP001
+[2026-09-06 22:29:04] [Fallback] Mencari data di employees.json untuk ID: EMP001
+[2026-09-06 22:29:04] KARYAWAN DITEMUKAN: EMP001 (Budi Santoso) [sumber: json_fallback]
+[2026-09-06 22:29:04] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-06 22:29:04] PENCARIAN KARYAWAN: 983746128
+[2026-09-06 22:29:06] [Fallback] Mencari data di employees.json untuk ID: 983746128
+[2026-09-06 22:29:06] KARYAWAN DITEMUKAN: EMP001 (Budi Santoso) [sumber: json_fallback]
+[2026-09-06 22:29:06] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-06 22:29:06] PENCARIAN KARYAWAN: 827364928
+[2026-09-06 22:29:08] [Fallback] Mencari data di employees.json untuk ID: 827364928
+[2026-09-06 22:29:08] KARYAWAN DITEMUKAN: EMP002 (Andi Wijaya) [sumber: json_fallback]
+[2026-09-06 22:29:08] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-06 22:29:08] PENCARIAN KARYAWAN: INVALID_999
+[2026-09-06 22:29:11] [Fallback] Mencari data di employees.json untuk ID: INVALID_999
+[2026-09-06 22:29:11] KARYAWAN TIDAK DITEMUKAN: INVALID_999
+[2026-09-06 22:29:11] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-06 22:29:11] FOTO TERSIMPAN: EMP001 -> EMP001_20260906_222911.png (67 bytes)
+[2026-09-06 22:29:13] ABSENSI BERHASIL: EMP001
+[2026-09-06 22:29:13] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-06 22:29:21] HTTP 127.0.0.1 - "GET /employees.html HTTP/1.1" 200 -
+[2026-09-06 22:29:21] API: GET /api/employees
+[2026-09-06 22:29:23] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-06 22:29:23] API: POST /api/employees
+[2026-09-06 22:29:25] [Storage] Berkas employees.json berhasil disinkronkan: Testing Employee (TESTEMP99)
+[2026-09-06 22:29:25] HTTP 127.0.0.1 - "POST /api/employees HTTP/1.1" 200 -
+[2026-09-06 22:29:27] API: DELETE /api/employees
+[2026-09-06 22:29:29] [Storage] Karyawan TESTEMP99 berhasil dihapus dari employees.json
+[2026-09-06 22:29:29] HTTP 127.0.0.1 - "DELETE /api/employees?id=TESTEMP99 HTTP/1.1" 200 -
+[2026-09-07 09:50:09] [Database] Catatan inisialisasi basis data: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+[2026-09-07 09:50:09] ============================================================
+[2026-09-07 09:50:09] SERVER ABSEN_NTP AKTIF di http://localhost:8000
+[2026-09-07 09:50:09] Melayani aset statis dari: D:\magang\projek\employee-attendance\static
+[2026-09-07 09:50:09] Penyimpanan foto di: D:\magang\projek\employee-attendance\captures
+[2026-09-07 09:50:09] Data karyawan dimuat dari: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-07 09:50:09] Berkas log aktif di: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-07 09:50:09] ============================================================
+[2026-09-07 09:50:13] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-07 09:50:13] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-07 09:50:13] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-07 09:50:13] PENCARIAN KARYAWAN: EMP001
+[2026-09-07 09:50:15] [Fallback] Mencari data di employees.json untuk ID: EMP001
+[2026-09-07 09:50:15] KARYAWAN DITEMUKAN: EMP001 (Budi Santoso) [sumber: json_fallback]
+[2026-09-07 09:50:15] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-07 09:50:15] PENCARIAN KARYAWAN: 983746128
+[2026-09-07 09:50:17] [Fallback] Mencari data di employees.json untuk ID: 983746128
+[2026-09-07 09:50:17] KARYAWAN DITEMUKAN: EMP001 (Budi Santoso) [sumber: json_fallback]
+[2026-09-07 09:50:17] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-07 09:50:17] PENCARIAN KARYAWAN: 827364928
+[2026-09-07 09:50:19] [Fallback] Mencari data di employees.json untuk ID: 827364928
+[2026-09-07 09:50:19] KARYAWAN DITEMUKAN: EMP002 (Andi Wijaya) [sumber: json_fallback]
+[2026-09-07 09:50:19] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-07 09:50:19] PENCARIAN KARYAWAN: INVALID_999
+[2026-09-07 09:50:21] [Fallback] Mencari data di employees.json untuk ID: INVALID_999
+[2026-09-07 09:50:21] KARYAWAN TIDAK DITEMUKAN: INVALID_999
+[2026-09-07 09:50:21] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-07 09:50:21] FOTO TERSIMPAN: EMP001 -> EMP001_20260907_095021.png (67 bytes)
+[2026-09-07 09:50:23] ABSENSI BERHASIL: EMP001
+[2026-09-07 09:50:23] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-07 09:50:32] HTTP 127.0.0.1 - "GET /employees.html HTTP/1.1" 200 -
+[2026-09-07 09:50:32] API: GET /api/employees
+[2026-09-07 09:50:39] [Database] Catatan inisialisasi basis data: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+[2026-09-07 09:50:39] ============================================================
+[2026-09-07 09:50:39] SERVER ABSEN_NTP AKTIF di http://localhost:8000
+[2026-09-07 09:50:39] Melayani aset statis dari: D:\magang\projek\employee-attendance\static
+[2026-09-07 09:50:39] Penyimpanan foto di: D:\magang\projek\employee-attendance\captures
+[2026-09-07 09:50:39] Data karyawan dimuat dari: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-07 09:50:39] Berkas log aktif di: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-07 09:50:39] ============================================================
+[2026-09-07 09:50:44] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-07 09:50:44] HTTP 127.0.0.1 - "GET /style.css HTTP/1.1" 200 -
+[2026-09-07 09:50:44] HTTP 127.0.0.1 - "GET /app.js HTTP/1.1" 200 -
+[2026-09-07 09:50:44] PENCARIAN KARYAWAN: EMP001
+[2026-09-07 09:50:46] [Fallback] Mencari data di employees.json untuk ID: EMP001
+[2026-09-07 09:50:46] KARYAWAN DITEMUKAN: EMP001 (Budi Santoso) [sumber: json_fallback]
+[2026-09-07 09:50:46] HTTP 127.0.0.1 - "GET /api/employee?id=EMP001 HTTP/1.1" 200 -
+[2026-09-07 09:50:46] PENCARIAN KARYAWAN: 983746128
+[2026-09-07 09:50:48] [Fallback] Mencari data di employees.json untuk ID: 983746128
+[2026-09-07 09:50:48] KARYAWAN DITEMUKAN: EMP001 (Budi Santoso) [sumber: json_fallback]
+[2026-09-07 09:50:48] HTTP 127.0.0.1 - "GET /api/employee?id=983746128 HTTP/1.1" 200 -
+[2026-09-07 09:50:48] PENCARIAN KARYAWAN: 827364928
+[2026-09-07 09:50:50] [Fallback] Mencari data di employees.json untuk ID: 827364928
+[2026-09-07 09:50:50] KARYAWAN DITEMUKAN: EMP002 (Andi Wijaya) [sumber: json_fallback]
+[2026-09-07 09:50:50] HTTP 127.0.0.1 - "GET /api/employee?id=827364928 HTTP/1.1" 200 -
+[2026-09-07 09:50:50] PENCARIAN KARYAWAN: INVALID_999
+[2026-09-07 09:50:52] [Fallback] Mencari data di employees.json untuk ID: INVALID_999
+[2026-09-07 09:50:52] KARYAWAN TIDAK DITEMUKAN: INVALID_999
+[2026-09-07 09:50:52] HTTP 127.0.0.1 - "GET /api/employee?id=INVALID_999 HTTP/1.1" 404 -
+[2026-09-07 09:50:52] FOTO TERSIMPAN: EMP001 -> EMP001_20260907_095052.png (67 bytes)
+[2026-09-07 09:50:54] ABSENSI BERHASIL: EMP001
+[2026-09-07 09:50:54] HTTP 127.0.0.1 - "POST /api/upload HTTP/1.1" 200 -
+[2026-09-07 09:51:02] HTTP 127.0.0.1 - "GET /employees.html HTTP/1.1" 200 -
+[2026-09-07 09:51:02] API: GET /api/employees
+[2026-09-07 09:51:04] HTTP 127.0.0.1 - "GET /api/employees HTTP/1.1" 200 -
+[2026-09-07 09:51:04] API: POST /api/employees
+[2026-09-07 09:51:07] [Storage] Berkas employees.json berhasil disinkronkan: Testing Employee (TESTEMP99)
+[2026-09-07 09:51:07] HTTP 127.0.0.1 - "POST /api/employees HTTP/1.1" 200 -
+[2026-09-07 09:51:09] API: DELETE /api/employees
+[2026-09-07 09:51:11] [Storage] Karyawan TESTEMP99 berhasil dihapus dari employees.json
+[2026-09-07 09:51:11] HTTP 127.0.0.1 - "DELETE /api/employees?id=TESTEMP99 HTTP/1.1" 200 -
+[2026-09-14 09:14:56] [Database] Catatan inisialisasi basis data: (2003, "Can't connect to MySQL server on '127.0.0.1' ([WinError 10061] No connection could be made because the target machine actively refused it)")
+[2026-09-14 09:14:56] ============================================================
+[2026-09-14 09:14:56] SERVER ABSEN_NTP AKTIF di http://localhost:8000
+[2026-09-14 09:14:56] Melayani aset statis dari: D:\magang\projek\employee-attendance\static
+[2026-09-14 09:14:56] Penyimpanan foto di: D:\magang\projek\employee-attendance\captures
+[2026-09-14 09:14:56] Data karyawan dimuat dari: D:\magang\projek\employee-attendance\data\employees.json
+[2026-09-14 09:14:56] Berkas log aktif di: D:\magang\projek\employee-attendance\logs\app.log
+[2026-09-14 09:14:56] ============================================================
+[2026-09-14 09:15:11] HTTP 127.0.0.1 - "GET / HTTP/1.1" 200 -
+[2026-09-14 09:15:11] HTTP 127.0.0.1 - "GET /style.css?v=5 HTTP/1.1" 200 -
+[2026-09-14 09:15:11] HTTP 127.0.0.1 - "GET /app.js?v=3 HTTP/1.1" 200 -
+[2026-09-14 09:15:11] HTTP 127.0.0.1 - code 404, message File not found
+[2026-09-14 09:15:11] HTTP 127.0.0.1 - "GET /favicon.ico HTTP/1.1" 404 -
+[2026-09-14 09:27:20] MENGHENTIKAN SERVER DENGAN AMAN...
