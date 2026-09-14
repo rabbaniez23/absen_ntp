@@ -104,42 +104,63 @@ def init_database_tables() -> bool:
             except Exception as e:
                 logger.debug(f"[Database] Migrasi kolom nik: {e}")
 
-            # Tabel riwayat absensi (Format baru: id, raw_data, image sesuai instruksi pembimbing)
+            # Tabel riwayat absensi (HANYA 3 KOLOM: id, raw_data, image sesuai arahan pembimbing)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS `attendance` (
                     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
                     `raw_data` VARCHAR(100) NOT NULL,
                     `image` VARCHAR(255) NOT NULL,
-                    `employee_id` VARCHAR(50) DEFAULT NULL,
-                    `captured_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    `image_path` VARCHAR(255) DEFAULT NULL,
-                    `attendance_status` VARCHAR(20) DEFAULT 'SUCCESS',
-                    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    INDEX `idx_attendance_raw` (`raw_data`),
-                    INDEX `idx_attendance_captured_at` (`captured_at`)
+                    INDEX `idx_attendance_raw` (`raw_data`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             """)
 
-            # Migrasi skema jika tabel lama belum memiliki kolom raw_data atau image
+            # Migrasi skema dari tabel lama agar HANYA tersisa 3 kolom (id, raw_data, image)
             try:
-                cursor.execute("ALTER TABLE `attendance` ADD COLUMN IF NOT EXISTS `raw_data` VARCHAR(100) DEFAULT NULL AFTER `id`;")
-                cursor.execute("ALTER TABLE `attendance` ADD COLUMN IF NOT EXISTS `image` VARCHAR(255) DEFAULT NULL AFTER `raw_data`;")
-                cursor.execute("ALTER TABLE `attendance` MODIFY `employee_id` VARCHAR(50) DEFAULT NULL;")
-                cursor.execute("ALTER TABLE `attendance` MODIFY `captured_at` DATETIME DEFAULT CURRENT_TIMESTAMP;")
-                cursor.execute("ALTER TABLE `attendance` MODIFY `image_path` VARCHAR(255) DEFAULT NULL;")
-                cursor.execute("ALTER TABLE `attendance` MODIFY `attendance_status` VARCHAR(20) DEFAULT 'SUCCESS';")
-                # Konversi data lama yang raw_data-nya masih kosong
-                cursor.execute("""
-                    UPDATE `attendance` a
-                    LEFT JOIN `employees` e ON a.employee_id = e.employee_id
-                    SET a.raw_data = CONCAT(
-                        COALESCE(e.nik, a.employee_id, '000000'),
-                        DATE_FORMAT(COALESCE(a.captured_at, NOW()), '%H%i%d%m'),
-                        '1'
-                    ),
-                    a.image = COALESCE(NULLIF(SUBSTRING_INDEX(a.image_path, '/', -1), ''), CONCAT(COALESCE(e.nik, a.employee_id, '000000'), DATE_FORMAT(COALESCE(a.captured_at, NOW()), '%H%i%d%m'), '1.jpg'))
-                    WHERE a.raw_data IS NULL OR a.raw_data = '';
-                """)
+                # 1. Pastikan kolom raw_data dan image ada
+                cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'raw_data';")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE `attendance` ADD COLUMN `raw_data` VARCHAR(100) DEFAULT NULL AFTER `id`;")
+
+                cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'image';")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE `attendance` ADD COLUMN `image` VARCHAR(255) DEFAULT NULL AFTER `raw_data`;")
+
+                # 2. Cek apakah kolom lama (employee_id) masih ada
+                cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'employee_id';")
+                has_old_cols = cursor.fetchone() is not None
+
+                if has_old_cols:
+                    # Konversi isi data lama ke format raw_data dan image
+                    cursor.execute("""
+                        UPDATE `attendance` a
+                        LEFT JOIN `employees` e ON a.employee_id = e.employee_id
+                        SET a.raw_data = CONCAT(
+                            COALESCE(e.nik, a.employee_id, '210019'),
+                            DATE_FORMAT(COALESCE(a.captured_at, NOW()), '%H%i%d%m'),
+                            '1'
+                        ),
+                        a.image = CONCAT(
+                            COALESCE(e.nik, a.employee_id, '210019'),
+                            DATE_FORMAT(COALESCE(a.captured_at, NOW()), '%H%i%d%m'),
+                            '1.jpg'
+                        )
+                        WHERE a.raw_data IS NULL OR a.raw_data = '';
+                    """)
+
+                    # Hapus foreign key lama jika ada
+                    try:
+                        cursor.execute("ALTER TABLE `attendance` DROP FOREIGN KEY `fk_attendance_employee`;")
+                    except Exception:
+                        pass
+
+                    # Hapus kolom-kolom lama agar HANYA tersisa id, raw_data, image
+                    for old_col in ['employee_id', 'captured_at', 'image_path', 'attendance_status', 'created_at']:
+                        try:
+                            cursor.execute(f"ALTER TABLE `attendance` DROP COLUMN `{old_col}`;")
+                        except Exception as e_drop:
+                            logger.debug(f"[Database] Drop column {old_col}: {e_drop}")
+
+                    logger.info("[Database] Migrasi tabel attendance ke skema (id, raw_data, image) BERHASIL.")
             except Exception as migr_err:
                 logger.debug(f"[Database] Catatan migrasi tabel attendance: {migr_err}")
 
@@ -460,20 +481,12 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                 has_raw = cursor.fetchone() is not None
 
                 if has_raw:
-                    sql = "SELECT id, raw_data, image, employee_id, captured_at, image_path, attendance_status FROM attendance ORDER BY id DESC LIMIT %s;"
+                    sql = "SELECT id, raw_data, image FROM attendance ORDER BY id DESC LIMIT %s;"
                     cursor.execute(sql, (limit * 2,))
                     rows = cursor.fetchall()
                     for r in rows:
-                        raw = r.get("raw_data")
-                        cap_dt = r.get("captured_at")
-                        if not raw:
-                            # Jika data lama belum ada raw_data, generate on the fly
-                            emp_id_val = r.get("employee_id") or ""
-                            emp_obj = emp_map.get(emp_id_val.lower(), {})
-                            nik_val = emp_obj.get("nik") or emp_id_val
-                            raw = generate_raw_data(nik_val, cap_dt if isinstance(cap_dt, datetime.datetime) else None, "1")
-
-                        parsed = parse_raw_data(raw, cap_dt if isinstance(cap_dt, datetime.datetime) else None)
+                        raw = r.get("raw_data") or ""
+                        parsed = parse_raw_data(raw)
                         emp_id_lookup = parsed["nik"].lower()
                         emp = emp_map.get(emp_id_lookup, {})
                         emp_name = emp.get("name") or emp_id_lookup.upper()
