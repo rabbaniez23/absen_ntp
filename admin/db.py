@@ -182,7 +182,6 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
                     SELECT employee_id, nik, name, rfid_uid, is_active
                     FROM employees
                     WHERE (rfid_uid IN ({placeholders}) OR employee_id IN ({placeholders}) OR nik IN ({placeholders}))
-                      AND is_active = 1
                     LIMIT 1
                 """
                 params = tuple(candidate_ids * 3)
