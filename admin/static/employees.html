@@ -204,6 +204,15 @@
                     </div>
 
                     <div class="filter-group">
+                        <label for="attendanceStatusFilter">Status Karyawan:</label>
+                        <select id="attendanceStatusFilter" class="select-filter">
+                            <option value="ALL">Semua Status</option>
+                            <option value="ACTIVE">Hanya Aktif</option>
+                            <option value="INACTIVE">Hanya Nonaktif</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
                         <label for="attendanceDateFilter">Filter Tanggal:</label>
                         <input type="date" id="attendanceDateFilter" class="date-filter-input">
                         <button type="button" id="todayFilterBtn" class="pill-filter-btn active">Hari Ini</button>
@@ -217,18 +226,19 @@
                         <table class="modern-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 60px;">NO</th>
-                                    <th style="width: 90px; text-align: center;">FOTO</th>
+                                    <th style="width: 50px;">NO</th>
+                                    <th style="width: 80px; text-align: center;">FOTO</th>
                                     <th>NOMOR INDUK (NIK)</th>
                                     <th>NAMA KARYAWAN</th>
+                                    <th>STATUS KARYAWAN</th>
                                     <th>TANGGAL & WAKTU</th>
-                                    <th>STATUS</th>
+                                    <th>STATUS ABSENSI</th>
                                     <th style="width: 110px; text-align: center;">PRATINJAU</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceTableBody">
                                 <tr>
-                                    <td colspan="7" class="table-loading">Memuat data absensi...</td>
+                                    <td colspan="8" class="table-loading">Memuat data absensi...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -363,6 +373,10 @@
                         <span class="meta-val mono" id="photoModalNik">-</span>
                     </div>
                     <div class="meta-item">
+                        <span class="meta-label">Status Karyawan</span>
+                        <span id="photoModalActiveBadge">-</span>
+                    </div>
+                    <div class="meta-item">
                         <span class="meta-label">Waktu Presensi</span>
                         <span class="meta-val" id="photoModalTime">-</span>
                     </div>
@@ -480,15 +494,23 @@
 
             container.innerHTML = recentList.map(item => {
                 const imgPath = item.image_path ? `/${item.image_path}` : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' fill='%2364748b' viewBox='0 0 24 24'><circle cx='12' cy='8' r='4'/><path d='M12 14c-6.1 0-8 4-8 4v2h16v-2s-1.9-4-8-4z'/></svg>";
+                const isActive = item.is_active !== false;
+                const statusPill = isActive
+                    ? `<span class="status-pill active" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot green"></span> AKTIF</span>`
+                    : `<span class="status-pill inactive" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot red"></span> NONAKTIF</span>`;
+
                 return `
-                    <div class="recent-feed-card" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}')">
+                    <div class="recent-feed-card" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive})">
                         <div class="feed-thumb-box">
                             <img src="${escapeHtml(imgPath)}" alt="${escapeHtml(item.name)}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'48\\' height=\\'48\\' fill=\\'%2364748b\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'8\\' r=\\'4\\'/><path d=\\'M12 14c-6.1 0-8 4-8 4v2h16v-2s-1.9-4-8-4z\\'/></svg>'">
                             <span class="thumb-zoom-badge">🔍</span>
                         </div>
                         <div class="feed-info">
                             <span class="feed-name">${escapeHtml(item.name)}</span>
-                            <span class="feed-nik mono">NIK: ${escapeHtml(item.nik)}</span>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="feed-nik mono">NIK: ${escapeHtml(item.nik)}</span>
+                                ${statusPill}
+                            </div>
                             <span class="feed-time">🕒 ${escapeHtml(item.captured_at)}</span>
                         </div>
                         <div class="feed-badge">
@@ -748,32 +770,45 @@
                     allAttendanceRecords = data.records;
                     filterAndRenderAttendance();
                 } else {
-                    tableBody.innerHTML = `<tr><td colspan="7" class="table-error">Gagal memuat riwayat absensi.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="8" class="table-error">Gagal memuat riwayat absensi.</td></tr>`;
                 }
             } catch (err) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="table-error">Koneksi ke server gagal saat mengambil riwayat.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="8" class="table-error">Koneksi ke server gagal saat mengambil riwayat.</td></tr>`;
             }
         }
 
         function filterAndRenderAttendance() {
             const query = document.getElementById("attendanceSearchInput").value.toLowerCase().trim();
+            const statusFilter = document.getElementById("attendanceStatusFilter").value;
             const tableBody = document.getElementById("attendanceTableBody");
 
             let filtered = allAttendanceRecords.filter(item => {
                 const nameStr = (item.name || "").toLowerCase();
                 const nikStr = (item.nik || item.employee_id || "").toLowerCase();
-                return !query || nameStr.includes(query) || nikStr.includes(query);
+                const matchQuery = !query || nameStr.includes(query) || nikStr.includes(query);
+
+                const isActive = item.is_active !== false;
+                let matchStatus = true;
+                if (statusFilter === "ACTIVE") matchStatus = (isActive === true);
+                if (statusFilter === "INACTIVE") matchStatus = (isActive === false);
+
+                return matchQuery && matchStatus;
             });
 
             if (filtered.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="table-empty">Tidak ada catatan riwayat absensi.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="8" class="table-empty">Tidak ada catatan riwayat absensi yang cocok.</td></tr>`;
                 return;
             }
 
             tableBody.innerHTML = filtered.map((item, index) => {
                 const imgPath = item.image_path ? `/${item.image_path}` : "";
+                const isActive = item.is_active !== false;
+                const statusBadge = isActive
+                    ? `<span class="status-pill active"><span class="dot green"></span> AKTIF</span>`
+                    : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`;
+
                 const thumbHtml = imgPath
-                    ? `<img src="${escapeHtml(imgPath)}" class="table-thumb" alt="Foto" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}')">`
+                    ? `<img src="${escapeHtml(imgPath)}" class="table-thumb" alt="Foto" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive})">`
                     : `<span class="no-thumb">📷</span>`;
 
                 return `
@@ -782,10 +817,11 @@
                         <td class="text-center">${thumbHtml}</td>
                         <td><strong class="mono text-accent">${escapeHtml(item.nik || item.employee_id)}</strong></td>
                         <td class="font-medium">${escapeHtml(item.name)}</td>
+                        <td>${statusBadge}</td>
                         <td class="mono text-muted">${escapeHtml(item.captured_at)}</td>
                         <td><span class="badge-status success">${escapeHtml(item.status || "SUCCESS")}</span></td>
                         <td class="text-center">
-                            ${imgPath ? `<button type="button" class="action-btn-secondary btn-sm" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}')">🔍 Foto HD</button>` : `<span class="text-muted">-</span>`}
+                            ${imgPath ? `<button type="button" class="action-btn-secondary btn-sm" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive})">🔍 Foto HD</button>` : `<span class="text-muted">-</span>`}
                         </td>
                     </tr>
                 `;
@@ -793,6 +829,7 @@
         }
 
         document.getElementById("attendanceSearchInput").addEventListener("input", filterAndRenderAttendance);
+        document.getElementById("attendanceStatusFilter").addEventListener("change", filterAndRenderAttendance);
         document.getElementById("attendanceDateFilter").addEventListener("change", () => {
             document.querySelectorAll(".pill-filter-btn").forEach(b => b.classList.remove("active"));
             loadAttendanceRecords();
@@ -816,11 +853,19 @@
 
         // Photo Modal Zoom
         const photoModal = document.getElementById("photoZoomModal");
-        function openPhotoModal(imgPath, name, nik, time) {
+        function openPhotoModal(imgPath, name, nik, time, isActive = true) {
             document.getElementById("photoModalImg").src = imgPath;
             document.getElementById("photoModalName").textContent = name;
             document.getElementById("photoModalNik").textContent = nik;
             document.getElementById("photoModalTime").textContent = time;
+
+            const activeBadgeEl = document.getElementById("photoModalActiveBadge");
+            if (activeBadgeEl) {
+                activeBadgeEl.innerHTML = isActive !== false
+                    ? `<span class="status-pill active"><span class="dot green"></span> AKTIF</span>`
+                    : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`;
+            }
+
             photoModal.classList.remove("hidden");
         }
         function closePhotoModal() {
@@ -838,14 +883,15 @@
                 return;
             }
 
-            let csvContent = "No,NIK,Nama Karyawan,Tanggal & Waktu,Status,File Foto\n";
+            let csvContent = "No,NIK,Nama Karyawan,Status Karyawan,Tanggal & Waktu,Status Absensi,File Foto\n";
             allAttendanceRecords.forEach((item, idx) => {
                 const nik = `"${(item.nik || item.employee_id || '').replace(/"/g, '""')}"`;
                 const name = `"${(item.name || '').replace(/"/g, '""')}"`;
+                const empStatus = item.is_active !== false ? '"AKTIF"' : '"NONAKTIF"';
                 const time = `"${(item.captured_at || '').replace(/"/g, '""')}"`;
                 const status = `"${(item.status || 'SUCCESS').replace(/"/g, '""')}"`;
                 const file = `"${(item.image_path || '').replace(/"/g, '""')}"`;
-                csvContent += `${idx + 1},${nik},${name},${time},${status},${file}\n`;
+                csvContent += `${idx + 1},${nik},${name},${empStatus},${time},${status},${file}\n`;
             });
 
             const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

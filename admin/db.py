@@ -311,6 +311,7 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
             with conn.cursor() as cursor:
                 sql = """
                     SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
+                           COALESCE(e.is_active, 1) AS is_active,
                            a.captured_at, a.image_path, a.attendance_status
                     FROM attendance a
                     LEFT JOIN employees e ON a.employee_id = e.employee_id
@@ -343,6 +344,7 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                         "employee_id": r["employee_id"],
                         "nik": r.get("nik") or r["employee_id"],
                         "name": r.get("name") or r["employee_id"],
+                        "is_active": bool(r.get("is_active", 1)),
                         "captured_at": cap_str,
                         "image_path": str(r.get("image_path") or "").replace("\\", "/"),
                         "status": r.get("attendance_status") or "SUCCESS",
@@ -396,6 +398,7 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                     "employee_id": emp_id,
                     "nik": emp_nik,
                     "name": emp_name,
+                    "is_active": bool(emp.get("is_active", True)),
                     "captured_at": cap_at.replace("T", " "),
                     "image_path": str(item.get("image_path") or "").replace("\\", "/"),
                     "status": item.get("attendance_status", "SUCCESS"),
@@ -724,6 +727,7 @@ def get_dashboard_stats() -> dict:
                 # 3. Absensi Terkini (Maks 6)
                 cursor.execute("""
                     SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
+                           COALESCE(e.is_active, 1) AS is_active,
                            a.captured_at, a.image_path, a.attendance_status
                     FROM attendance a
                     LEFT JOIN employees e ON a.employee_id = e.employee_id
@@ -736,6 +740,7 @@ def get_dashboard_stats() -> dict:
                         "employee_id": r["employee_id"],
                         "nik": r.get("nik") or r["employee_id"],
                         "name": r["name"],
+                        "is_active": bool(r.get("is_active", 1)),
                         "captured_at": str(r["captured_at"]),
                         "image_path": str(r.get("image_path") or "").replace("\\", "/"),
                         "status": r.get("attendance_status", "SUCCESS")
