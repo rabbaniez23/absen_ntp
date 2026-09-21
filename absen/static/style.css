@@ -481,56 +481,63 @@ html, body {
 .info-content {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 20px;
     flex-grow: 1;
-    justify-content: space-between;
+    justify-content: flex-start;
+    padding-top: 6px;
 }
 
 .info-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .info-group label,
 .info-subgroup label {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     color: var(--text-muted);
 }
 
 .info-value {
-    font-size: 1.35rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: var(--text-primary);
     background: #0d1118;
     border: 1px solid var(--card-border);
-    padding: 12px 16px;
-    border-radius: 8px;
-    min-height: 52px;
+    padding: 14px 18px;
+    border-radius: 12px;
+    min-height: 58px;
     display: flex;
     align-items: center;
     letter-spacing: 0.5px;
+    transition: all 0.25s ease;
+}
+
+.info-value:hover {
+    border-color: #303e58;
 }
 
 .info-value.highlight {
     color: var(--accent);
     font-family: monospace;
-    font-size: 1.45rem;
+    font-size: 1.55rem;
+    font-weight: 800;
 }
 
 .info-group-inline {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 14px;
 }
 
 .info-value.small {
-    font-size: 1.05rem;
-    min-height: 44px;
-    padding: 10px 14px;
+    font-size: 1.1rem;
+    min-height: 48px;
+    padding: 12px 16px;
     font-variant-numeric: tabular-nums;
 }
 
@@ -662,12 +669,13 @@ html, body {
 .input-container {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-top: 4px;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 8px;
 }
 
 .input-container label {
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: 0.8px;
     color: var(--text-muted);
@@ -681,24 +689,25 @@ html, body {
 
 .input-icon {
     position: absolute;
-    left: 14px;
-    font-size: 1.2rem;
+    left: 16px;
+    font-size: 1.25rem;
     pointer-events: none;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .absen-ntp-input,
 .kiosk-input {
     width: 100%;
+    height: 54px;
     background: #0a0e14;
-    border: 2px solid var(--card-border);
+    border: 1px solid var(--card-border);
     color: var(--text-primary);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 600;
-    padding: 14px 14px 14px 44px;
-    border-radius: 8px;
+    padding: 12px 14px 12px 48px;
+    border-radius: 12px;
     outline: none;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
     -webkit-text-security: disc;
     letter-spacing: 2px;
 }
