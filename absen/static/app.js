@@ -236,7 +236,6 @@ function resetToIdle() {
         currentPreviewUrl = null;
     }
     currentEmployeeId = null;
-    lastHandledScanId = null;
     if (employeeName) employeeName.textContent = "-";
     if (employeeNik) employeeNik.textContent = "-";
     if (employeeId && employeeId !== employeeNik) employeeId.textContent = "-";
@@ -1053,14 +1052,15 @@ function startPollingFallback() {
             if (resp.ok) {
                 const data = await resp.json();
                 const pollKey = data.scan_id || `${data.raw_data || ''}_${data.scan_ts || data.time || ''}`;
-                if (data && (data.name || data.nik || data.raw_data) && pollKey && pollKey !== lastHandledScanId) {
+                const isFresh = data.scan_ts ? (Date.now() / 1000 - data.scan_ts < 5) : false;
+                if (data && isFresh && (data.name || data.nik || data.raw_data) && pollKey && pollKey !== lastHandledScanId) {
                     handleHardwareAttendanceEvent(data);
                 }
             }
         } catch (e) {
             // Silently ignore polling network errors
         }
-    }, 1500);
+    }, 2000);
 }
 
 // Inisialisasi seluruh komponen saat dokumen HTML selesai dimuat

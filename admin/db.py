@@ -481,7 +481,13 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                 has_raw = cursor.fetchone() is not None
 
                 if has_raw:
-                    sql = "SELECT id, raw_data, image FROM attendance ORDER BY id DESC LIMIT %s;"
+                    cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'captured_at';")
+                    has_cap_col = cursor.fetchone() is not None
+                    if has_cap_col:
+                        sql = "SELECT id, raw_data, image, captured_at FROM attendance ORDER BY id DESC LIMIT %s;"
+                    else:
+                        sql = "SELECT id, raw_data, image FROM attendance ORDER BY id DESC LIMIT %s;"
+
                     cursor.execute(sql, (limit * 2,))
                     rows = cursor.fetchall()
                     for r in rows:
@@ -495,8 +501,18 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                         img_name = r.get("image") or f"{raw}.jpg"
                         img_path = f"captures/{img_name}"
 
+                        # Gunakan timestamp asli dengan detik jika tersedia di database
+                        db_cap = r.get("captured_at")
+                        if db_cap:
+                            if isinstance(db_cap, (datetime.datetime, datetime.date)):
+                                cap_display = db_cap.strftime("%Y-%m-%d %H:%M:%S")
+                            else:
+                                cap_display = str(db_cap)
+                        else:
+                            cap_display = parsed["datetime_str"]
+
                         # Filter Tanggal (YYYY-MM-DD)
-                        if date_filter and not parsed["datetime_str"].startswith(date_filter):
+                        if date_filter and not cap_display.startswith(date_filter):
                             continue
 
                         # Filter Pencarian (Nama, NIK, Raw Data)
@@ -516,7 +532,7 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                             "nik": parsed["nik"],
                             "name": emp_name,
                             "is_active": is_active,
-                            "captured_at": parsed["datetime_str"],
+                            "captured_at": cap_display,
                             "in_out": parsed["in_out"],
                             "in_out_label": parsed["in_out_label"],
                             "status": r.get("attendance_status") or "SUCCESS",
@@ -612,7 +628,7 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                     "nik": parsed["nik"],
                     "name": emp_name,
                     "is_active": is_active,
-                    "captured_at": parsed["datetime_str"],
+                    "captured_at": item.get("captured_at") or parsed["datetime_str"],
                     "in_out": parsed["in_out"],
                     "in_out_label": parsed["in_out_label"],
                     "status": item.get("attendance_status", "SUCCESS"),
