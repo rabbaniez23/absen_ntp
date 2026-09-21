@@ -54,6 +54,7 @@ const attendanceTime = document.getElementById("attendanceTime");
 const employeeName = document.getElementById("employeeName");
 const employeeNik = document.getElementById("employeeNik");
 const employeeId = document.getElementById("employeeId") || employeeNik;
+const attendanceType = document.getElementById("attendanceType");
 const cameraTitle = document.getElementById("cameraTitle");
 const statusBanner = document.getElementById("statusBanner");
 const statusText = document.getElementById("statusText");
@@ -238,6 +239,7 @@ function resetToIdle() {
     if (employeeName) employeeName.textContent = "-";
     if (employeeNik) employeeNik.textContent = "-";
     if (employeeId && employeeId !== employeeNik) employeeId.textContent = "-";
+    if (attendanceType) attendanceType.textContent = "-";
     if (rfidInput) {
         rfidInput.value = "";
         rfidInput.disabled = false;
@@ -404,6 +406,11 @@ async function processAttendanceScan(id, empInfo = null, forcedMode = "", reader
             if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
             if (attendanceDate && data.date) attendanceDate.textContent = data.date;
             if (attendanceTime && data.time) attendanceTime.textContent = data.time;
+            if (attendanceType) {
+                attendanceType.innerHTML = isOut
+                    ? '<span style="color: #ff7b72; font-weight: 800; font-size: 1.1rem; text-shadow: 0 0 10px rgba(248, 81, 73, 0.4);">🔴 KELUAR (OUT)</span>'
+                    : '<span style="color: #56d364; font-weight: 800; font-size: 1.1rem; text-shadow: 0 0 10px rgba(86, 211, 100, 0.4);">🟢 MASUK (IN)</span>';
+            }
             if (rfidInput) rfidInput.value = "";
 
             // Tampilkan foto hasil jepretan kamera Logitech C930e dari backend
@@ -1013,6 +1020,11 @@ function handleHardwareAttendanceEvent(data) {
     if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
     if (attendanceDate && data.date) attendanceDate.textContent = data.date;
     if (attendanceTime && data.time) attendanceTime.textContent = data.time;
+    if (attendanceType) {
+        attendanceType.innerHTML = isOut
+            ? '<span style="color: #ff7b72; font-weight: 800; font-size: 1.1rem; text-shadow: 0 0 10px rgba(248, 81, 73, 0.4);">🔴 KELUAR (OUT)</span>'
+            : '<span style="color: #56d364; font-weight: 800; font-size: 1.1rem; text-shadow: 0 0 10px rgba(86, 211, 100, 0.4);">🟢 MASUK (IN)</span>';
+    }
     if (rfidInput) rfidInput.value = "";
 
     if (capturedPreview && data.photo_url) {
