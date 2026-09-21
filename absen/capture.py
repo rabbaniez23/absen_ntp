@@ -16,6 +16,7 @@ import time
 from urllib.parse import parse_qs, urlparse
 import urllib.request
 import urllib.error
+import uuid
 
 import config
 
@@ -232,8 +233,8 @@ class RFIDHardwareManager:
                                 if card_uid:
                                     now = time.time()
                                     last_time = self.last_scan_time.get(card_uid, 0)
-                                    if now - last_time < 2.5:
-                                        logger.info(f"[RFID Hardware] Abaikan double-tap ({card_uid}) dalam 2.5 detik.")
+                                    if now - last_time < 1.2:
+                                        logger.info(f"[RFID Hardware] Abaikan double-tap ({card_uid}) dalam 1.2 detik.")
                                         continue
                                     self.last_scan_time[card_uid] = now
 
@@ -320,13 +321,12 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "", reader_name: 
 
     now_ts = time.time()
 
-    # Deduplikasi: Jika kartu ini baru saja diproses dalam 2.5 detik terakhir,
-    # jangan proses ulang (kembalikan hasil yang sudah ada).
+    # Deduplikasi cepat: Cegah bounce listrik hardware dalam 1.2 detik
     with recent_pipeline_lock:
         if clean_id in recent_pipeline_scans:
             last_ts, last_resp = recent_pipeline_scans[clean_id]
-            if now_ts - last_ts < 2.5:
-                logger.info(f"[PIPELINE] Mengabaikan request duplikat untuk {clean_id} ({reader_name}).")
+            if now_ts - last_ts < 1.2:
+                logger.info(f"[PIPELINE] Mengabaikan bounce sinyal untuk {clean_id} ({reader_name}).")
                 return last_resp
 
     raw_in_out = str(in_out).strip() if in_out is not None else ""
@@ -398,6 +398,8 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "", reader_name: 
     resp_json["in_out_label"] = res_label
     resp_json["reader_used"] = reader_name
     resp_json["status_code"] = resp_status
+    resp_json["scan_id"] = str(uuid.uuid4())
+    resp_json["scan_ts"] = now_ts
 
     with recent_pipeline_lock:
         recent_pipeline_scans[clean_id] = (now_ts, resp_json)

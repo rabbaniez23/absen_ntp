@@ -236,6 +236,7 @@ function resetToIdle() {
         currentPreviewUrl = null;
     }
     currentEmployeeId = null;
+    lastHandledScanId = null;
     if (employeeName) employeeName.textContent = "-";
     if (employeeNik) employeeNik.textContent = "-";
     if (employeeId && employeeId !== employeeNik) employeeId.textContent = "-";
@@ -975,7 +976,7 @@ function displayAttendanceSuccess(data) {
     if (window._idleResetTimer) clearTimeout(window._idleResetTimer);
     window._idleResetTimer = setTimeout(() => {
         resetToIdle();
-    }, 3500);
+    }, 3000);
 }
 
 function handleHardwareAttendanceEvent(data) {
@@ -985,7 +986,7 @@ function handleHardwareAttendanceEvent(data) {
         return;
     }
 
-    const eventKey = `${data.raw_data || data.image || data.time}_${data.nik || data.name}`;
+    const eventKey = data.scan_id || `${data.raw_data || ''}_${data.scan_ts || data.time || ''}_${Date.now()}`;
     if (lastHandledScanId === eventKey) return;
     lastHandledScanId = eventKey;
 
@@ -1051,7 +1052,8 @@ function startPollingFallback() {
             const resp = await fetch(getApiUrl("api/kiosk/latest"));
             if (resp.ok) {
                 const data = await resp.json();
-                if (data && (data.name || data.nik || data.raw_data) && data.raw_data !== lastHandledScanId) {
+                const pollKey = data.scan_id || `${data.raw_data || ''}_${data.scan_ts || data.time || ''}`;
+                if (data && (data.name || data.nik || data.raw_data) && pollKey && pollKey !== lastHandledScanId) {
                     handleHardwareAttendanceEvent(data);
                 }
             }
