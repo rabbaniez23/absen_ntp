@@ -266,28 +266,20 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         raw_in_out = str(payload.get("in_out") or payload.get("type") or "").strip()
         ident_lower = identifier.lower()
 
-        # Deteksi tipe absensi otomatis (Cerdas & Tanpa Sudo):
-        # 1. Jika ada sinyal eksplisit dari hardware reader yang terdeteksi
+        # Deteksi tipe absensi KONSISTEN & SESUAI PERANGKAT:
+        # 1. Jika ada sinyal eksplisit dari hardware reader (0 = KELUAR, 1 = MASUK)
         if raw_in_out in ["0", "out", "OUT", "keluar", "KELUAR"]:
             in_out = "0"
         elif raw_in_out in ["1", "in", "IN", "masuk", "MASUK"]:
             in_out = "1"
-        # 2. Jika berasal dari Reader Sycreader (OUT) dengan format awalan 13 / dreizehn
+        # 2. RFID Reader 2 / Reader Baru (Sycreader):
+        # Menghasilkan awalan '13', 'dreizehn', atau format panjang (>10 digit bukan NIK KTP) -> SELALU KELUAR (OUT / 0)
         elif "dreizehn" in ident_lower or ident_lower.startswith("13") or (len(identifier) > 10 and not identifier.startswith("320")):
             in_out = "0"
-        # 3. Smart Sequence Toggle: Otomatis bergantian MASUK <-> KELUAR berdasarkan riwayat hari ini
+        # 3. RFID Reader 1 / Reader Awal (QinHeng / 10 digit desimal standar) & Input NIK Manual:
+        # SELALU MASUK (IN / 1)
         else:
-            today_str = now.strftime("%Y-%m-%d")
-            today_records = [
-                r for r in db.get_attendance_records(limit=50, date_filter=today_str)
-                if (r.get("nik") == emp_nik or r.get("employee_id") == emp_id)
-            ]
-            if today_records:
-                latest = today_records[0]
-                last_in_out = str(latest.get("in_out", "1"))
-                in_out = "0" if last_in_out == "1" else "1"
-            else:
-                in_out = "1"
+            in_out = "1"
 
         in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
 
