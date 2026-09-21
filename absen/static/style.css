@@ -699,6 +699,8 @@ html, body {
     border-radius: 8px;
     outline: none;
     transition: all 0.2s ease;
+    -webkit-text-security: disc;
+    letter-spacing: 2px;
 }
 
 .absen-ntp-input:focus,
