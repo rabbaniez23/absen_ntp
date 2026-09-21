@@ -316,7 +316,7 @@ function isCameraReady() {
  * 2. Mengaktifkan panduan lingkaran wajah & hitung mundur 3-2-1.
  * 3. Menjepret frame live stream kamera Logitech C930e dan menyimpan ke MariaDB.
  */
-async function handleEmployeeInput(rawInput) {
+async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web Kiosk UI") {
     if (currentState !== AppState.IDLE) {
         console.warn(`[Presensi] Input diabaikan: Sistem sedang dalam status ${currentState}`);
         return;
@@ -336,7 +336,7 @@ async function handleEmployeeInput(rawInput) {
 
         if (response.ok && data.success) {
             const nikDisplay = data.nik || data.employee_id;
-            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (NIK: ${nikDisplay})`);
+            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (NIK: ${nikDisplay}) | Mode: ${forcedMode || 'Auto'}`);
             currentEmployeeId = data.employee_id;
 
             // Tampilkan HANYA Nama Karyawan dan NIK (Nomor RFID disembunyikan demi privasi)
@@ -347,7 +347,7 @@ async function handleEmployeeInput(rawInput) {
             setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
 
             // Langsung jepret foto absensi seketika tanpa jeda hitung mundur
-            processAttendanceScan(cleanId, data);
+            processAttendanceScan(cleanId, data, forcedMode, readerName);
 
         } else {
             const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";
@@ -362,7 +362,7 @@ async function handleEmployeeInput(rawInput) {
 /**
  * Menjepret frame kamera dan mencatat absensi ke server backend.
  */
-async function processAttendanceScan(id, empInfo = null) {
+async function processAttendanceScan(id, empInfo = null, forcedMode = "", readerName = "Web Kiosk UI") {
     setApplicationState(AppState.CAPTURING, "MENGAMBIL FOTO...");
 
     // Efek kilatan lampu rana kamera (shutter flash)
@@ -379,7 +379,11 @@ async function processAttendanceScan(id, empInfo = null) {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ rfid_uid: id })
+            body: JSON.stringify({
+                rfid_uid: id,
+                in_out: forcedMode,
+                reader: readerName
+            })
         }, 12000);
 
         const data = await parseJsonResponse(response);
@@ -596,6 +600,7 @@ async function uploadCapture(empId, blob) {
 
 // Variabel penampung karakter scanner RFID global
 let rfidBuffer = "";
+let rfidKeyEvents = [];
 let rfidBufferTimer = null;
 
 /**
@@ -608,8 +613,9 @@ function initializeInputHandler() {
         submitNikBtn.addEventListener("click", () => {
             const cleanVal = rfidBuffer.trim();
             rfidBuffer = "";
+            rfidKeyEvents = [];
             if (rfidInput) rfidInput.value = "";
-            if (cleanVal) handleEmployeeInput(cleanVal);
+            if (cleanVal) handleEmployeeInput(cleanVal, "1", "Manual Web Button");
         });
     }
 
@@ -624,10 +630,30 @@ function initializeInputHandler() {
         if (event.key === "Enter") {
             event.preventDefault();
             const rawVal = rfidBuffer.trim();
+            const events = [...rfidKeyEvents];
+            const enterCode = event.code;
+
             rfidBuffer = "";
+            rfidKeyEvents = [];
             if (rfidInput) rfidInput.value = "";
+
             if (rawVal) {
-                handleEmployeeInput(rawVal);
+                // Deteksi scancode keyboard hardware dari Reader 1 vs Reader 2
+                const isNumpad = enterCode === "NumpadEnter" || events.some(e => (e.code && e.code.startsWith("Numpad")) || e.location === 3);
+
+                let detectedMode = "1";
+                let readerLabel = "QinHeng IN (Standard Digit)";
+
+                if (isNumpad) {
+                    detectedMode = "0";
+                    readerLabel = "Sycreader OUT (Numpad Event)";
+                } else if (rawVal.startsWith("13") || rawVal.toLowerCase().includes("dreizehn") || (rawVal.length > 10 && !rawVal.startsWith("320"))) {
+                    detectedMode = "0";
+                    readerLabel = "Sycreader OUT (Prefix 13)";
+                }
+
+                console.log(`[Input Analisis] Raw: ${rawVal} | EnterCode: ${enterCode} | IsNumpad: ${isNumpad} -> Mode: ${detectedMode} (${readerLabel})`);
+                handleEmployeeInput(rawVal, detectedMode, readerLabel);
             }
             return;
         }
@@ -635,6 +661,7 @@ function initializeInputHandler() {
         if (event.key === "Backspace") {
             event.preventDefault();
             rfidBuffer = rfidBuffer.slice(0, -1);
+            if (rfidKeyEvents.length > 0) rfidKeyEvents.pop();
             if (rfidInput) rfidInput.value = "•".repeat(rfidBuffer.length);
             return;
         }
@@ -643,6 +670,13 @@ function initializeInputHandler() {
         if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
             event.preventDefault();
             rfidBuffer += event.key;
+            rfidKeyEvents.push({
+                key: event.key,
+                code: event.code,
+                location: event.location,
+                time: event.timeStamp
+            });
+
             if (rfidInput) {
                 rfidInput.value = "•".repeat(rfidBuffer.length);
             }
@@ -650,6 +684,7 @@ function initializeInputHandler() {
             clearTimeout(rfidBufferTimer);
             rfidBufferTimer = setTimeout(() => {
                 rfidBuffer = "";
+                rfidKeyEvents = [];
                 if (rfidInput && currentState === AppState.IDLE) {
                     rfidInput.value = "";
                 }
