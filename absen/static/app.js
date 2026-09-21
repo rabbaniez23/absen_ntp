@@ -316,7 +316,7 @@ function isCameraReady() {
  * 2. Mengaktifkan panduan lingkaran wajah & hitung mundur 3-2-1.
  * 3. Menjepret frame live stream kamera Logitech C930e dan menyimpan ke MariaDB.
  */
-async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web Kiosk UI") {
+async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web Kiosk UI", timingInfo = {}) {
     if (currentState !== AppState.IDLE) {
         console.warn(`[Presensi] Input diabaikan: Sistem sedang dalam status ${currentState}`);
         return;
@@ -347,7 +347,7 @@ async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web 
             setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
 
             // Langsung jepret foto absensi seketika tanpa jeda hitung mundur
-            processAttendanceScan(cleanId, data, forcedMode, readerName);
+            processAttendanceScan(cleanId, data, forcedMode, readerName, timingInfo);
 
         } else {
             const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";
@@ -362,7 +362,7 @@ async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web 
 /**
  * Menjepret frame kamera dan mencatat absensi ke server backend.
  */
-async function processAttendanceScan(id, empInfo = null, forcedMode = "", readerName = "Web Kiosk UI") {
+async function processAttendanceScan(id, empInfo = null, forcedMode = "", readerName = "Web Kiosk UI", timingInfo = {}) {
     setApplicationState(AppState.CAPTURING, "MENGAMBIL FOTO...");
 
     // Efek kilatan lampu rana kamera (shutter flash)
@@ -382,7 +382,11 @@ async function processAttendanceScan(id, empInfo = null, forcedMode = "", reader
             body: JSON.stringify({
                 rfid_uid: id,
                 in_out: forcedMode,
-                reader: readerName
+                reader: readerName,
+                duration_ms: timingInfo.duration || 0,
+                avg_interval_ms: timingInfo.avgInterval || 0,
+                enter_code: timingInfo.enterCode || "",
+                first_key_code: timingInfo.firstKey || ""
             })
         }, 12000);
 
@@ -633,6 +637,11 @@ function initializeInputHandler() {
             const events = [...rfidKeyEvents];
             const enterCode = event.code;
 
+            const duration = events.length > 1 ? Math.round(events[events.length - 1].time - events[0].time) : 0;
+            const avgInterval = events.length > 1 ? +(duration / (events.length - 1)).toFixed(1) : 0;
+            const firstKey = events.length > 0 ? events[0].code : "";
+            const timingInfo = { duration, avgInterval, enterCode, firstKey };
+
             rfidBuffer = "";
             rfidKeyEvents = [];
             if (rfidInput) rfidInput.value = "";
@@ -641,8 +650,8 @@ function initializeInputHandler() {
                 // Deteksi scancode keyboard hardware dari Reader 1 vs Reader 2
                 const isNumpad = enterCode === "NumpadEnter" || events.some(e => (e.code && e.code.startsWith("Numpad")) || e.location === 3);
 
-                let detectedMode = "1";
-                let readerLabel = "QinHeng IN (Standard Digit)";
+                let detectedMode = "";
+                let readerLabel = "Generic Scan";
 
                 if (isNumpad) {
                     detectedMode = "0";
@@ -652,8 +661,8 @@ function initializeInputHandler() {
                     readerLabel = "Sycreader OUT (Prefix 13)";
                 }
 
-                console.log(`[Input Analisis] Raw: ${rawVal} | EnterCode: ${enterCode} | IsNumpad: ${isNumpad} -> Mode: ${detectedMode} (${readerLabel})`);
-                handleEmployeeInput(rawVal, detectedMode, readerLabel);
+                console.log(`[Input Timing] Raw: ${rawVal} | Dur: ${duration}ms | Avg: ${avgInterval}ms | Enter: ${enterCode} | FirstKey: ${firstKey} | Mode: ${detectedMode || 'Auto'}`);
+                handleEmployeeInput(rawVal, detectedMode, readerLabel, timingInfo);
             }
             return;
         }

@@ -282,7 +282,13 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             in_out = "1"
 
         in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
-        logger.info(f"[Scan Diproses] Identifier: '{identifier}' -> Ditetapkan Sebagai: {in_out_label} ({in_out})")
+
+        dur = payload.get("duration_ms", 0)
+        avg_int = payload.get("avg_interval_ms", 0)
+        enter_code = payload.get("enter_code", "")
+        first_key = payload.get("first_key_code", "")
+        reader_source = payload.get("reader", "Web Kiosk UI")
+        logger.info(f"[Scan Diproses] ID: '{identifier}' | Mode: {in_out_label} ({in_out}) | Reader: {reader_source} | Dur: {dur}ms | AvgInt: {avg_int}ms | EnterCode: {enter_code}")
 
         raw_data = db.generate_raw_data(nik=emp_nik, dt=now, in_out=in_out)
         image_filename = f"{raw_data}.jpg"

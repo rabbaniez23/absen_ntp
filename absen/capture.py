@@ -307,16 +307,17 @@ recent_pipeline_lock = threading.Lock()
 # ----------------------------------------------------------------------
 # Handler Eksekusi Scan Absensi Bersama (Hardware & Web API)
 # ----------------------------------------------------------------------
-def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name: str = "Web/Browser") -> dict:
+def execute_attendance_pipeline(identifier: str, in_out: str = "", reader_name: str = "Web Kiosk UI", extra_params: dict = None) -> dict:
     """
-    Eksekusi alur lengkap absensi:
-    1. Cek anti-duplikasi (mencegah request browser menimpa tap hardware).
-    2. Jepret foto webcam V4L2 secara instan.
-    3. Encode foto ke Base64.
-    4. Kirim ke Server Admin (Port 8001) dengan identitas kartu dan status in_out.
-    5. Siarkan hasil ke Kiosk Event Hub (SSE).
+    Menjalankan alur lengkap absensi:
+    1. Ambil foto wajah dari kamera lokal Logitech C930e
+    2. Kirim data RFID + Foto JPEG ke Server Admin Pusat
+    3. Broadcast hasil absensi via Server-Sent Events (SSE) ke browser Kiosk
     """
-    clean_id = str(identifier or "").strip()
+    clean_id = (identifier or "").strip()
+    if not clean_id:
+        return {"success": False, "message": "Nomor RFID kosong"}
+
     now_ts = time.time()
 
     # Deduplikasi: Jika kartu ini baru saja diproses dalam 2.5 detik terakhir,
@@ -353,6 +354,8 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name:
         "reader": reader_name,
         "image_base64": image_base64
     }
+    if extra_params:
+        forward_data.update(extra_params)
 
     resp_json = {}
     resp_status = 500
@@ -635,7 +638,7 @@ class KioskRequestHandler(http.server.SimpleHTTPRequestHandler):
         in_out = str(payload.get("in_out") or payload.get("type") or "").strip()
         reader_source = payload.get("reader") or "Web Kiosk UI"
 
-        result = execute_attendance_pipeline(identifier=identifier, in_out=in_out, reader_name=reader_source)
+        result = execute_attendance_pipeline(identifier=identifier, in_out=in_out, reader_name=reader_source, extra_params=payload)
         status_code = result.get("status_code", 200)
         self.send_json(status_code, result)
 
