@@ -606,28 +606,15 @@ function initializeInputHandler() {
     const submitNikBtn = document.getElementById("submitNikBtn");
     if (submitNikBtn) {
         submitNikBtn.addEventListener("click", () => {
-            const cleanVal = rfidInput ? rfidInput.value.trim() : "";
+            const cleanVal = rfidBuffer.trim();
             rfidBuffer = "";
             if (rfidInput) rfidInput.value = "";
             if (cleanVal) handleEmployeeInput(cleanVal);
         });
     }
 
-    // 2. Tangani input langsung pada elemen rfidInput saat tekan Enter
-    if (rfidInput) {
-        rfidInput.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                const cleanVal = rfidInput.value.trim();
-                rfidInput.value = "";
-                rfidBuffer = "";
-                if (cleanVal) handleEmployeeInput(cleanVal);
-            }
-        });
-    }
-
-    // 3. Global Keydown listener untuk menangkap input QinHeng Electronics RFID Reader
-    // di mana pun posisi kursor / fokus mouse berada
+    // 2. Global Keydown listener untuk menangkap input scanner RFID & Keyboard
+    // Menggunakan event.preventDefault() agar karakter mentah TIDAK PERNAH muncul di layar
     document.addEventListener("keydown", (event) => {
         // Jika fokus sedang di input teks lain (misal modal atau form admin), abaikan
         if (event.target !== rfidInput && (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA")) {
@@ -635,26 +622,40 @@ function initializeInputHandler() {
         }
 
         if (event.key === "Enter") {
-            const inputVal = rfidInput ? rfidInput.value.trim() : "";
-            const rawVal = inputVal || rfidBuffer.trim();
+            event.preventDefault();
+            const rawVal = rfidBuffer.trim();
             rfidBuffer = "";
             if (rfidInput) rfidInput.value = "";
             if (rawVal) {
-                event.preventDefault();
                 handleEmployeeInput(rawVal);
             }
             return;
         }
 
-        // Tampung karakter dari reader RFID (kecepatan tinggi)
+        if (event.key === "Backspace") {
+            event.preventDefault();
+            rfidBuffer = rfidBuffer.slice(0, -1);
+            if (rfidInput) rfidInput.value = "•".repeat(rfidBuffer.length);
+            return;
+        }
+
+        // Tangkap karakter RFID / NIK secara instan tanpa merender angka aslinya
         if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            event.preventDefault();
             rfidBuffer += event.key;
+            if (rfidInput) {
+                rfidInput.value = "•".repeat(rfidBuffer.length);
+            }
+
             clearTimeout(rfidBufferTimer);
             rfidBufferTimer = setTimeout(() => {
                 rfidBuffer = "";
-            }, 600);
+                if (rfidInput && currentState === AppState.IDLE) {
+                    rfidInput.value = "";
+                }
+            }, 800);
         }
-    });
+    }, true);
 
     document.addEventListener("click", () => {
         focusInputField();
