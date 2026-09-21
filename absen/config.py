@@ -16,9 +16,10 @@ for directory in [STATIC_DIR, LOGS_DIR]:
 
 LOG_FILE = LOGS_DIR / "kiosk.log"
 
-# Alamat Server Admin & Database Pusat
-# Default: 127.0.0.1:8001 (jika 1 mesin), atau 10.1.0.2:8001 (jika server pusat sudah siap)
-ADMIN_SERVER_URL = os.environ.get("ADMIN_SERVER_URL", "http://127.0.0.1:8001")
+# Alamat Server Connector (Jembatan Database & API Presensi)
+# Default: 127.0.0.1:8002 (Connector Service mandiri)
+CONNECTOR_SERVER_URL = os.environ.get("CONNECTOR_SERVER_URL", "http://127.0.0.1:8002")
+ADMIN_SERVER_URL = os.environ.get("ADMIN_SERVER_URL", CONNECTOR_SERVER_URL)
 
 # ----------------------------------------------------------------------
 # Konfigurasi Hardware RFID Dual-Reader (IN & OUT)

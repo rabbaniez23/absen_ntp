@@ -346,8 +346,8 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "", reader_name: 
     if photo_bytes and len(photo_bytes) > 100:
         image_base64 = base64.b64encode(photo_bytes).decode("ascii")
 
-    # 2. Kirim ke Server Admin Pusat
-    admin_url = f"{config.ADMIN_SERVER_URL.rstrip('/')}/api/attendance/scan"
+    # 2. Kirim ke Server Connector (Jembatan Database & API)
+    connector_url = f"{getattr(config, 'CONNECTOR_SERVER_URL', config.ADMIN_SERVER_URL).rstrip('/')}/api/attendance/scan"
     forward_data = {
         "rfid_uid": clean_id,
         "in_out": in_out_val,
@@ -363,7 +363,7 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "", reader_name: 
     try:
         req_data = json.dumps(forward_data).encode("utf-8")
         req = urllib.request.Request(
-            admin_url,
+            connector_url,
             data=req_data,
             headers={"Content-Type": "application/json; charset=utf-8"},
             method="POST"
@@ -373,19 +373,19 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "", reader_name: 
             resp_body = resp.read().decode("utf-8")
             resp_json = json.loads(resp_body)
             lbl = resp_json.get("in_out_label", "Presensi")
-            logger.info(f"[Kiosk] Sukses kirim ke Admin: {resp_json.get('name', '')} ({lbl})")
+            logger.info(f"[Kiosk] Sukses kirim ke Connector: {resp_json.get('name', '')} ({lbl})")
     except urllib.error.HTTPError as http_err:
         resp_status = http_err.code
         err_body = http_err.read().decode("utf-8")
         try:
             resp_json = json.loads(err_body)
         except Exception:
-            resp_json = {"success": False, "message": f"Respon Server Pusat: {http_err.reason}"}
+            resp_json = {"success": False, "message": f"Respon Server Connector: {http_err.reason}"}
     except urllib.error.URLError as url_err:
         resp_status = 503
         resp_json = {
             "success": False,
-            "message": "Server Database Pusat sedang offline. Pastikan admin.py aktif!"
+            "message": "Server Connector sedang offline. Pastikan connector.py aktif!"
         }
     except Exception as ex:
         resp_status = 500
@@ -645,12 +645,13 @@ class KioskRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_json(status_code, result)
 
     # ------------------------------------------------------------------
-    # Forwarder Request GET ke Server Pusat
+    # Forwarder Request GET ke Server Connector
     # ------------------------------------------------------------------
     def forward_get_to_admin(self, sub_path: str):
-        admin_url = f"{config.ADMIN_SERVER_URL.rstrip('/')}/{sub_path.lstrip('/')}"
+        target_base = getattr(config, 'CONNECTOR_SERVER_URL', config.ADMIN_SERVER_URL)
+        target_url = f"{target_base.rstrip('/')}/{sub_path.lstrip('/')}"
         try:
-            req = urllib.request.Request(admin_url, method="GET")
+            req = urllib.request.Request(target_url, method="GET")
             with urllib.request.urlopen(req, timeout=8) as resp:
                 resp_status = resp.getcode()
                 resp_content_type = resp.headers.get("Content-Type", "application/json")
@@ -669,10 +670,10 @@ class KioskRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(err_body)
         except urllib.error.URLError as url_err:
-            logger.warning(f"[Kiosk] Server Admin offline saat lookup: {url_err.reason}")
+            logger.warning(f"[Kiosk] Server Connector offline saat lookup: {url_err.reason}")
             self.send_json(503, {
                 "success": False,
-                "message": "Server Database Pusat offline. Pastikan admin.py berjalan."
+                "message": "Server Connector offline. Pastikan connector.py berjalan."
             })
 
 
@@ -681,6 +682,7 @@ def run_kiosk():
     rfid_hw_manager.start()
 
     # 2. Jalankan HTTP Kiosk Server
+    target_server = getattr(config, 'CONNECTOR_SERVER_URL', config.ADMIN_SERVER_URL)
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer((config.HOST, config.PORT), KioskRequestHandler) as httpd:
         print("=" * 65)
@@ -688,7 +690,7 @@ def run_kiosk():
         print(f"   Status          : AKTIF (Dual RFID: IN & OUT)")
         print(f"   Port Kiosk      : {config.PORT}")
         print(f"   URL Layar Absen : http://localhost:{config.PORT}")
-        print(f"   Server Pusat    : {config.ADMIN_SERVER_URL}")
+        print(f"   Server Connector: {target_server}")
         print(f"   Reader IN (1)   : {config.RFID_IN_CONFIG['name']} ({config.RFID_IN_CONFIG['vendor']}:{config.RFID_IN_CONFIG['product']})")
         print(f"   Reader OUT (0)  : {config.RFID_OUT_CONFIG['name']} ({config.RFID_OUT_CONFIG['vendor']}:{config.RFID_OUT_CONFIG['product']})")
         print("=" * 65)
