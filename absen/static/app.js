@@ -372,10 +372,7 @@ async function processAttendanceScan(id, empInfo = null) {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                rfid_uid: id,
-                in_out: selectedAttendanceMode
-            })
+            body: JSON.stringify({ rfid_uid: id })
         }, 12000);
 
         const data = await parseJsonResponse(response);
@@ -393,9 +390,6 @@ async function processAttendanceScan(id, empInfo = null) {
             if (attendanceDate && data.date) attendanceDate.textContent = data.date;
             if (attendanceTime && data.time) attendanceTime.textContent = data.time;
             if (rfidInput) rfidInput.value = "";
-
-            // Perbarui badge tipe presensi
-            setAttendanceMode(isOut ? "0" : "1");
 
             // Tampilkan foto hasil jepretan kamera Logitech C930e dari backend
             if (capturedPreview && data.photo_url) {
