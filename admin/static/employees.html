@@ -522,7 +522,7 @@
                     ? `<span class="status-pill active" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot green"></span> AKTIF</span>`
                     : `<span class="status-pill inactive" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot red"></span> NONAKTIF</span>`;
                 const typePill = isOut
-                    ? `<span class="status-pill" style="font-size: 0.65rem; padding: 1px 7px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);"><span class="dot" style="background:#38bdf8;"></span> KELUAR</span>`
+                    ? `<span class="status-pill" style="font-size: 0.65rem; padding: 1px 7px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);"><span class="dot red" style="background:#ef4444;"></span> KELUAR</span>`
                     : `<span class="status-pill" style="font-size: 0.65rem; padding: 1px 7px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);"><span class="dot green"></span> MASUK</span>`;
 
                 return `
@@ -541,7 +541,7 @@
                             <span class="feed-time">🕒 ${escapeHtml(item.captured_at)}</span>
                         </div>
                         <div class="feed-badge">
-                            <span class="badge-status ${isOut ? 'warning' : 'success'}" style="${isOut ? 'background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);' : ''}">
+                            <span class="badge-status ${isOut ? 'danger' : 'success'}" style="${isOut ? 'background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);' : ''}">
                                 ${isOut ? 'PULANG (OUT)' : 'MASUK (IN)'}
                             </span>
                         </div>
@@ -850,7 +850,7 @@
                     : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`;
 
                 const typeBadge = isOut
-                    ? `<span class="status-pill" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);"><span class="dot" style="background:#38bdf8;"></span> KELUAR (0)</span>`
+                    ? `<span class="status-pill" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);"><span class="dot red" style="background:#ef4444;"></span> KELUAR (0)</span>`
                     : `<span class="status-pill" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);"><span class="dot green"></span> MASUK (1)</span>`;
 
                 const thumbHtml = imgPath

@@ -112,12 +112,18 @@ function initializeClock() {
 /**
  * Mengubah status aplikasi dan memperbarui elemen antarmuka terkait.
  */
-function setApplicationState(newState, customMessage = "") {
+function setApplicationState(newState, customMessage = "", isOut = false) {
     currentState = newState;
     console.log(`[Presensi] Perubahan Status -> ${newState} ${customMessage ? `("${customMessage}")` : ""}`);
 
     if (statusBanner) {
-        statusBanner.className = `status-banner state-${newState.toLowerCase()}`;
+        if (newState === AppState.SUCCESS) {
+            statusBanner.className = isOut
+                ? "status-banner state-success-out"
+                : "status-banner state-success";
+        } else {
+            statusBanner.className = `status-banner state-${newState.toLowerCase()}`;
+        }
     }
 
     // Tampilkan panduan oval posisi wajah saat bersiap atau hitung mundur
@@ -221,6 +227,7 @@ function resetToIdle() {
     }
     if (capturedPreview) {
         capturedPreview.classList.add("hidden");
+        capturedPreview.classList.remove("preview-out");
         capturedPreview.src = "";
     }
     if (currentPreviewUrl) {
@@ -394,14 +401,19 @@ async function processAttendanceScan(id, empInfo = null) {
             // Tampilkan foto hasil jepretan kamera Logitech C930e dari backend
             if (capturedPreview && data.photo_url) {
                 capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
+                if (isOut) {
+                    capturedPreview.classList.add("preview-out");
+                } else {
+                    capturedPreview.classList.remove("preview-out");
+                }
                 capturedPreview.classList.remove("hidden");
             }
 
             const successMsg = isOut
-                ? `ABSENSI KELUAR BERHASIL: ${empName.toUpperCase()}`
-                : `ABSENSI MASUK BERHASIL: ${empName.toUpperCase()}`;
+                ? `ABSENSI KELUAR (OUT) BERHASIL: ${empName.toUpperCase()}`
+                : `ABSENSI MASUK (IN) BERHASIL: ${empName.toUpperCase()}`;
 
-            setApplicationState(AppState.SUCCESS, successMsg);
+            setApplicationState(AppState.SUCCESS, successMsg, isOut);
 
             // Reset otomatis ke IDLE setelah 3.5 detik
             setTimeout(() => {
@@ -957,6 +969,11 @@ function handleHardwareAttendanceEvent(data) {
 
     if (capturedPreview && data.photo_url) {
         capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
+        if (isOut) {
+            capturedPreview.classList.add("preview-out");
+        } else {
+            capturedPreview.classList.remove("preview-out");
+        }
         capturedPreview.classList.remove("hidden");
     }
 
@@ -964,7 +981,7 @@ function handleHardwareAttendanceEvent(data) {
         ? `PRESENSI KELUAR (OUT) BERHASIL: ${empName.toUpperCase()}`
         : `PRESENSI MASUK (IN) BERHASIL: ${empName.toUpperCase()}`;
 
-    setApplicationState(AppState.SUCCESS, successMsg);
+    setApplicationState(AppState.SUCCESS, successMsg, isOut);
 
     setTimeout(() => {
         resetToIdle();
