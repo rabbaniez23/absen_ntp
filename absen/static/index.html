@@ -99,17 +99,6 @@
                         <div class="info-value highlight" id="employeeNik">-</div>
                     </div>
 
-                    <div class="info-group-inline">
-                        <div class="info-subgroup">
-                            <label>Tanggal Absensi</label>
-                            <div class="info-value small" id="attendanceDate">-</div>
-                        </div>
-                        <div class="info-subgroup">
-                            <label>Waktu Absensi</label>
-                            <div class="info-value small" id="attendanceTime">-</div>
-                        </div>
-                    </div>
-
                     <div class="info-group">
                         <label>Tipe Presensi (In / Out)</label>
                         <div class="info-value" id="attendanceType" style="font-weight: 800; letter-spacing: 1px;">-</div>
@@ -123,10 +112,9 @@
 
                     <!-- RFID / Keyboard Input Area -->
                     <div class="input-container">
-                        <label for="rfidInput">MASUKKAN NIK / TEMPEL KARTU RFID</label>
                         <div class="input-wrapper" style="display: flex; gap: 8px;">
                             <span class="input-icon">🆔</span>
-                            <input type="password" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Tempel kartu RFID atau ketik NIK..." autocomplete="off" autofocus>
+                            <input type="password" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="" autocomplete="off" autofocus>
                             <button type="button" id="submitNikBtn" class="absen-ntp-toggle-btn" style="white-space: nowrap; padding: 0 18px; background: #238636; border: 1px solid #2ea043; color: #ffffff; font-weight: 700; cursor: pointer; border-radius: 10px;" title="Tekan untuk absen manual dengan NIK">
                                 ABSEN
                             </button>
@@ -142,6 +130,6 @@
         </footer>
     </div>
 
-    <script src="app.js?v=16"></script>
+    <script src="app.js?v=17"></script>
 </body>
 </html>
