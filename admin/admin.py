@@ -282,6 +282,7 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             in_out = "1"
 
         in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
+        logger.info(f"[Scan Diproses] Identifier: '{identifier}' -> Ditetapkan Sebagai: {in_out_label} ({in_out})")
 
         raw_data = db.generate_raw_data(nik=emp_nik, dt=now, in_out=in_out)
         image_filename = f"{raw_data}.jpg"
