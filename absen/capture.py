@@ -206,6 +206,15 @@ class RFIDHardwareManager:
         while self.running:
             try:
                 with open(node_path, "rb") as fd:
+                    # Coba exclusive grab agar keystroke RFID tidak diketik/bocor ke browser Firefox
+                    try:
+                        import fcntl
+                        EVIOCGRAB = 0x40044590
+                        fcntl.ioctl(fd.fileno(), EVIOCGRAB, 1)
+                        logger.info(f"[RFID Hardware] Perangkat {reader_name} BERHASIL DIKUNCI (GRAB EKSKLUSIF). Input tidak akan bocor ke browser!")
+                    except Exception as grab_err:
+                        logger.warning(f"[RFID Hardware] Grab ioctl tidak aktif ({grab_err}), tetap membaca via input stream biasa.")
+
                     while self.running:
                         data = fd.read(event_size)
                         if not data or len(data) < event_size:
@@ -217,13 +226,14 @@ class RFIDHardwareManager:
                         # EV_KEY = 1, value == 1 (Key Down)
                         if ev_type == 1 and value == 1:
                             if code in self.ENTER_CODES:
-                                card_uid = "".join(buffer).strip()
+                                raw_chars = "".join(buffer).strip()
+                                card_uid = re.sub(r'[^a-zA-Z0-9]', '', raw_chars)
                                 buffer.clear()
                                 if card_uid:
                                     now = time.time()
                                     last_time = self.last_scan_time.get(card_uid, 0)
-                                    if now - last_time < 2.0:
-                                        logger.info(f"[RFID Hardware] Abaikan double-tap ({card_uid}) dalam 2 detik.")
+                                    if now - last_time < 2.5:
+                                        logger.info(f"[RFID Hardware] Abaikan double-tap ({card_uid}) dalam 2.5 detik.")
                                         continue
                                     self.last_scan_time[card_uid] = now
 
@@ -238,11 +248,16 @@ class RFIDHardwareManager:
 
             except PermissionError:
                 logger.error(
-                    f"[RFID Hardware] Akses DITOLAK pada {node_path}!\n"
-                    f"   Solusi: Jalankan di Debian -> sudo usermod -a -G input $USER\n"
-                    f"   atau buat udev rule: SUBSYSTEM==\"input\", MODE=\"0666\""
+                    f"===============================================================\n"
+                    f"[RFID Hardware ERROR] Akses DITOLAK pada {node_path} ({reader_name})!\n"
+                    f"Python tidak memiliki izin membaca input hardware kernel.\n"
+                    f"SOLUSI INSTAN (Jalankan di Debian):\n"
+                    f"   sudo chmod 666 /dev/input/event*\n"
+                    f"Atau jalankan capture.py dengan sudo:\n"
+                    f"   sudo nohup python3 absen/capture.py > /dev/null 2>&1 &\n"
+                    f"==============================================================="
                 )
-                time.sleep(10)
+                time.sleep(5)
             except FileNotFoundError:
                 logger.warning(f"[RFID Hardware] Perangkat {node_path} terputus. Mencoba reconnect dalam 3 detik...")
                 time.sleep(3)
@@ -285,6 +300,8 @@ class KioskEventHub:
 
 
 event_hub = KioskEventHub()
+recent_pipeline_scans = {}
+recent_pipeline_lock = threading.Lock()
 
 
 # ----------------------------------------------------------------------
@@ -293,15 +310,28 @@ event_hub = KioskEventHub()
 def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name: str = "Web/Browser") -> dict:
     """
     Eksekusi alur lengkap absensi:
-    1. Jepret foto webcam V4L2 secara instan.
-    2. Encode foto ke Base64.
-    3. Kirim ke Server Admin (Port 8001) dengan identitas kartu dan status in_out.
-    4. Siarkan hasil ke Kiosk Event Hub (SSE).
+    1. Cek anti-duplikasi (mencegah request browser menimpa tap hardware).
+    2. Jepret foto webcam V4L2 secara instan.
+    3. Encode foto ke Base64.
+    4. Kirim ke Server Admin (Port 8001) dengan identitas kartu dan status in_out.
+    5. Siarkan hasil ke Kiosk Event Hub (SSE).
     """
+    clean_id = str(identifier or "").strip()
+    now_ts = time.time()
+
+    # Deduplikasi: Jika kartu ini baru saja diproses dalam 2.5 detik terakhir,
+    # jangan proses ulang (kembalikan hasil yang sudah ada).
+    with recent_pipeline_lock:
+        if clean_id in recent_pipeline_scans:
+            last_ts, last_resp = recent_pipeline_scans[clean_id]
+            if now_ts - last_ts < 2.5:
+                logger.info(f"[PIPELINE] Mengabaikan request duplikat untuk {clean_id} ({reader_name}).")
+                return last_resp
+
     in_out = "0" if str(in_out).strip() in ["0", "out", "OUT", "keluar", "KELUAR"] else "1"
     in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
 
-    logger.info(f"[PIPELINE] Memproses {in_out_label} | Kartu/NIK: {identifier} | Reader: {reader_name}")
+    logger.info(f"[PIPELINE] Memproses {in_out_label} | Kartu/NIK: {clean_id} | Reader: {reader_name}")
 
     # 1. Ambil foto wajah dari webcam Logitech C930e lokal
     photo_bytes = None
@@ -318,7 +348,7 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name:
     # 2. Kirim ke Server Admin Pusat
     admin_url = f"{config.ADMIN_SERVER_URL.rstrip('/')}/api/attendance/scan"
     forward_data = {
-        "rfid_uid": identifier,
+        "rfid_uid": clean_id,
         "in_out": in_out,
         "reader": reader_name,
         "image_base64": image_base64
@@ -362,6 +392,9 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name:
     resp_json["in_out_label"] = in_out_label
     resp_json["reader_used"] = reader_name
     resp_json["status_code"] = resp_status
+
+    with recent_pipeline_lock:
+        recent_pipeline_scans[clean_id] = (now_ts, resp_json)
 
     # 3. Broadcast ke seluruh layar browser Kiosk via SSE
     event_hub.broadcast(resp_json)

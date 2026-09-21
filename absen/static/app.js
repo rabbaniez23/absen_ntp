@@ -588,69 +588,14 @@ async function uploadCapture(empId, blob) {
     }
 }
 
-// State Mode Presensi (1 = MASUK / IN, 0 = KELUAR / OUT)
-let selectedAttendanceMode = "1";
-
-function setAttendanceMode(mode) {
-    selectedAttendanceMode = mode === "0" ? "0" : "1";
-    const inBtn = document.getElementById("modeInBtn");
-    const outBtn = document.getElementById("modeOutBtn");
-    const badge = document.getElementById("attendanceTypeBadge");
-
-    if (inBtn && outBtn) {
-        if (selectedAttendanceMode === "1") {
-            inBtn.classList.add("active");
-            outBtn.classList.remove("active");
-            inBtn.style.background = "rgba(46, 160, 67, 0.25)";
-            inBtn.style.borderColor = "#2ea043";
-            inBtn.style.color = "#4ade80";
-            outBtn.style.background = "rgba(30, 41, 59, 0.6)";
-            outBtn.style.borderColor = "rgba(56, 189, 248, 0.3)";
-            outBtn.style.color = "#94a3b8";
-        } else {
-            outBtn.classList.add("active");
-            inBtn.classList.remove("active");
-            outBtn.style.background = "rgba(56, 189, 248, 0.25)";
-            outBtn.style.borderColor = "#38bdf8";
-            outBtn.style.color = "#38bdf8";
-            inBtn.style.background = "rgba(30, 41, 59, 0.6)";
-            inBtn.style.borderColor = "rgba(46, 160, 67, 0.3)";
-            inBtn.style.color = "#94a3b8";
-        }
-    }
-
-    if (badge) {
-        if (selectedAttendanceMode === "1") {
-            badge.className = "status-pill active";
-            badge.style.background = "rgba(34, 197, 94, 0.15)";
-            badge.style.color = "#4ade80";
-            badge.style.border = "1px solid rgba(34, 197, 94, 0.4)";
-            badge.innerHTML = `<span class="dot green"></span> MASUK (IN)`;
-        } else {
-            badge.className = "status-pill";
-            badge.style.background = "rgba(56, 189, 248, 0.15)";
-            badge.style.color = "#38bdf8";
-            badge.style.border = "1px solid rgba(56, 189, 248, 0.4)";
-            badge.innerHTML = `<span class="dot" style="background:#38bdf8;"></span> KELUAR (OUT)`;
-        }
-    }
-}
-
 // Variabel penampung karakter scanner RFID global
 let rfidBuffer = "";
 let rfidBufferTimer = null;
 
 /**
  * Menginisialisasi pendengar event keyboard dan kartu RFID.
- * Mendukung QinHeng Electronics RFID Reader (IN) & Sycreader (OUT).
  */
 function initializeInputHandler() {
-    // Tombol pemilih mode IN / OUT
-    const inBtn = document.getElementById("modeInBtn");
-    const outBtn = document.getElementById("modeOutBtn");
-    if (inBtn) inBtn.addEventListener("click", () => setAttendanceMode("1"));
-    if (outBtn) outBtn.addEventListener("click", () => setAttendanceMode("0"));
-
     // 1. Tangani tombol ABSEN manual jika diklik
     const submitNikBtn = document.getElementById("submitNikBtn");
     if (submitNikBtn) {
@@ -1016,46 +961,20 @@ function handleHardwareAttendanceEvent(data) {
     if (attendanceTime && data.time) attendanceTime.textContent = data.time;
     if (rfidInput) rfidInput.value = "";
 
-    // Set tampilan mode sesuai reader yang di-tap
-    setAttendanceMode(isOut ? "0" : "1");
-
     if (capturedPreview && data.photo_url) {
         capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
         capturedPreview.classList.remove("hidden");
     }
 
     const successMsg = isOut
-        ? `ABSENSI KELUAR BERHASIL: ${empName.toUpperCase()}`
-        : `ABSENSI MASUK BERHASIL: ${empName.toUpperCase()}`;
+        ? `PRESENSI KELUAR (OUT) BERHASIL: ${empName.toUpperCase()}`
+        : `PRESENSI MASUK (IN) BERHASIL: ${empName.toUpperCase()}`;
 
     setApplicationState(AppState.SUCCESS, successMsg);
 
     setTimeout(() => {
         resetToIdle();
     }, 3500);
-}
-
-async function checkHardwareReaders() {
-    try {
-        const res = await fetch(getApiUrl("api/rfid/devices"));
-        const data = await res.json();
-        if (data.success && Array.isArray(data.devices)) {
-            updateHardwareReaderStatus(data.devices);
-        }
-    } catch (e) {
-        console.debug("Info devices belum tersedia:", e);
-    }
-}
-
-function updateHardwareReaderStatus(devices) {
-    const el = document.getElementById("rfidHardwareStatus");
-    if (!el) return;
-    if (!devices || devices.length === 0) {
-        el.textContent = "⚡ Dual RFID (QinHeng: IN | Sycreader: OUT)";
-        return;
-    }
-    const labels = devices.map(d => `${d.label.split(' ')[0]}: ${d.reader_key || d.name}`).join(" | ");
-    el.textContent = `🟢 RFID Hardware: ${labels}`;
 }
 
 // Inisialisasi seluruh komponen saat dokumen HTML selesai dimuat
@@ -1069,5 +988,4 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeFullscreenHandler();
     initializeCameraRetryHandler();
     initializeKioskEvents();
-    checkHardwareReaders();
 });
