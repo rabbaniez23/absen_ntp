@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Absen NTP - Biometric Attendance</title>
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
     <div class="absen-ntp-container kiosk-container">
@@ -105,11 +105,12 @@
                     </div>
 
                     <!-- RFID / Keyboard Input Area -->
-                    <div class="input-container">
+                    <div class="input-container info-group">
+                        <label for="rfidInput">MASUKKAN NIK</label>
                         <div class="input-wrapper" style="display: flex; gap: 8px;">
                             <span class="input-icon">🆔</span>
                             <input type="password" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="" autocomplete="off" autofocus>
-                            <button type="button" id="submitNikBtn" class="absen-ntp-toggle-btn" style="white-space: nowrap; padding: 0 18px; background: #238636; border: 1px solid #2ea043; color: #ffffff; font-weight: 700; cursor: pointer; border-radius: 10px;" title="Tekan untuk absen manual dengan NIK">
+                            <button type="button" id="submitNikBtn" class="absen-ntp-toggle-btn" style="white-space: nowrap; padding: 0 18px; background: #238636; border: 1px solid #2ea043; color: #ffffff; font-weight: 700; cursor: pointer; border-radius: 12px; height: 54px;" title="Tekan untuk absen manual dengan NIK">
                                 ABSEN
                             </button>
                         </div>
@@ -124,6 +125,6 @@
         </footer>
     </div>
 
-    <script src="app.js?v=19"></script>
+    <script src="app.js?v=20"></script>
 </body>
 </html>
