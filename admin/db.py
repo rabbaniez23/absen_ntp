@@ -471,6 +471,23 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
         if e.get("employee_id"):
             emp_map[str(e["employee_id"]).strip().lower()] = e
 
+    # Siapkan mapping waktu presisi dari attendance.json jika ada
+    json_time_map = {}
+    try:
+        attendance_file = config.DATA_DIR / "attendance.json"
+        if attendance_file.exists():
+            with open(attendance_file, "r", encoding="utf-8") as f:
+                for item in json.load(f):
+                    rw = item.get("raw_data")
+                    im = item.get("image")
+                    ca = item.get("captured_at")
+                    if rw and ca:
+                        json_time_map[rw] = ca
+                    if im and ca:
+                        json_time_map[im] = ca
+    except Exception:
+        pass
+
     # 1. Ambil dari MariaDB
     conn = get_db_connection()
     if conn:
@@ -501,15 +518,31 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
                         img_name = r.get("image") or f"{raw}.jpg"
                         img_path = f"captures/{img_name}"
 
-                        # Gunakan timestamp asli dengan detik jika tersedia di database
+                        # Cari timestamp presisi (dengan detik asli real-time)
+                        precise_time = None
                         db_cap = r.get("captured_at")
                         if db_cap:
                             if isinstance(db_cap, (datetime.datetime, datetime.date)):
-                                cap_display = db_cap.strftime("%Y-%m-%d %H:%M:%S")
+                                precise_time = db_cap.strftime("%Y-%m-%d %H:%M:%S")
                             else:
-                                cap_display = str(db_cap)
-                        else:
-                            cap_display = parsed["datetime_str"]
+                                precise_time = str(db_cap)
+
+                        # Fallback 1: Timestamp file foto di disk (captures/{image}.jpg)
+                        if not precise_time:
+                            try:
+                                photo_path = config.CAPTURES_DIR / img_name
+                                if photo_path.exists():
+                                    mtime = photo_path.stat().st_mtime
+                                    precise_time = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                            except Exception:
+                                pass
+
+                        # Fallback 2: Dari berkas attendance.json
+                        if not precise_time:
+                            precise_time = json_time_map.get(raw) or json_time_map.get(img_name)
+
+                        # Fallback 3: Dari parse_raw_data
+                        cap_display = precise_time or parsed["datetime_str"]
 
                         # Filter Tanggal (YYYY-MM-DD)
                         if date_filter and not cap_display.startswith(date_filter):
