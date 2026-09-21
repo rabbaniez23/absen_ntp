@@ -19,3 +19,24 @@ LOG_FILE = LOGS_DIR / "kiosk.log"
 # Alamat Server Admin & Database Pusat
 # Default: 127.0.0.1:8001 (jika 1 mesin), atau 10.1.0.2:8001 (jika server pusat sudah siap)
 ADMIN_SERVER_URL = os.environ.get("ADMIN_SERVER_URL", "http://127.0.0.1:8001")
+
+# ----------------------------------------------------------------------
+# Konfigurasi Hardware RFID Dual-Reader (IN & OUT)
+# ----------------------------------------------------------------------
+# Reader 1: QinHeng Electronics (1a86:dd01) -> PRESENSI MASUK (IN / Kode: 1)
+RFID_IN_CONFIG = {
+    "vendor": "1a86",
+    "product": "dd01",
+    "name": "QinHeng Electronics RFID Reader",
+    "type": "1",
+    "label": "MASUK (IN)"
+}
+
+# Reader 2: Sycreader ID&IC USB (ffff:0035) -> PRESENSI KELUAR / PULANG (OUT / Kode: 0)
+RFID_OUT_CONFIG = {
+    "vendor": "ffff",
+    "product": "0035",
+    "name": "Sycreader RFID Technology SYC ID&IC USB Reader",
+    "type": "0",
+    "label": "KELUAR (OUT)"
+}

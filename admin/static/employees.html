@@ -213,6 +213,15 @@
                     </div>
 
                     <div class="filter-group">
+                        <label for="attendanceTypeFilter">Tipe Presensi:</label>
+                        <select id="attendanceTypeFilter" class="select-filter">
+                            <option value="ALL">Semua Tipe (IN & OUT)</option>
+                            <option value="IN">Hanya Masuk (IN / 1)</option>
+                            <option value="OUT">Hanya Keluar (OUT / 0)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
                         <label for="attendanceDateFilter">Filter Tanggal:</label>
                         <input type="date" id="attendanceDateFilter" class="date-filter-input">
                         <button type="button" id="todayFilterBtn" class="pill-filter-btn active">Hari Ini</button>
@@ -507,10 +516,14 @@
                 const isActive = item.is_active !== false;
                 const rawVal = item.raw_data || "";
                 const imgVal = item.image || (rawVal ? rawVal + ".jpg" : "");
-                const typeVal = item.in_out_label || "MASUK (IN)";
+                const typeVal = item.in_out_label || (item.in_out === "0" ? "KELUAR (OUT)" : "MASUK (IN)");
+                const isOut = item.in_out === "0" || typeVal.includes("KELUAR") || typeVal.includes("OUT");
                 const statusPill = isActive
                     ? `<span class="status-pill active" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot green"></span> AKTIF</span>`
                     : `<span class="status-pill inactive" style="font-size: 0.65rem; padding: 1px 7px;"><span class="dot red"></span> NONAKTIF</span>`;
+                const typePill = isOut
+                    ? `<span class="status-pill" style="font-size: 0.65rem; padding: 1px 7px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);"><span class="dot" style="background:#38bdf8;"></span> KELUAR</span>`
+                    : `<span class="status-pill" style="font-size: 0.65rem; padding: 1px 7px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);"><span class="dot green"></span> MASUK</span>`;
 
                 return `
                     <div class="recent-feed-card" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive}, '${escapeHtml(rawVal)}', '${escapeHtml(imgVal)}', '${escapeHtml(typeVal)}')">
@@ -523,11 +536,14 @@
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 <span class="feed-nik mono">NIK: ${escapeHtml(item.nik)}</span>
                                 ${statusPill}
+                                ${typePill}
                             </div>
                             <span class="feed-time">🕒 ${escapeHtml(item.captured_at)}</span>
                         </div>
                         <div class="feed-badge">
-                            <span class="badge-status success">HADIR</span>
+                            <span class="badge-status ${isOut ? 'warning' : 'success'}" style="${isOut ? 'background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);' : ''}">
+                                ${isOut ? 'PULANG (OUT)' : 'MASUK (IN)'}
+                            </span>
                         </div>
                     </div>
                 `;
@@ -793,6 +809,7 @@
         function filterAndRenderAttendance() {
             const query = document.getElementById("attendanceSearchInput").value.toLowerCase().trim();
             const statusFilter = document.getElementById("attendanceStatusFilter").value;
+            const typeFilter = document.getElementById("attendanceTypeFilter") ? document.getElementById("attendanceTypeFilter").value : "ALL";
             const tableBody = document.getElementById("attendanceTableBody");
 
             let filtered = allAttendanceRecords.filter(item => {
@@ -807,7 +824,12 @@
                 if (statusFilter === "ACTIVE") matchStatus = (isActive === true);
                 if (statusFilter === "INACTIVE") matchStatus = (isActive === false);
 
-                return matchQuery && matchStatus;
+                let matchType = true;
+                const isOut = item.in_out === "0" || (item.in_out_label && (item.in_out_label.includes("KELUAR") || item.in_out_label.includes("OUT")));
+                if (typeFilter === "IN") matchType = !isOut;
+                if (typeFilter === "OUT") matchType = isOut;
+
+                return matchQuery && matchStatus && matchType;
             });
 
             if (filtered.length === 0) {
@@ -819,14 +841,17 @@
                 const imgPath = item.image_path ? `/${item.image_path}` : "";
                 const rawVal = item.raw_data || "-";
                 const imgVal = item.image || (item.raw_data ? `${item.raw_data}.jpg` : "-");
-                const typeLabel = item.in_out_label || "MASUK (IN)";
+                const typeLabel = item.in_out_label || (item.in_out === "0" ? "KELUAR (OUT)" : "MASUK (IN)");
                 const isActive = item.is_active !== false;
+                const isOut = item.in_out === "0" || typeLabel.includes("KELUAR") || typeLabel.includes("OUT");
 
                 const statusBadge = isActive
                     ? `<span class="status-pill active"><span class="dot green"></span> AKTIF</span>`
                     : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`;
 
-                const typeBadge = `<span class="status-pill active" style="font-size: 0.72rem; padding: 2px 8px;"><span class="dot green"></span> MASUK (1)</span>`;
+                const typeBadge = isOut
+                    ? `<span class="status-pill" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);"><span class="dot" style="background:#38bdf8;"></span> KELUAR (0)</span>`
+                    : `<span class="status-pill" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);"><span class="dot green"></span> MASUK (1)</span>`;
 
                 const thumbHtml = imgPath
                     ? `<img src="${escapeHtml(imgPath)}" class="table-thumb" alt="Foto" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive}, '${escapeHtml(rawVal)}', '${escapeHtml(imgVal)}', '${escapeHtml(typeLabel)}')">`
@@ -853,6 +878,8 @@
 
         document.getElementById("attendanceSearchInput").addEventListener("input", filterAndRenderAttendance);
         document.getElementById("attendanceStatusFilter").addEventListener("change", filterAndRenderAttendance);
+        const typeFilterEl = document.getElementById("attendanceTypeFilter");
+        if (typeFilterEl) typeFilterEl.addEventListener("change", filterAndRenderAttendance);
         document.getElementById("attendanceDateFilter").addEventListener("change", () => {
             document.querySelectorAll(".pill-filter-btn").forEach(b => b.classList.remove("active"));
             loadAttendanceRecords();

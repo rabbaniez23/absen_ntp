@@ -372,7 +372,10 @@ async function processAttendanceScan(id, empInfo = null) {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ rfid_uid: id })
+            body: JSON.stringify({
+                rfid_uid: id,
+                in_out: selectedAttendanceMode
+            })
         }, 12000);
 
         const data = await parseJsonResponse(response);
@@ -380,7 +383,9 @@ async function processAttendanceScan(id, empInfo = null) {
         if (response.ok && data.success) {
             const nikDisplay = data.nik || (empInfo ? empInfo.nik : data.employee_id);
             const empName = data.name || (empInfo ? empInfo.name : "Karyawan");
-            console.log(`[Presensi] Absensi Berhasil: ${empName} (NIK: ${nikDisplay})`);
+            const isOut = data.in_out === "0" || (data.in_out_label && data.in_out_label.includes("KELUAR"));
+            const typeLabel = isOut ? "KELUAR (OUT)" : "MASUK (IN)";
+            console.log(`[Presensi] Absensi Berhasil (${typeLabel}): ${empName} (NIK: ${nikDisplay})`);
 
             if (employeeName) employeeName.textContent = empName;
             if (employeeNik) employeeNik.textContent = nikDisplay;
@@ -389,13 +394,20 @@ async function processAttendanceScan(id, empInfo = null) {
             if (attendanceTime && data.time) attendanceTime.textContent = data.time;
             if (rfidInput) rfidInput.value = "";
 
+            // Perbarui badge tipe presensi
+            setAttendanceMode(isOut ? "0" : "1");
+
             // Tampilkan foto hasil jepretan kamera Logitech C930e dari backend
             if (capturedPreview && data.photo_url) {
                 capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
                 capturedPreview.classList.remove("hidden");
             }
 
-            setApplicationState(AppState.SUCCESS, `ABSENSI BERHASIL: ${empName.toUpperCase()}`);
+            const successMsg = isOut
+                ? `ABSENSI KELUAR BERHASIL: ${empName.toUpperCase()}`
+                : `ABSENSI MASUK BERHASIL: ${empName.toUpperCase()}`;
+
+            setApplicationState(AppState.SUCCESS, successMsg);
 
             // Reset otomatis ke IDLE setelah 3.5 detik
             setTimeout(() => {
@@ -576,15 +588,69 @@ async function uploadCapture(empId, blob) {
     }
 }
 
+// State Mode Presensi (1 = MASUK / IN, 0 = KELUAR / OUT)
+let selectedAttendanceMode = "1";
+
+function setAttendanceMode(mode) {
+    selectedAttendanceMode = mode === "0" ? "0" : "1";
+    const inBtn = document.getElementById("modeInBtn");
+    const outBtn = document.getElementById("modeOutBtn");
+    const badge = document.getElementById("attendanceTypeBadge");
+
+    if (inBtn && outBtn) {
+        if (selectedAttendanceMode === "1") {
+            inBtn.classList.add("active");
+            outBtn.classList.remove("active");
+            inBtn.style.background = "rgba(46, 160, 67, 0.25)";
+            inBtn.style.borderColor = "#2ea043";
+            inBtn.style.color = "#4ade80";
+            outBtn.style.background = "rgba(30, 41, 59, 0.6)";
+            outBtn.style.borderColor = "rgba(56, 189, 248, 0.3)";
+            outBtn.style.color = "#94a3b8";
+        } else {
+            outBtn.classList.add("active");
+            inBtn.classList.remove("active");
+            outBtn.style.background = "rgba(56, 189, 248, 0.25)";
+            outBtn.style.borderColor = "#38bdf8";
+            outBtn.style.color = "#38bdf8";
+            inBtn.style.background = "rgba(30, 41, 59, 0.6)";
+            inBtn.style.borderColor = "rgba(46, 160, 67, 0.3)";
+            inBtn.style.color = "#94a3b8";
+        }
+    }
+
+    if (badge) {
+        if (selectedAttendanceMode === "1") {
+            badge.className = "status-pill active";
+            badge.style.background = "rgba(34, 197, 94, 0.15)";
+            badge.style.color = "#4ade80";
+            badge.style.border = "1px solid rgba(34, 197, 94, 0.4)";
+            badge.innerHTML = `<span class="dot green"></span> MASUK (IN)`;
+        } else {
+            badge.className = "status-pill";
+            badge.style.background = "rgba(56, 189, 248, 0.15)";
+            badge.style.color = "#38bdf8";
+            badge.style.border = "1px solid rgba(56, 189, 248, 0.4)";
+            badge.innerHTML = `<span class="dot" style="background:#38bdf8;"></span> KELUAR (OUT)`;
+        }
+    }
+}
+
 // Variabel penampung karakter scanner RFID global
 let rfidBuffer = "";
 let rfidBufferTimer = null;
 
 /**
  * Menginisialisasi pendengar event keyboard dan kartu RFID.
- * Mendukung QinHeng Electronics RFID Reader (Bus 005 Device 002: ID 1a86:dd01).
+ * Mendukung QinHeng Electronics RFID Reader (IN) & Sycreader (OUT).
  */
 function initializeInputHandler() {
+    // Tombol pemilih mode IN / OUT
+    const inBtn = document.getElementById("modeInBtn");
+    const outBtn = document.getElementById("modeOutBtn");
+    if (inBtn) inBtn.addEventListener("click", () => setAttendanceMode("1"));
+    if (outBtn) outBtn.addEventListener("click", () => setAttendanceMode("0"));
+
     // 1. Tangani tombol ABSEN manual jika diklik
     const submitNikBtn = document.getElementById("submitNikBtn");
     if (submitNikBtn) {
@@ -885,6 +951,113 @@ window.addEventListener("pagehide", () => {
     }
 });
 
+/**
+ * Menginisialisasi aliran event real-time Server-Sent Events (SSE) dari backend Kiosk.
+ * Saat kartu RFID di-tap pada perangkat hardware fisik (QinHeng / Sycreader),
+ * backend langsung mengirim sinyal ke sini sehingga UI otomatis terupdate tanpa perlu reload.
+ */
+function initializeKioskEvents() {
+    if (typeof EventSource === "undefined") {
+        console.warn("[SSE] Browser tidak mendukung EventSource.");
+        return;
+    }
+
+    try {
+        const sseUrl = getApiUrl("api/kiosk/events");
+        console.log("[SSE] Menghubungkan ke Kiosk Event Stream:", sseUrl);
+        const evtSource = new EventSource(sseUrl);
+
+        evtSource.onopen = () => {
+            console.log("[SSE] Terhubung ke Kiosk Event Stream (Dual-Reader Active).");
+        };
+
+        evtSource.onmessage = (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                if (data.type === "INIT") {
+                    updateHardwareReaderStatus(data.readers);
+                    return;
+                }
+
+                // Event absensi dari hardware tap (QinHeng / Sycreader)
+                if (data.name || data.nik || data.raw_data) {
+                    handleHardwareAttendanceEvent(data);
+                }
+            } catch (err) {
+                console.error("[SSE] Gagal parse event data:", err);
+            }
+        };
+
+        evtSource.onerror = () => {
+            console.warn("[SSE] Event stream terputus, reconnect otomatis...");
+        };
+    } catch (e) {
+        console.error("[SSE] Kesalahan inisialisasi EventSource:", e);
+    }
+}
+
+function handleHardwareAttendanceEvent(data) {
+    if (captureFlash) {
+        captureFlash.classList.add("flash-active");
+        setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
+    }
+
+    const nikDisplay = data.nik || data.employee_id || "-";
+    const empName = data.name || "Karyawan";
+    const isOut = data.in_out === "0" || (data.in_out_label && data.in_out_label.includes("KELUAR"));
+    const typeLabel = isOut ? "KELUAR (OUT)" : "MASUK (IN)";
+
+    console.log(`[SSE Hardware Tap] Presensi diterima: ${empName} (${typeLabel})`);
+
+    if (employeeName) employeeName.textContent = empName;
+    if (employeeNik) employeeNik.textContent = nikDisplay;
+    if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
+    if (attendanceDate && data.date) attendanceDate.textContent = data.date;
+    if (attendanceTime && data.time) attendanceTime.textContent = data.time;
+    if (rfidInput) rfidInput.value = "";
+
+    // Set tampilan mode sesuai reader yang di-tap
+    setAttendanceMode(isOut ? "0" : "1");
+
+    if (capturedPreview && data.photo_url) {
+        capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
+        capturedPreview.classList.remove("hidden");
+    }
+
+    const successMsg = isOut
+        ? `ABSENSI KELUAR BERHASIL: ${empName.toUpperCase()}`
+        : `ABSENSI MASUK BERHASIL: ${empName.toUpperCase()}`;
+
+    setApplicationState(AppState.SUCCESS, successMsg);
+
+    setTimeout(() => {
+        resetToIdle();
+    }, 3500);
+}
+
+async function checkHardwareReaders() {
+    try {
+        const res = await fetch(getApiUrl("api/rfid/devices"));
+        const data = await res.json();
+        if (data.success && Array.isArray(data.devices)) {
+            updateHardwareReaderStatus(data.devices);
+        }
+    } catch (e) {
+        console.debug("Info devices belum tersedia:", e);
+    }
+}
+
+function updateHardwareReaderStatus(devices) {
+    const el = document.getElementById("rfidHardwareStatus");
+    if (!el) return;
+    if (!devices || devices.length === 0) {
+        el.textContent = "⚡ Dual RFID (QinHeng: IN | Sycreader: OUT)";
+        return;
+    }
+    const labels = devices.map(d => `${d.label.split(' ')[0]}: ${d.reader_key || d.name}`).join(" | ");
+    el.textContent = `🟢 RFID Hardware: ${labels}`;
+}
+
 // Inisialisasi seluruh komponen saat dokumen HTML selesai dimuat
 document.addEventListener("DOMContentLoaded", () => {
     console.log("[Presensi] Sistem Presensi Siap Digunakan.");
@@ -895,4 +1068,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeInputHandler();
     initializeFullscreenHandler();
     initializeCameraRetryHandler();
+    initializeKioskEvents();
+    checkHardwareReaders();
 });

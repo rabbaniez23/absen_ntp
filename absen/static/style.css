@@ -622,7 +622,21 @@ html, body {
     color: #f85149;
 }
 
-/* RFID Input Area */
+/* RFID Input Area & Dual Mode Selector */
+.mode-select-btn {
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+.mode-select-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.mode-select-btn:active {
+    transform: translateY(0);
+}
+
 .input-container {
     display: flex;
     flex-direction: column;

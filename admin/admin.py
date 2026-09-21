@@ -261,8 +261,13 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # 2. Bentuk RAW_DATA dan Nama File IMAGE sesuai spesifikasi:
         # format: {nik}{jam}{menit}{tanggal}{bulan}{in_out:1} (contoh: 210019074514091)
+        # in_out: "1" untuk MASUK (IN), "0" untuk KELUAR (OUT)
         now = datetime.datetime.now()
-        raw_data = db.generate_raw_data(nik=emp_nik, dt=now, in_out="1")
+        raw_in_out = str(payload.get("in_out") or payload.get("type") or "1").strip()
+        in_out = "0" if raw_in_out in ["0", "out", "OUT", "keluar", "KELUAR"] else "1"
+        in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
+
+        raw_data = db.generate_raw_data(nik=emp_nik, dt=now, in_out=in_out)
         image_filename = f"{raw_data}.jpg"
 
         # Simpan Foto langsung di config.CAPTURES_DIR dengan nama {raw_data}.jpg
@@ -293,17 +298,19 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
             status="SUCCESS"
         )
 
-        logger.info(f"[Absensi BERHASIL] {emp_name} | RAW_DATA: {raw_data} | IMAGE: {image_filename}")
+        logger.info(f"[Absensi BERHASIL] {emp_name} ({in_out_label}) | RAW_DATA: {raw_data} | IMAGE: {image_filename}")
 
         # 4. Kembalikan respons sukses ke Kiosk
         self.send_json(200, {
             "success": True,
-            "message": "Absensi berhasil dicatat",
+            "message": f"Absensi {in_out_label} berhasil dicatat",
             "raw_data": raw_data,
             "image": image_filename,
             "employee_id": emp_id,
             "nik": emp_nik,
             "name": emp_name,
+            "in_out": in_out,
+            "in_out_label": in_out_label,
             "photo_url": rel_path,
             "date": now.strftime("%d %B %Y"),
             "time": now.strftime("%H:%M:%S")
