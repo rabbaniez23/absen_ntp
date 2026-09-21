@@ -647,21 +647,24 @@ function initializeInputHandler() {
             if (rfidInput) rfidInput.value = "";
 
             if (rawVal) {
-                // Deteksi scancode keyboard hardware dari Reader 1 vs Reader 2
+                // Deteksi scancode keyboard hardware
                 const isNumpad = enterCode === "NumpadEnter" || events.some(e => (e.code && e.code.startsWith("Numpad")) || e.location === 3);
 
-                let detectedMode = "";
-                let readerLabel = "Generic Scan";
+                // Analisis Sidik Jari Kecepatan Hardware (Hardware Fingerprint):
+                // Reader Awal (QinHeng): Ultra-fast burst (~36ms / 4ms per char) -> MASUK (IN / 1)
+                // Reader Baru (Sycreader): Standard USB timing (~143ms / 16ms per char) -> KELUAR (OUT / 0)
+                let detectedMode = "1";
+                let readerLabel = `QinHeng IN (${duration}ms)`;
 
-                if (isNumpad) {
+                if (avgInterval >= 10 || duration >= 80) {
                     detectedMode = "0";
-                    readerLabel = "Sycreader OUT (Numpad Event)";
-                } else if (rawVal.startsWith("13") || rawVal.toLowerCase().includes("dreizehn") || (rawVal.length > 10 && !rawVal.startsWith("320"))) {
+                    readerLabel = `Sycreader OUT (${duration}ms)`;
+                } else if (isNumpad || rawVal.startsWith("13") || rawVal.toLowerCase().includes("dreizehn") || (rawVal.length > 10 && !rawVal.startsWith("320"))) {
                     detectedMode = "0";
-                    readerLabel = "Sycreader OUT (Prefix 13)";
+                    readerLabel = "Sycreader OUT (Scancode/Prefix)";
                 }
 
-                console.log(`[Input Timing] Raw: ${rawVal} | Dur: ${duration}ms | Avg: ${avgInterval}ms | Enter: ${enterCode} | FirstKey: ${firstKey} | Mode: ${detectedMode || 'Auto'}`);
+                console.log(`[Input Timing] Raw: ${rawVal} | Dur: ${duration}ms | Avg: ${avgInterval}ms | Mode: ${detectedMode} (${readerLabel})`);
                 handleEmployeeInput(rawVal, detectedMode, readerLabel, timingInfo);
             }
             return;

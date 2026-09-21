@@ -264,31 +264,31 @@ class AdminRequestHandler(http.server.SimpleHTTPRequestHandler):
         # in_out: "1" untuk MASUK (IN), "0" untuk KELUAR (OUT)
         now = datetime.datetime.now()
         raw_in_out = str(payload.get("in_out") or payload.get("type") or "").strip()
+        reader_source = str(payload.get("reader") or "Web Kiosk UI")
+        dur = int(payload.get("duration_ms") or 0)
+        avg_int = float(payload.get("avg_interval_ms") or 0)
         ident_lower = identifier.lower()
 
         # Deteksi tipe absensi KONSISTEN & SESUAI PERANGKAT:
-        # 1. Jika ada sinyal eksplisit dari hardware reader (0 = KELUAR, 1 = MASUK)
-        if raw_in_out in ["0", "out", "OUT", "keluar", "KELUAR"]:
+        # 1. Jika ada sinyal eksplisit dari hardware reader / frontend
+        if raw_in_out in ["0", "out", "OUT", "keluar", "KELUAR"] or "out" in reader_source.lower() or "sycreader" in reader_source.lower():
             in_out = "0"
-        elif raw_in_out in ["1", "in", "IN", "masuk", "MASUK"]:
+        elif raw_in_out in ["1", "in", "IN", "masuk", "MASUK"] or "qinheng" in reader_source.lower():
             in_out = "1"
         # 2. RFID Reader 2 / Reader Baru (Sycreader):
-        # Menghasilkan awalan '13', 'dreizehn', atau format panjang (>10 digit bukan NIK KTP) -> SELALU KELUAR (OUT / 0)
+        # Format awalan 13 / dreizehn
         elif "dreizehn" in ident_lower or ident_lower.startswith("13") or (len(identifier) > 10 and not identifier.startswith("320")):
             in_out = "0"
-        # 3. RFID Reader 1 / Reader Awal (QinHeng / 10 digit desimal standar) & Input NIK Manual:
+        # 3. Analisis Sidik Jari Kecepatan Hardware (Sycreader ~143ms vs QinHeng ~36ms)
+        elif avg_int >= 10.0 or dur >= 80:
+            in_out = "0"  # Reader Baru / Sycreader (OUT)
+        # 4. RFID Reader 1 / Reader Awal (QinHeng / ~36ms):
         # SELALU MASUK (IN / 1)
         else:
             in_out = "1"
 
         in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
-
-        dur = payload.get("duration_ms", 0)
-        avg_int = payload.get("avg_interval_ms", 0)
-        enter_code = payload.get("enter_code", "")
-        first_key = payload.get("first_key_code", "")
-        reader_source = payload.get("reader", "Web Kiosk UI")
-        logger.info(f"[Scan Diproses] ID: '{identifier}' | Mode: {in_out_label} ({in_out}) | Reader: {reader_source} | Dur: {dur}ms | AvgInt: {avg_int}ms | EnterCode: {enter_code}")
+        logger.info(f"[Scan Diproses] ID: '{identifier}' | Mode: {in_out_label} ({in_out}) | Reader: {reader_source} | Dur: {dur}ms | AvgInt: {avg_int}ms")
 
         raw_data = db.generate_raw_data(nik=emp_nik, dt=now, in_out=in_out)
         image_filename = f"{raw_data}.jpg"
