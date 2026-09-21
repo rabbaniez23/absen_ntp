@@ -328,10 +328,10 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name:
                 logger.info(f"[PIPELINE] Mengabaikan request duplikat untuk {clean_id} ({reader_name}).")
                 return last_resp
 
-    in_out = "0" if str(in_out).strip() in ["0", "out", "OUT", "keluar", "KELUAR"] else "1"
-    in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
+    raw_in_out = str(in_out).strip() if in_out is not None else ""
+    in_out_val = "0" if raw_in_out in ["0", "out", "OUT", "keluar", "KELUAR"] else ("1" if raw_in_out in ["1", "in", "IN", "masuk", "MASUK"] else "")
 
-    logger.info(f"[PIPELINE] Memproses {in_out_label} | Kartu/NIK: {clean_id} | Reader: {reader_name}")
+    logger.info(f"[PIPELINE] Memproses scan kartu/NIK: {clean_id} | Reader: {reader_name} | Mode: {in_out_val or 'Auto'}")
 
     # 1. Ambil foto wajah dari webcam Logitech C930e lokal
     photo_bytes = None
@@ -349,7 +349,7 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name:
     admin_url = f"{config.ADMIN_SERVER_URL.rstrip('/')}/api/attendance/scan"
     forward_data = {
         "rfid_uid": clean_id,
-        "in_out": in_out,
+        "in_out": in_out_val,
         "reader": reader_name,
         "image_base64": image_base64
     }
@@ -369,7 +369,8 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name:
             resp_status = resp.getcode()
             resp_body = resp.read().decode("utf-8")
             resp_json = json.loads(resp_body)
-            logger.info(f"[Kiosk] Sukses kirim ke Admin: {resp_json.get('name', '')} ({in_out_label})")
+            lbl = resp_json.get("in_out_label", "Presensi")
+            logger.info(f"[Kiosk] Sukses kirim ke Admin: {resp_json.get('name', '')} ({lbl})")
     except urllib.error.HTTPError as http_err:
         resp_status = http_err.code
         err_body = http_err.read().decode("utf-8")
@@ -388,8 +389,10 @@ def execute_attendance_pipeline(identifier: str, in_out: str = "1", reader_name:
         resp_json = {"success": False, "message": f"Kesalahan sistem Kiosk: {str(ex)}"}
 
     # Lengkapi metadata hasil
-    resp_json["in_out"] = in_out
-    resp_json["in_out_label"] = in_out_label
+    res_in_out = resp_json.get("in_out") or in_out_val or "1"
+    res_label = resp_json.get("in_out_label") or ("KELUAR (OUT)" if res_in_out == "0" else "MASUK (IN)")
+    resp_json["in_out"] = res_in_out
+    resp_json["in_out_label"] = res_label
     resp_json["reader_used"] = reader_name
     resp_json["status_code"] = resp_status
 
@@ -629,7 +632,7 @@ class KioskRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(400, {"success": False, "message": "Nomor RFID / NIK tidak boleh kosong."})
             return
 
-        in_out = str(payload.get("in_out") or payload.get("type") or "1").strip()
+        in_out = str(payload.get("in_out") or payload.get("type") or "").strip()
         reader_source = payload.get("reader") or "Web Kiosk UI"
 
         result = execute_attendance_pipeline(identifier=identifier, in_out=in_out, reader_name=reader_source)
