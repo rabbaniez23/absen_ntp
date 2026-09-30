@@ -703,14 +703,13 @@ html, body {
     background: #0a0e14;
     border: 1px solid var(--card-border);
     color: var(--text-primary);
-    font-size: 1.15rem;
-    font-weight: 600;
+    font-size: 1.2rem;
+    font-weight: 700;
     padding: 12px 14px 12px 48px;
     border-radius: 12px;
     outline: none;
     transition: all 0.25s ease;
-    -webkit-text-security: disc;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
 }
 
 .absen-ntp-input:focus,
@@ -723,6 +722,69 @@ html, body {
 .kiosk-input:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+/* Tombol Masuk & Keluar Sejajar Sama Besar */
+.manual-btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.manual-action-btn {
+    height: 52px;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    user-select: none;
+}
+
+.manual-action-btn:hover {
+    transform: translateY(-2px);
+}
+
+.manual-action-btn:active {
+    transform: translateY(0);
+}
+
+.manual-action-btn.btn-masuk {
+    background: linear-gradient(180deg, #2ea043 0%, #238636 100%);
+    border: 1px solid #3fb950;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(46, 160, 67, 0.35);
+}
+
+.manual-action-btn.btn-masuk:hover {
+    background: linear-gradient(180deg, #3fb950 0%, #2ea043 100%);
+    box-shadow: 0 6px 20px rgba(46, 160, 67, 0.55);
+}
+
+.manual-action-btn.btn-keluar {
+    background: linear-gradient(180deg, #e5534b 0%, #da3633 100%);
+    border: 1px solid #f85149;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(218, 54, 51, 0.35);
+}
+
+.manual-action-btn.btn-keluar:hover {
+    background: linear-gradient(180deg, #f85149 0%, #da3633 100%);
+    box-shadow: 0 6px 20px rgba(248, 81, 73, 0.55);
+}
+
+.manual-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
 /* Footer */

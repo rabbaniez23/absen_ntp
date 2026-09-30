@@ -59,8 +59,10 @@ const cameraTitle = document.getElementById("cameraTitle");
 const statusBanner = document.getElementById("statusBanner");
 const statusText = document.getElementById("statusText");
 
-// Elemen DOM - Input RFID / Keyboard
+// Elemen DOM - Input RFID / Keyboard & Tombol Masuk/Keluar
 const rfidInput = document.getElementById("rfidInput");
+const btnManualMasuk = document.getElementById("btnManualMasuk");
+const btnManualKeluar = document.getElementById("btnManualKeluar");
 
 // Nama bulan dalam Bahasa Indonesia
 const MONTH_NAMES = [
@@ -137,6 +139,10 @@ function setApplicationState(newState, customMessage = "", isOut = false) {
     }
 
     if (!statusText) return;
+
+    const isIdle = (newState === AppState.IDLE);
+    if (btnManualMasuk) btnManualMasuk.disabled = !isIdle;
+    if (btnManualKeluar) btnManualKeluar.disabled = !isIdle;
 
     switch (newState) {
         case AppState.IDLE:
@@ -570,111 +576,67 @@ async function uploadCapture(empId, blob) {
     }
 }
 
-// Variabel penampung karakter scanner RFID global
-let rfidBuffer = "";
-let rfidKeyEvents = [];
-let rfidBufferTimer = null;
-
 /**
- * Menginisialisasi pendengar event keyboard dan kartu RFID.
+ * Menginisialisasi pendengar event keyboard dan tombol Masuk/Keluar manual.
  */
 function initializeInputHandler() {
-    // 1. Tangani tombol ABSEN manual jika diklik
-    const submitNikBtn = document.getElementById("submitNikBtn");
-    if (submitNikBtn) {
-        submitNikBtn.addEventListener("click", () => {
-            const cleanVal = rfidBuffer.trim();
-            rfidBuffer = "";
-            rfidKeyEvents = [];
-            if (rfidInput) rfidInput.value = "";
-            if (cleanVal) handleEmployeeInput(cleanVal, "1", "Manual Web Button");
+    // 1. Tangani tombol Masuk manual
+    if (btnManualMasuk) {
+        btnManualMasuk.addEventListener("click", () => {
+            if (currentState !== AppState.IDLE) return;
+            const cleanVal = rfidInput ? rfidInput.value.trim() : "";
+            if (!cleanVal) {
+                handleErrorAndRecover("SILAKAN KETIK NIK TERLEBIH DAHULU", 2000);
+                if (rfidInput) rfidInput.focus();
+                return;
+            }
+            handleEmployeeInput(cleanVal, "1", "Manual Web Masuk");
         });
     }
 
-    // 2. Global Keydown listener untuk menangkap input scanner RFID & Keyboard
-    // Menggunakan event.preventDefault() agar karakter mentah TIDAK PERNAH muncul di layar
-    document.addEventListener("keydown", (event) => {
-        // Jika fokus sedang di input teks lain (misal modal atau form admin), abaikan
-        if (event.target !== rfidInput && (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA")) {
-            return;
-        }
-
-        if (event.key === "Enter") {
-            event.preventDefault();
-            const rawVal = rfidBuffer.trim();
-            const events = [...rfidKeyEvents];
-            const enterCode = event.code;
-
-            const duration = events.length > 1 ? Math.round(events[events.length - 1].time - events[0].time) : 0;
-            const avgInterval = events.length > 1 ? +(duration / (events.length - 1)).toFixed(1) : 0;
-            const firstKey = events.length > 0 ? events[0].code : "";
-            const timingInfo = { duration, avgInterval, enterCode, firstKey };
-
-            rfidBuffer = "";
-            rfidKeyEvents = [];
-            if (rfidInput) rfidInput.value = "";
-
-            if (rawVal) {
-                // Deteksi scancode keyboard hardware
-                const isNumpad = enterCode === "NumpadEnter" || events.some(e => (e.code && e.code.startsWith("Numpad")) || e.location === 3);
-
-                // Analisis Sidik Jari Kecepatan Hardware (Hardware Fingerprint):
-                // Reader Awal (QinHeng): Ultra-fast burst (~36ms / 4ms per char) -> MASUK (IN / 1)
-                // Reader Baru (Sycreader): Standard USB timing (~143ms / 16ms per char) -> KELUAR (OUT / 0)
-                let detectedMode = "1";
-                let readerLabel = `QinHeng IN (${duration}ms)`;
-
-                if (avgInterval >= 10 || duration >= 80) {
-                    detectedMode = "0";
-                    readerLabel = `Sycreader OUT (${duration}ms)`;
-                } else if (isNumpad || rawVal.startsWith("13") || rawVal.toLowerCase().includes("dreizehn") || (rawVal.length > 10 && !rawVal.startsWith("320"))) {
-                    detectedMode = "0";
-                    readerLabel = "Sycreader OUT (Scancode/Prefix)";
-                }
-
-                console.log(`[Input Timing] Raw: ${rawVal} | Dur: ${duration}ms | Avg: ${avgInterval}ms | Mode: ${detectedMode} (${readerLabel})`);
-                handleEmployeeInput(rawVal, detectedMode, readerLabel, timingInfo);
+    // 2. Tangani tombol Keluar manual
+    if (btnManualKeluar) {
+        btnManualKeluar.addEventListener("click", () => {
+            if (currentState !== AppState.IDLE) return;
+            const cleanVal = rfidInput ? rfidInput.value.trim() : "";
+            if (!cleanVal) {
+                handleErrorAndRecover("SILAKAN KETIK NIK TERLEBIH DAHULU", 2000);
+                if (rfidInput) rfidInput.focus();
+                return;
             }
-            return;
-        }
+            handleEmployeeInput(cleanVal, "0", "Manual Web Keluar");
+        });
+    }
 
-        if (event.key === "Backspace") {
-            event.preventDefault();
-            rfidBuffer = rfidBuffer.slice(0, -1);
-            if (rfidKeyEvents.length > 0) rfidKeyEvents.pop();
-            if (rfidInput) rfidInput.value = "•".repeat(rfidBuffer.length);
-            return;
-        }
-
-        // Tangkap karakter RFID / NIK secara instan tanpa merender angka aslinya
-        if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
-            event.preventDefault();
-            rfidBuffer += event.key;
-            rfidKeyEvents.push({
-                key: event.key,
-                code: event.code,
-                location: event.location,
-                time: event.timeStamp
-            });
-
-            if (rfidInput) {
-                rfidInput.value = "•".repeat(rfidBuffer.length);
-            }
-
-            clearTimeout(rfidBufferTimer);
-            rfidBufferTimer = setTimeout(() => {
-                rfidBuffer = "";
-                rfidKeyEvents = [];
-                if (rfidInput && currentState === AppState.IDLE) {
-                    rfidInput.value = "";
+    // 3. Tangani tombol Enter pada input NIK (Default: Presensi Masuk)
+    if (rfidInput) {
+        rfidInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                if (currentState !== AppState.IDLE) return;
+                const cleanVal = rfidInput.value.trim();
+                if (!cleanVal) {
+                    handleErrorAndRecover("SILAKAN KETIK NIK TERLEBIH DAHULU", 2000);
+                    return;
                 }
-            }, 800);
-        }
-    }, true);
+                handleEmployeeInput(cleanVal, "1", "Manual Web Enter");
+            }
+        });
+    }
 
-    document.addEventListener("click", () => {
-        focusInputField();
+    // Klik di sembarang tempat otomatis memfokuskan kursor ke input NIK
+    document.addEventListener("click", (e) => {
+        if (
+            e.target !== btnManualMasuk &&
+            e.target !== btnManualKeluar &&
+            e.target !== mirrorToggleBtn &&
+            e.target !== fullscreenBtn &&
+            e.target !== retryCameraBtn
+        ) {
+            focusInputField();
+        }
     });
+
     window.addEventListener("focus", () => {
         focusInputField();
     });
