@@ -525,18 +525,41 @@ function initializeInputHandler() {
         });
     }
 
-    // 3. Tangani tombol Enter pada input NIK (Default: Presensi Masuk)
+    // 3. Tangani input angka, tombol Enter (IN), dan tombol Plus '+' (OUT)
     if (rfidInput) {
+        // Hanya izinkan karakter angka (0-9)
+        rfidInput.addEventListener("input", () => {
+            const sanitized = rfidInput.value.replace(/[^0-9]/g, "");
+            if (rfidInput.value !== sanitized) {
+                rfidInput.value = sanitized;
+            }
+        });
+
         rfidInput.addEventListener("keydown", (event) => {
+            // A. Tombol ENTER -> Presensi MASUK (IN / Kode: 1)
             if (event.key === "Enter") {
                 event.preventDefault();
                 if (currentState !== AppState.IDLE) return;
-                const cleanVal = rfidInput.value.trim();
+                const cleanVal = rfidInput.value.trim().replace(/[^0-9]/g, "");
                 if (!cleanVal) {
-                    handleErrorAndRecover("SILAKAN KETIK NIK TERLEBIH DAHULU", 2000);
+                    handleErrorAndRecover("SILAKAN KETIK NOMOR NIK / RFID", 2000);
                     return;
                 }
-                handleEmployeeInput(cleanVal, "1", "Manual Web Enter");
+                handleEmployeeInput(cleanVal, "1", "Keyboard Enter (IN)");
+                return;
+            }
+
+            // B. Tombol PLUS (+) -> Presensi KELUAR (OUT / Kode: 0)
+            if (event.key === "+" || event.code === "NumpadAdd" || event.key === "=") {
+                event.preventDefault();
+                if (currentState !== AppState.IDLE) return;
+                const cleanVal = rfidInput.value.trim().replace(/[^0-9]/g, "");
+                if (!cleanVal) {
+                    handleErrorAndRecover("SILAKAN KETIK NOMOR NIK / RFID", 2000);
+                    return;
+                }
+                handleEmployeeInput(cleanVal, "0", "Keyboard Plus (OUT)");
+                return;
             }
         });
     }

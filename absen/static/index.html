@@ -98,19 +98,19 @@
                         <div class="info-value" id="attendanceType" style="font-weight: 800; letter-spacing: 1px;">-</div>
                     </div>
 
-                    <!-- NIK Manual Input & Tombol Masuk/Keluar -->
+                    <!-- NIK / RFID Manual Input & Tombol Masuk/Keluar -->
                     <div class="input-container info-group">
-                        <label for="rfidInput">MASUKKAN NIK</label>
+                        <label for="rfidInput">INPUT NIK / NOMOR RFID</label>
                         <div class="input-wrapper">
-                            <span class="input-icon">🆔</span>
-                            <input type="text" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Ketik NIK karyawan..." autocomplete="off" autofocus>
+                            <span class="input-icon">🔢</span>
+                            <input type="text" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Ketik angka (Enter = Masuk, + = Keluar)..." inputmode="numeric" pattern="[0-9]*" autocomplete="off" autofocus>
                         </div>
                         <div class="manual-btn-group">
-                            <button type="button" id="btnManualMasuk" class="manual-action-btn btn-masuk" title="Tekan untuk presensi Masuk">
-                                🟢 MASUK
+                            <button type="button" id="btnManualMasuk" class="manual-action-btn btn-masuk" title="Tekan Enter atau klik untuk Presensi Masuk">
+                                🟢 MASUK (Enter)
                             </button>
-                            <button type="button" id="btnManualKeluar" class="manual-action-btn btn-keluar" title="Tekan untuk presensi Keluar">
-                                🔴 KELUAR
+                            <button type="button" id="btnManualKeluar" class="manual-action-btn btn-keluar" title="Tekan tombol + atau klik untuk Presensi Keluar">
+                                🔴 KELUAR (+)
                             </button>
                         </div>
                     </div>
@@ -120,10 +120,10 @@
 
         <!-- Footer -->
         <footer class="app-footer">
-            <span>&bull; Tempel kartu RFID atau ketik NIK untuk presensi &bull; Kamera V4L2 aktif &bull;</span>
+            <span>&bull; Tempel RFID atau Ketik Angka [Enter = MASUK, + = KELUAR] &bull; Kamera V4L2 Aktif &bull;</span>
         </footer>
     </div>
 
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=29"></script>
 </body>
 </html>

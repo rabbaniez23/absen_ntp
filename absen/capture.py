@@ -60,14 +60,13 @@ class RFIDHardwareManager:
     """
 
     LINUX_KEY_MAP = {
+        # Angka Baris Atas Keyboard (Scancode Linux Kernel -> Karakter)
         2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7', 9: '8', 10: '9', 11: '0',
-        16: 'q', 17: 'w', 18: 'e', 19: 'r', 20: 't', 21: 'y', 22: 'u', 23: 'i', 24: 'o', 25: 'p',
-        30: 'a', 31: 's', 32: 'd', 33: 'f', 34: 'g', 35: 'h', 36: 'j', 37: 'k', 38: 'l',
-        44: 'z', 45: 'x', 46: 'c', 47: 'v', 48: 'b', 49: 'n', 50: 'm',
-        # Keypad Numpad
+        # Keypad / Numpad
         71: '7', 72: '8', 73: '9', 75: '4', 76: '5', 77: '6', 79: '1', 80: '2', 81: '3', 82: '0',
     }
-    ENTER_CODES = {28, 96}  # Enter & Numpad Enter
+    ENTER_CODES = {28, 96}  # Enter & Numpad Enter -> Presensi MASUK (IN / Kode: 1)
+    PLUS_CODES = {78, 13}   # Keypad Plus (78) & Equal/Plus (13) -> Presensi KELUAR (OUT / Kode: 0)
 
     def __init__(self, on_scan_callback):
         self.on_scan_callback = on_scan_callback
@@ -226,9 +225,10 @@ class RFIDHardwareManager:
 
                         # EV_KEY = 1, value == 1 (Key Down)
                         if ev_type == 1 and value == 1:
+                            # 1. Tombol Enter -> Presensi MASUK (IN / Kode: 1)
                             if code in self.ENTER_CODES:
                                 raw_chars = "".join(buffer).strip()
-                                card_uid = re.sub(r'[^a-zA-Z0-9]', '', raw_chars)
+                                card_uid = re.sub(r'[^0-9]', '', raw_chars)
                                 buffer.clear()
                                 if card_uid:
                                     now = time.time()
@@ -238,9 +238,28 @@ class RFIDHardwareManager:
                                         continue
                                     self.last_scan_time[card_uid] = now
 
-                                    logger.info(f"[RFID TAP HARDWARE] [{reader_label}] Kartu: {card_uid} ({reader_name})")
+                                    target_type = reader_type if reader_type in ["0", "1"] else "1"
+                                    target_label = "MASUK (IN)" if target_type == "1" else "KELUAR (OUT)"
+                                    logger.info(f"[HARDWARE INPUT: ENTER] [{target_label}] Kartu/NIK: {card_uid} ({reader_name})")
                                     if self.on_scan_callback:
-                                        self.on_scan_callback(card_uid, reader_type, reader_label, reader_name)
+                                        self.on_scan_callback(card_uid, target_type, target_label, f"{reader_name} [Enter]")
+
+                            # 2. Tombol Plus (+) -> Presensi KELUAR (OUT / Kode: 0)
+                            elif code in self.PLUS_CODES:
+                                raw_chars = "".join(buffer).strip()
+                                card_uid = re.sub(r'[^0-9]', '', raw_chars)
+                                buffer.clear()
+                                if card_uid:
+                                    now = time.time()
+                                    last_time = self.last_scan_time.get(card_uid, 0)
+                                    if now - last_time < 0.7:
+                                        logger.info(f"[RFID Hardware] Abaikan double-tap ({card_uid}) dalam 0.7 detik.")
+                                        continue
+                                    self.last_scan_time[card_uid] = now
+
+                                    logger.info(f"[HARDWARE INPUT: PLUS (+)] [KELUAR (OUT)] Kartu/NIK: {card_uid} ({reader_name})")
+                                    if self.on_scan_callback:
+                                        self.on_scan_callback(card_uid, "0", "KELUAR (OUT)", f"{reader_name} [Plus-OUT]")
 
                             elif code in self.LINUX_KEY_MAP:
                                 buffer.append(self.LINUX_KEY_MAP[code])
