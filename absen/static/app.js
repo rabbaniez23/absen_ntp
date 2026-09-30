@@ -848,6 +848,16 @@ let lastHandledScanId = null;
 let lastHandledScanTime = 0;
 
 /**
+ * Memperbarui indikator status hardware RFID di UI
+ */
+function updateHardwareReaderStatus(readers) {
+    if (cameraStatusBadge) {
+        cameraStatusBadge.textContent = "ONLINE";
+        cameraStatusBadge.className = "badge active";
+    }
+}
+
+/**
  * Menampilkan hasil presensi karyawan pada kartu informasi dan status banner.
  */
 function displayAttendanceSuccess(data) {
@@ -921,7 +931,7 @@ function displayAttendanceSuccess(data) {
     if (window._idleResetTimer) clearTimeout(window._idleResetTimer);
     window._idleResetTimer = setTimeout(() => {
         resetToIdle();
-    }, 3000);
+    }, 4000);
 }
 
 function handleHardwareAttendanceEvent(data) {

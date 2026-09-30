@@ -519,8 +519,23 @@ class KioskRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.forward_get_to_admin(self.path)
             return
 
-        # 6. Akses foto absensi (Forward ke Server Pusat)
+        # 6. Akses foto absensi (Layani langsung dari admin/captures atau forward ke connector)
         if clean_path.startswith("/captures/"):
+            filename = clean_path.replace("/captures/", "").split("?")[0]
+            local_cap_dir = Path(__file__).resolve().parent.parent / "admin" / "captures"
+            local_file = local_cap_dir / filename
+            if local_file.exists() and local_file.is_file():
+                try:
+                    file_bytes = local_file.read_bytes()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "image/jpeg")
+                    self.send_header("Content-Length", str(len(file_bytes)))
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    self.wfile.write(file_bytes)
+                    return
+                except Exception as read_err:
+                    logger.warning(f"[Kiosk] Gagal membaca file foto lokal {filename}: {read_err}")
             self.forward_get_to_admin(clean_path)
             return
 
