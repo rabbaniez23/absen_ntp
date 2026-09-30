@@ -17,28 +17,71 @@ Seluruh fitur inti berhasil diselesaikan, diuji coba pada mesin fisik Debian Lin
 
 ## 1. Integrasi Hardware Dual RFID Reader (Kernel Level & Event-Driven)
 
-Sebelumnya pembacaan RFID mengandalkan simulasi keyboard biasa di antarmuka browser. Pada minggu ini, sistem ditingkatkan menjadi **pembacaan langsung dari Linux Kernel Input Subsystem (`/dev/input/event*`)**.
+Sebelumnya pembacaan RFID mengandalkan simulasi keyboard biasa di antarmuka browser. Pada minggu ini, sistem ditingkatkan secara menyeluruh menjadi **pembacaan langsung dari Linux Kernel Input Subsystem (`/dev/input/event*`)** dengan arsitektur Dual RFID fisik terpisah untuk alur Masuk dan Keluar.
 
-### A. Identifikasi & Pemetaan Perangkat Keras
-Berdasarkan investigasi perangkat USB (`lsusb` dan `/proc/bus/input/devices`), kedua reader fisik dipetakan secara otomatis:
-1. **Reader 1: QinHeng Electronics (`1a86:dd01`)** ➔ Ditetapkan sebagai **PRESENSI MASUK (IN / Kode: 1)** 🟢
-2. **Reader 2: Sycreader SYC ID&IC USB (`ffff:0035`)** ➔ Ditetapkan sebagai **PRESENSI KELUAR (OUT / Kode: 0)** 🔴
+### A. Identifikasi Perangkat Keras via `lsusb`
+Pendeteksian perangkat keras dilakukan langsung di sistem operasi Debian menggunakan perintah terminal:
+```bash
+lsusb
+```
+Hasil pemindaian mengidentifikasi dua chip reader RFID dengan Vendor ID (`idVendor`) dan Product ID (`idProduct`) yang berbeda:
+1. **Perangkat 1 (RFID Masuk):**
+   - **Output `lsusb`:** `Bus 001 Device 004: ID 1a86:dd01 QinHeng Electronics`
+   - **Vendor ID:** `1a86` | **Product ID:** `dd01`
+   - **Peran / Status:** **PRESENSI MASUK (IN / Kode Status: 1)** 🟢
+2. **Perangkat 2 (RFID Keluar):**
+   - **Output `lsusb`:** `Bus 003 Device 005: ID ffff:0035 Sycreader SYC ID&IC USB Reader`
+   - **Vendor ID:** `ffff` | **Product ID:** `0035`
+   - **Peran / Status:** **PRESENSI KELUAR (OUT / Kode Status: 0)** 🔴
 
-### B. Konfigurasi Linux Udev Rules
-Dibuat aturan udev di `/etc/udev/rules.d/99-rfid.rules` agar service Python dapat mengakses event reader tanpa hak akses root (`sudo`):
+### B. Pemetaan Otomatis Jalur Input Linux (`/dev/input/event*`)
+Script `absen/capture.py` memindai direktori kernel sysfs `/sys/class/input/event*` dan membaca atribut `id/vendor` serta `id/product` untuk memetakan perangkat secara otomatis saat startup:
+- Jika terdeteksi ID `1a86:dd01` ➔ dialokasikan ke listener thread **Presensi Masuk (IN)**.
+- Jika terdeteksi ID `ffff:0035` ➔ dialokasikan ke listener thread **Presensi Keluar (OUT)**.
+- *Keuntungan:* Karyawan cukup menempelkan kartu pada reader yang dituju (Reader Masuk atau Reader Keluar) tanpa perlu menekan tombol, memilih menu, atau mengubah mode secara manual di layar Kiosk.
+
+### C. Konfigurasi Linux Udev Rules
+Dibuat aturan udev di `/etc/udev/rules.d/99-rfid.rules` agar service Python dapat mengakses file descriptor event reader tanpa memerlukan hak akses root (`sudo`):
 ```udev
 SUBSYSTEM=="input", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="dd01", MODE="0666"
 SUBSYSTEM=="input", ATTRS{idVendor}=="ffff", ATTRS{idProduct}=="0035", MODE="0666"
 ```
-Diaktifkan menggunakan perintah: `sudo udevadm control --reload-rules && sudo udevadm trigger`.
+Diaktifkan menggunakan perintah:
+```bash
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
 
-### C. Penguncian Eksklusif (*EVIOCGRAB*)
-Menggunakan operasi kernel `ioctl(fd, EVIOCGRAB, 1)` sehingga input kartu RFID langsung diproses di latar belakang (background daemon) dan **tidak bocor / mengetik angka ke browser Firefox Kiosk**.
+### D. Penguncian Eksklusif Kernel (*EVIOCGRAB*)
+Menggunakan operasi kernel `ioctl(fd, EVIOCGRAB, 1)` pada masing-masing device handler:
+- Input dari tap kartu RFID dicegat (*grabbed*) langsung di background daemon.
+- **Mencegah kebocoran karakter (*keystroke leak*):** Angka UID kartu tidak akan terketik liar di form browser Firefox Kiosk atau terminal aktif.
 
-### D. Analisis Sidik Jari Kecepatan Hardware (*Hardware Timing Fingerprint*)
-Diterapkan analisis jeda waktu antar-karakter USB untuk membedakan karakteristik hardware:
-- Reader QinHeng (Burst Cepat ~36ms) ➔ Terdeteksi sebagai Masuk (IN).
-- Reader Sycreader (Burst Standar ~143ms) ➔ Terdeteksi sebagai Keluar (OUT).
+### E. Alur Pemrosesan Event Tap Kartu (End-to-End):
+```
+[ Kartu di-Tap pada Reader ]
+           │
+           ├───────────────► Reader 1 (1a86:dd01) ───► Event IN  (Kode: 1) ──┐
+           │                                                                    │
+           └───────────────► Reader 2 (ffff:0035) ───► Event OUT (Kode: 0) ──┤
+                                                                               ▼
+                                                            [ absen/capture.py (EVIOCGRAB) ]
+                                                                               │
+                                                      ┌────────────────────────┴────────────────────────┐
+                                                      ▼                                                 ▼
+                                           [ Ambil Frame Foto ]                              [ Kirim Event SSE ke UI ]
+                                        (Webcam Logitech C930e)                             (Browser Kiosk Update Visual)
+                                                      │                                                 │
+                                                      └────────────────────────┬────────────────────────┘
+                                                                               ▼
+                                                          [ POST /api/attendance/scan ]
+                                                                               │
+                                                                               ▼
+                                                                  [ connector.py (Port 8002) ]
+                                                                               │
+                                                                               ▼
+                                                                 [ Validasi & Simpan MariaDB ]
+                                                                  [ Simpan Foto di captures/ ]
+```
 
 ---
 
