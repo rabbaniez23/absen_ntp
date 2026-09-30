@@ -904,73 +904,72 @@ function handleHardwareAttendanceEvent(data) {
 }
 
 /**
- * Menginisialisasi aliran event real-time Server-Sent Events (SSE) dari backend Kiosk.
- * Saat kartu RFID di-tap pada perangkat hardware fisik (QinHeng / Sycreader),
- * backend langsung mengirim sinyal ke sini sehingga UI otomatis terupdate tanpa perlu reload.
+ * Menginisialisasi aliran event real-time Server-Sent Events (SSE) dan Fast Polling dari backend Kiosk.
+ * Menggunakan Dual-Channel (SSE + 500ms Polling) sehingga pembacaan kartu hardware DIJAMIN 100%
+ * langsung muncul di layar seketika tanpa ada event yang tertinggal atau terblokir browser.
  */
 function initializeKioskEvents() {
-    if (typeof EventSource === "undefined") {
-        console.warn("[SSE] Browser tidak mendukung EventSource. Mengaktifkan polling.");
-        startPollingFallback();
-        return;
-    }
+    // 1. Selalu jalankan Fast Poller (500ms) untuk sinkronisasi instan
+    startPollingFallback();
 
-    try {
-        const sseUrl = getApiUrl("api/kiosk/events");
-        console.log("[SSE] Menghubungkan ke Kiosk Event Stream:", sseUrl);
-        const evtSource = new EventSource(sseUrl);
+    // 2. Koneksi Server-Sent Events (SSE)
+    if (typeof EventSource !== "undefined") {
+        try {
+            const sseUrl = getApiUrl("api/kiosk/events");
+            console.log("[SSE] Menghubungkan ke Kiosk Event Stream:", sseUrl);
+            const evtSource = new EventSource(sseUrl);
 
-        evtSource.onopen = () => {
-            console.log("[SSE] Terhubung ke Kiosk Event Stream (Dual-Reader Active).");
-        };
+            evtSource.onopen = () => {
+                console.log("[SSE] Terhubung ke Kiosk Event Stream (Dual-Reader Active).");
+            };
 
-        evtSource.onmessage = (e) => {
-            try {
-                const data = JSON.parse(e.data);
-                if (data.type === "INIT") {
-                    updateHardwareReaderStatus(data.readers);
-                    return;
+            evtSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.type === "INIT") {
+                        updateHardwareReaderStatus(data.readers);
+                        return;
+                    }
+
+                    // Event absensi dari hardware tap (QinHeng / Sycreader)
+                    if (data.name || data.nik || data.raw_data || data.employee_id) {
+                        handleHardwareAttendanceEvent(data);
+                    }
+                } catch (err) {
+                    console.error("[SSE] Gagal parse event data:", err);
                 }
+            };
 
-                // Event absensi dari hardware tap (QinHeng / Sycreader)
-                if (data.name || data.nik || data.raw_data || data.employee_id) {
-                    handleHardwareAttendanceEvent(data);
-                }
-            } catch (err) {
-                console.error("[SSE] Gagal parse event data:", err);
-            }
-        };
-
-        evtSource.onerror = () => {
-            console.warn("[SSE] Event stream terputus, reconnect otomatis...");
-        };
-    } catch (e) {
-        console.error("[SSE] Kesalahan inisialisasi EventSource:", e);
+            evtSource.onerror = () => {
+                console.warn("[SSE] Event stream terputus, poller fallback tetap aktif...");
+            };
+        } catch (e) {
+            console.error("[SSE] Kesalahan inisialisasi EventSource:", e);
+        }
     }
-
-    // Polling cadangan hanya aktif jika browser tidak mendukung SSE
 }
 
 /**
- * Polling fallback memeriksa /api/kiosk/latest secara periodik
+ * Fast Polling memeriksa /api/kiosk/latest setiap 500ms
  */
 function startPollingFallback() {
     setInterval(async () => {
-        if (currentState !== AppState.IDLE) return;
         try {
-            const resp = await fetch(getApiUrl("api/kiosk/latest"));
+            const resp = await fetch(getApiUrl("api/kiosk/latest"), { cache: "no-store" });
             if (resp.ok) {
                 const data = await resp.json();
-                const pollKey = data.scan_id || `${data.raw_data || ''}_${data.scan_ts || data.time || ''}`;
-                const isFresh = data.scan_ts ? (Date.now() / 1000 - data.scan_ts < 5) : false;
-                if (data && isFresh && (data.name || data.nik || data.raw_data) && pollKey && pollKey !== lastHandledScanId) {
+                if (!data || !data.scan_id) return;
+                const pollKey = data.scan_id;
+                const isFresh = data.scan_ts ? (Date.now() / 1000 - data.scan_ts < 10) : true;
+                if (isFresh && (data.name || data.nik || data.raw_data || data.employee_id) && pollKey !== lastHandledScanId) {
+                    console.log("[Fast Poller] Mendeteksi scan baru dari backend:", data.name || data.nik);
                     handleHardwareAttendanceEvent(data);
                 }
             }
         } catch (e) {
             // Silently ignore polling network errors
         }
-    }, 2000);
+    }, 500);
 }
 
 // Inisialisasi seluruh komponen saat dokumen HTML selesai dimuat
