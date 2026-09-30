@@ -114,6 +114,16 @@ def init_database_tables() -> bool:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             """)
 
+            # Tabel riwayat absensi error / kartu belum terdaftar
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS `attendance_error` (
+                    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    `raw_data` VARCHAR(100) NOT NULL,
+                    `image` VARCHAR(255) NOT NULL,
+                    INDEX `idx_attendance_error_raw` (`raw_data`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            """)
+
             # Migrasi skema dari tabel lama agar HANYA tersisa 3 kolom (id, raw_data, image)
             try:
                 # 1. Pastikan kolom raw_data dan image ada
@@ -454,13 +464,14 @@ def record_attendance(
     return True
 
 
-def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, search: Optional[str] = None) -> list:
+def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, search: Optional[str] = None, status_filter: Optional[str] = "ALL") -> list:
     """
-    Mengambil riwayat absensi dengan kolom id, raw_data, image, beserta nama & status karyawan.
-    Mendukung filter tanggal dan pencarian.
-    Mengutamakan MariaDB dan fallback ke data/attendance.json.
+    Mengambil riwayat absensi dari tabel 'attendance' (Valid) dan 'attendance_error' (Error).
+    Mendukung filter tanggal, pencarian, dan filter status (ALL / SUCCESS / ERROR).
+    Mengutamakan MariaDB dan fallback ke file JSON.
     """
     records = []
+    norm_status = (status_filter or "ALL").upper().strip()
 
     # Siapkan mapping master karyawan (NIK & Employee ID -> Employee Data)
     emp_map = {}
@@ -471,210 +482,217 @@ def get_attendance_records(limit: int = 100, date_filter: Optional[str] = None, 
         if e.get("employee_id"):
             emp_map[str(e["employee_id"]).strip().lower()] = e
 
-    # Siapkan mapping waktu presisi dari attendance.json jika ada
+    # Siapkan mapping waktu presisi dari attendance.json dan attendance_error.json jika ada
     json_time_map = {}
-    try:
-        attendance_file = config.DATA_DIR / "attendance.json"
-        if attendance_file.exists():
-            with open(attendance_file, "r", encoding="utf-8") as f:
-                for item in json.load(f):
-                    rw = item.get("raw_data")
-                    im = item.get("image")
-                    ca = item.get("captured_at")
-                    if rw and ca:
-                        json_time_map[rw] = ca
-                    if im and ca:
-                        json_time_map[im] = ca
-    except Exception:
-        pass
+    for j_name in ["attendance.json", "attendance_error.json"]:
+        try:
+            fpath = config.DATA_DIR / j_name
+            if fpath.exists():
+                with open(fpath, "r", encoding="utf-8") as f:
+                    for item in json.load(f):
+                        rw = item.get("raw_data")
+                        im = item.get("image")
+                        ca = item.get("captured_at")
+                        if rw and ca:
+                            json_time_map[rw] = ca
+                        if im and ca:
+                            json_time_map[im] = ca
+        except Exception:
+            pass
 
     # 1. Ambil dari MariaDB
     conn = get_db_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                # Periksa apakah kolom raw_data sudah ada
-                cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'raw_data';")
-                has_raw = cursor.fetchone() is not None
+                # A. Ambil Record Sukses / Valid (jika status_filter ALL atau SUCCESS)
+                if norm_status in ["ALL", "SUCCESS", "VALID"]:
+                    cursor.execute("SHOW TABLES LIKE 'attendance';")
+                    if cursor.fetchone():
+                        cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'raw_data';")
+                        has_raw = cursor.fetchone() is not None
+                        if has_raw:
+                            cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'captured_at';")
+                            has_cap = cursor.fetchone() is not None
+                            sql = "SELECT id, raw_data, image, captured_at FROM attendance ORDER BY id DESC LIMIT %s;" if has_cap else "SELECT id, raw_data, image FROM attendance ORDER BY id DESC LIMIT %s;"
+                            cursor.execute(sql, (limit * 2,))
+                            for r in cursor.fetchall():
+                                raw = r.get("raw_data") or ""
+                                parsed = parse_raw_data(raw)
+                                emp_id_lookup = parsed["nik"].lower()
+                                emp = emp_map.get(emp_id_lookup, {})
+                                emp_name = emp.get("name") or emp_id_lookup.upper()
+                                is_active = bool(emp.get("is_active", True))
 
-                if has_raw:
-                    cursor.execute("SHOW COLUMNS FROM `attendance` LIKE 'captured_at';")
-                    has_cap_col = cursor.fetchone() is not None
-                    if has_cap_col:
-                        sql = "SELECT id, raw_data, image, captured_at FROM attendance ORDER BY id DESC LIMIT %s;"
-                    else:
-                        sql = "SELECT id, raw_data, image FROM attendance ORDER BY id DESC LIMIT %s;"
+                                img_name = r.get("image") or f"{raw}.jpg"
+                                img_path = f"captures/{img_name}"
 
-                    cursor.execute(sql, (limit * 2,))
-                    rows = cursor.fetchall()
-                    for r in rows:
-                        raw = r.get("raw_data") or ""
-                        parsed = parse_raw_data(raw)
-                        emp_id_lookup = parsed["nik"].lower()
-                        emp = emp_map.get(emp_id_lookup, {})
-                        emp_name = emp.get("name") or emp_id_lookup.upper()
-                        is_active = bool(emp.get("is_active", True))
+                                precise_time = None
+                                db_cap = r.get("captured_at")
+                                if db_cap:
+                                    precise_time = db_cap.strftime("%Y-%m-%d %H:%M:%S") if isinstance(db_cap, (datetime.datetime, datetime.date)) else str(db_cap)
+                                if not precise_time:
+                                    try:
+                                        photo_path = config.CAPTURES_DIR / img_name
+                                        if photo_path.exists():
+                                            precise_time = datetime.datetime.fromtimestamp(photo_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+                                    except Exception:
+                                        pass
+                                if not precise_time:
+                                    precise_time = json_time_map.get(raw) or json_time_map.get(img_name)
 
-                        img_name = r.get("image") or f"{raw}.jpg"
-                        img_path = f"captures/{img_name}"
+                                cap_display = precise_time or parsed["datetime_str"]
 
-                        # Cari timestamp presisi (dengan detik asli real-time)
-                        precise_time = None
-                        db_cap = r.get("captured_at")
-                        if db_cap:
-                            if isinstance(db_cap, (datetime.datetime, datetime.date)):
-                                precise_time = db_cap.strftime("%Y-%m-%d %H:%M:%S")
-                            else:
-                                precise_time = str(db_cap)
+                                if date_filter and not cap_display.startswith(date_filter):
+                                    continue
+                                if search:
+                                    s_lower = search.lower()
+                                    if (s_lower not in emp_name.lower() and s_lower not in parsed["nik"].lower() and s_lower not in raw.lower()):
+                                        continue
 
-                        # Fallback 1: Timestamp file foto di disk (captures/{image}.jpg)
-                        if not precise_time:
-                            try:
-                                photo_path = config.CAPTURES_DIR / img_name
-                                if photo_path.exists():
-                                    mtime = photo_path.stat().st_mtime
-                                    precise_time = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
-                            except Exception:
-                                pass
+                                records.append({
+                                    "id": r["id"],
+                                    "raw_data": raw,
+                                    "image": img_name,
+                                    "image_path": img_path,
+                                    "employee_id": parsed["nik"],
+                                    "nik": parsed["nik"],
+                                    "name": emp_name,
+                                    "is_active": is_active,
+                                    "captured_at": cap_display,
+                                    "in_out": parsed["in_out"],
+                                    "in_out_label": parsed["in_out_label"],
+                                    "status": "SUCCESS",
+                                    "is_valid": True,
+                                    "source": "mariadb"
+                                })
 
-                        # Fallback 2: Dari berkas attendance.json
-                        if not precise_time:
-                            precise_time = json_time_map.get(raw) or json_time_map.get(img_name)
+                # B. Ambil Record Error / Kartu Belum Terdaftar (jika status_filter ALL atau ERROR)
+                if norm_status in ["ALL", "ERROR", "INVALID"]:
+                    cursor.execute("SHOW TABLES LIKE 'attendance_error';")
+                    if cursor.fetchone():
+                        cursor.execute("SHOW COLUMNS FROM `attendance_error` LIKE 'raw_data';")
+                        has_raw_err = cursor.fetchone() is not None
+                        if has_raw_err:
+                            cursor.execute("SELECT id, raw_data, image FROM attendance_error ORDER BY id DESC LIMIT %s;", (limit * 2,))
+                            for r in cursor.fetchall():
+                                raw = r.get("raw_data") or ""
+                                parsed = parse_raw_data(raw)
+                                rfid_prefix = parsed["nik"]
+                                img_name = r.get("image") or f"{raw}.jpg"
+                                img_path = f"captures/{img_name}"
 
-                        # Fallback 3: Dari parse_raw_data
-                        cap_display = precise_time or parsed["datetime_str"]
+                                precise_time = None
+                                try:
+                                    photo_path = config.CAPTURES_DIR / img_name
+                                    if photo_path.exists():
+                                        precise_time = datetime.datetime.fromtimestamp(photo_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+                                except Exception:
+                                    pass
+                                if not precise_time:
+                                    precise_time = json_time_map.get(raw) or json_time_map.get(img_name)
 
-                        # Filter Tanggal (YYYY-MM-DD)
-                        if date_filter and not cap_display.startswith(date_filter):
-                            continue
+                                cap_display = precise_time or parsed["datetime_str"]
 
-                        # Filter Pencarian (Nama, NIK, Raw Data)
-                        if search:
-                            s_lower = search.lower()
-                            if (s_lower not in emp_name.lower() and
-                                s_lower not in parsed["nik"].lower() and
-                                s_lower not in raw.lower()):
-                                continue
+                                if date_filter and not cap_display.startswith(date_filter):
+                                    continue
+                                if search:
+                                    s_lower = search.lower()
+                                    if (s_lower not in "tidak valid" and s_lower not in rfid_prefix.lower() and s_lower not in raw.lower()):
+                                        continue
 
-                        records.append({
-                            "id": r["id"],
-                            "raw_data": raw,
-                            "image": img_name,
-                            "image_path": img_path,
-                            "employee_id": parsed["nik"],
-                            "nik": parsed["nik"],
-                            "name": emp_name,
-                            "is_active": is_active,
-                            "captured_at": cap_display,
-                            "in_out": parsed["in_out"],
-                            "in_out_label": parsed["in_out_label"],
-                            "status": r.get("attendance_status") or "SUCCESS",
-                            "source": "mariadb"
-                        })
+                                records.append({
+                                    "id": f"err_{r['id']}",
+                                    "raw_data": raw,
+                                    "image": img_name,
+                                    "image_path": img_path,
+                                    "employee_id": rfid_prefix,
+                                    "nik": "TIDAK VALID",
+                                    "name": "TIDAK VALID",
+                                    "rfid_uid": rfid_prefix,
+                                    "is_active": False,
+                                    "captured_at": cap_display,
+                                    "in_out": parsed["in_out"],
+                                    "in_out_label": parsed["in_out_label"],
+                                    "status": "ERROR",
+                                    "is_valid": False,
+                                    "source": "mariadb_error"
+                                })
 
-                        if len(records) >= limit:
-                            break
-
-                    return records
-                else:
-                    # Query backward-compatible jika kolom raw_data belum ada
-                    sql = """
-                        SELECT a.id, a.employee_id, e.nik, COALESCE(e.name, a.employee_id) AS name,
-                               COALESCE(e.is_active, 1) AS is_active,
-                               a.captured_at, a.image_path, a.attendance_status
-                        FROM attendance a
-                        LEFT JOIN employees e ON a.employee_id = e.employee_id
-                        ORDER BY a.captured_at DESC LIMIT %s;
-                    """
-                    cursor.execute(sql, (limit,))
-                    rows = cursor.fetchall()
-                    for r in rows:
-                        cap_at = r["captured_at"]
-                        cap_str = cap_at.strftime("%Y-%m-%d %H:%M:%S") if isinstance(cap_at, (datetime.datetime, datetime.date)) else str(cap_at)
-                        emp_nik = r.get("nik") or r["employee_id"]
-                        raw = generate_raw_data(emp_nik, cap_at if isinstance(cap_at, datetime.datetime) else None, "1")
-                        records.append({
-                            "id": r["id"],
-                            "raw_data": raw,
-                            "image": f"{raw}.jpg",
-                            "image_path": str(r.get("image_path") or f"captures/{raw}.jpg").replace("\\", "/"),
-                            "employee_id": r["employee_id"],
-                            "nik": emp_nik,
-                            "name": r.get("name") or r["employee_id"],
-                            "is_active": bool(r.get("is_active", 1)),
-                            "captured_at": cap_str,
-                            "in_out": "1",
-                            "in_out_label": "MASUK (IN)",
-                            "status": r.get("attendance_status") or "SUCCESS",
-                            "source": "mariadb"
-                        })
-                    return records
+            # Urutkan berdasarkan waktu captured_at descending
+            records.sort(key=lambda x: str(x.get("captured_at", "")), reverse=True)
+            return records[:limit]
 
         except Exception as err:
             logger.warning(f"[Database] Gagal mengambil riwayat absensi dari MariaDB: {err}")
         finally:
             conn.close()
 
-    # 2. Fallback: Baca dari data/attendance.json
-    attendance_file = config.DATA_DIR / "attendance.json"
-    if attendance_file.exists():
-        try:
-            with open(attendance_file, "r", encoding="utf-8") as f:
-                json_records = json.load(f)
+    # 2. Fallback: Baca dari data/attendance.json dan data/attendance_error.json
+    try:
+        if norm_status in ["ALL", "SUCCESS", "VALID"]:
+            att_file = config.DATA_DIR / "attendance.json"
+            if att_file.exists():
+                with open(att_file, "r", encoding="utf-8") as f:
+                    for idx, item in enumerate(reversed(json.load(f))):
+                        raw = item.get("raw_data") or ""
+                        parsed = parse_raw_data(raw)
+                        emp = emp_map.get(parsed["nik"].lower(), {})
+                        cap_display = item.get("captured_at") or parsed["datetime_str"]
+                        if date_filter and not cap_display.startswith(date_filter):
+                            continue
+                        img_name = item.get("image") or f"{raw}.jpg"
+                        records.append({
+                            "id": item.get("id") or (idx + 1),
+                            "raw_data": raw,
+                            "image": img_name,
+                            "image_path": f"captures/{img_name}",
+                            "employee_id": parsed["nik"],
+                            "nik": parsed["nik"],
+                            "name": emp.get("name") or parsed["nik"],
+                            "is_active": bool(emp.get("is_active", True)),
+                            "captured_at": cap_display,
+                            "in_out": parsed["in_out"],
+                            "in_out_label": parsed["in_out_label"],
+                            "status": "SUCCESS",
+                            "is_valid": True,
+                            "source": "json"
+                        })
 
-            for idx, item in enumerate(reversed(json_records)):
-                raw = item.get("raw_data")
-                emp_id = item.get("employee_id", "")
-                cap_at = item.get("captured_at", "")
+        if norm_status in ["ALL", "ERROR", "INVALID"]:
+            err_file = config.DATA_DIR / "attendance_error.json"
+            if err_file.exists():
+                with open(err_file, "r", encoding="utf-8") as f:
+                    for idx, item in enumerate(reversed(json.load(f))):
+                        raw = item.get("raw_data") or ""
+                        parsed = parse_raw_data(raw)
+                        cap_display = item.get("captured_at") or parsed["datetime_str"]
+                        if date_filter and not cap_display.startswith(date_filter):
+                            continue
+                        img_name = item.get("image") or f"{raw}.jpg"
+                        records.append({
+                            "id": f"err_json_{idx+1}",
+                            "raw_data": raw,
+                            "image": img_name,
+                            "image_path": f"captures/{img_name}",
+                            "employee_id": parsed["nik"],
+                            "nik": "TIDAK VALID",
+                            "name": "TIDAK VALID",
+                            "rfid_uid": parsed["nik"],
+                            "is_active": False,
+                            "captured_at": cap_display,
+                            "in_out": parsed["in_out"],
+                            "in_out_label": parsed["in_out_label"],
+                            "status": "ERROR",
+                            "is_valid": False,
+                            "source": "json_error"
+                        })
 
-                if not raw:
-                    emp = emp_map.get(emp_id.lower(), {})
-                    nik_val = emp.get("nik") or emp_id
-                    try:
-                        dt_obj = datetime.datetime.fromisoformat(cap_at.replace("Z", ""))
-                    except Exception:
-                        dt_obj = None
-                    raw = generate_raw_data(nik_val, dt_obj, "1")
+        records.sort(key=lambda x: str(x.get("captured_at", "")), reverse=True)
+    except Exception as err:
+        logger.error(f"[Fallback] Gagal membaca berkas log JSON: {err}")
 
-                parsed = parse_raw_data(raw)
-                emp = emp_map.get(parsed["nik"].lower(), {})
-                emp_name = emp.get("name", parsed["nik"])
-                is_active = bool(emp.get("is_active", True))
-
-                if date_filter and not parsed["datetime_str"].startswith(date_filter):
-                    continue
-
-                if search:
-                    s_lower = search.lower()
-                    if (s_lower not in emp_name.lower() and
-                        s_lower not in parsed["nik"].lower() and
-                        s_lower not in raw.lower()):
-                        continue
-
-                img_name = item.get("image") or f"{raw}.jpg"
-                records.append({
-                    "id": item.get("id") or (idx + 1),
-                    "raw_data": raw,
-                    "image": img_name,
-                    "image_path": f"captures/{img_name}",
-                    "employee_id": parsed["nik"],
-                    "nik": parsed["nik"],
-                    "name": emp_name,
-                    "is_active": is_active,
-                    "captured_at": item.get("captured_at") or parsed["datetime_str"],
-                    "in_out": parsed["in_out"],
-                    "in_out_label": parsed["in_out_label"],
-                    "status": item.get("attendance_status", "SUCCESS"),
-                    "source": "json"
-                })
-
-                if len(records) >= limit:
-                    break
-
-        except Exception as err:
-            logger.error(f"[Fallback] Gagal membaca attendance.json: {err}")
-
-    return records
+    return records[:limit]
 
 
 def get_all_employees() -> list:

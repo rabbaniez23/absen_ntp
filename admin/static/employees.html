@@ -204,6 +204,15 @@
                     </div>
 
                     <div class="filter-group">
+                        <label for="attendanceRecordStatusFilter">Kondisi Presensi:</label>
+                        <select id="attendanceRecordStatusFilter" class="select-filter">
+                            <option value="ALL">Semua Presensi (OK & Error)</option>
+                            <option value="SUCCESS">🟢 Sukses / Valid (Tabel attendance)</option>
+                            <option value="ERROR">🔴 Error / Kartu Belum Terdaftar (Tabel attendance_error)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
                         <label for="attendanceStatusFilter">Status Karyawan:</label>
                         <select id="attendanceStatusFilter" class="select-filter">
                             <option value="ALL">Semua Status</option>
@@ -787,7 +796,9 @@
         async function loadAttendanceRecords() {
             const tableBody = document.getElementById("attendanceTableBody");
             const dateVal = document.getElementById("attendanceDateFilter").value;
-            let url = "api/attendance?limit=200";
+            const recordStatusFilter = document.getElementById("attendanceRecordStatusFilter") ? document.getElementById("attendanceRecordStatusFilter").value : "ALL";
+            
+            let url = `api/attendance?limit=200&status=${encodeURIComponent(recordStatusFilter)}`;
             if (dateVal) {
                 url += `&date=${encodeURIComponent(dateVal)}`;
             }
@@ -842,28 +853,41 @@
                 const rawVal = item.raw_data || "-";
                 const imgVal = item.image || (item.raw_data ? `${item.raw_data}.jpg` : "-");
                 const typeLabel = item.in_out_label || (item.in_out === "0" ? "KELUAR (OUT)" : "MASUK (IN)");
-                const isActive = item.is_active !== false;
+                const isValid = item.is_valid !== false && item.status !== "ERROR";
+                const isActive = item.is_active !== false && isValid;
                 const isOut = item.in_out === "0" || typeLabel.includes("KELUAR") || typeLabel.includes("OUT");
 
-                const statusBadge = isActive
-                    ? `<span class="status-pill active"><span class="dot green"></span> AKTIF</span>`
-                    : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`;
+                const statusBadge = isValid
+                    ? (isActive
+                        ? `<span class="status-pill active"><span class="dot green"></span> AKTIF</span>`
+                        : `<span class="status-pill inactive"><span class="dot red"></span> NONAKTIF</span>`)
+                    : `<span class="status-pill inactive" style="background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #f87171;"><span class="dot red"></span> BELUM TERDAFTAR</span>`;
 
                 const typeBadge = isOut
                     ? `<span class="status-pill" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);"><span class="dot red" style="background:#ef4444;"></span> KELUAR (0)</span>`
                     : `<span class="status-pill" style="font-size: 0.72rem; padding: 2px 8px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);"><span class="dot green"></span> MASUK (1)</span>`;
+
+                const nikCell = isValid
+                    ? `<strong class="mono">${escapeHtml(item.nik || item.employee_id)}</strong>`
+                    : `<span style="color: #f87171; font-weight: 800; font-family: monospace;">TIDAK VALID</span>`;
+
+                const nameCell = isValid
+                    ? `<span class="font-medium">${escapeHtml(item.name)}</span>`
+                    : `<span style="color: #f87171; font-weight: 700;">TIDAK VALID <small style="color: #94a3b8;">(Kartu: ${escapeHtml(item.rfid_uid || item.employee_id)})</small></span>`;
+
+                const rowStyle = isValid ? "" : `style="background: rgba(239, 68, 68, 0.05);"`;
 
                 const thumbHtml = imgPath
                     ? `<img src="${escapeHtml(imgPath)}" class="table-thumb" alt="Foto" onclick="openPhotoModal('${escapeHtml(imgPath)}', '${escapeHtml(item.name)}', '${escapeHtml(item.nik)}', '${escapeHtml(item.captured_at)}', ${isActive}, '${escapeHtml(rawVal)}', '${escapeHtml(imgVal)}', '${escapeHtml(typeLabel)}')">`
                     : `<span class="no-thumb">📷</span>`;
 
                 return `
-                    <tr>
+                    <tr ${rowStyle}>
                         <td class="text-center text-muted">${index + 1}</td>
                         <td class="text-center">${thumbHtml}</td>
-                        <td><code class="rfid-code mono text-accent" style="font-weight: 700; letter-spacing: 0.5px; font-size: 0.82rem;">${escapeHtml(rawVal)}</code></td>
-                        <td><strong class="mono">${escapeHtml(item.nik || item.employee_id)}</strong></td>
-                        <td class="font-medium">${escapeHtml(item.name)}</td>
+                        <td><code class="rfid-code mono ${isValid ? 'text-accent' : ''}" style="font-weight: 700; letter-spacing: 0.5px; font-size: 0.82rem; ${isValid ? '' : 'color: #f87171; border-color: rgba(239, 68, 68, 0.4);'}">${escapeHtml(rawVal)}</code></td>
+                        <td>${nikCell}</td>
+                        <td>${nameCell}</td>
                         <td>${statusBadge}</td>
                         <td class="mono text-muted">${escapeHtml(item.captured_at)}</td>
                         <td>${typeBadge}</td>
@@ -878,6 +902,8 @@
 
         document.getElementById("attendanceSearchInput").addEventListener("input", filterAndRenderAttendance);
         document.getElementById("attendanceStatusFilter").addEventListener("change", filterAndRenderAttendance);
+        const recordStatusFilterEl = document.getElementById("attendanceRecordStatusFilter");
+        if (recordStatusFilterEl) recordStatusFilterEl.addEventListener("change", loadAttendanceRecords);
         const typeFilterEl = document.getElementById("attendanceTypeFilter");
         if (typeFilterEl) typeFilterEl.addEventListener("change", filterAndRenderAttendance);
         document.getElementById("attendanceDateFilter").addEventListener("change", () => {

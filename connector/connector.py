@@ -193,23 +193,24 @@ class ConnectorRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json(400, {"success": False, "message": "Nomor RFID / NIK tidak boleh kosong."})
             return
 
-        # 1. Validasi Karyawan ke MariaDB
+        # 1. Validasi Karyawan ke MariaDB / JSON
         emp = db.lookup_employee(identifier)
-        if not emp:
-            logger.warning(f"[Absensi Ditolak] Kartu/ID tidak terdaftar: {identifier}")
-            self.send_json(404, {
-                "success": False,
-                "message": "Kartu RFID atau NIK tidak terdaftar di sistem!"
-            })
-            return
+        is_valid = emp is not None
 
-        emp_id = emp["employee_id"]
-        emp_nik = emp.get("nik") or emp_id
-        emp_name = emp["name"]
+        if is_valid:
+            emp_id = emp["employee_id"]
+            emp_nik = emp.get("nik") or emp_id
+            emp_name = emp["name"]
+        else:
+            # Kondisi Kartu Error / Belum Terdaftar (TETAP DI-CAPTURE)
+            emp_id = identifier
+            emp_nik = "TIDAK VALID"
+            emp_name = "TIDAK VALID"
+            logger.warning(f"[Kartu Tidak Valid / Belum Terdaftar] ID/RFID: {identifier} -> Tetap disimpan ke attendance_error dan foto dicapture.")
 
         # 2. Bentuk RAW_DATA dan Nama File IMAGE sesuai spesifikasi pembimbing:
-        # format: {nik}{jam}{menit}{tanggal}{bulan}{in_out:1} (contoh: 210019074514091)
-        # in_out: "1" untuk MASUK (IN), "0" untuk KELUAR (OUT)
+        # Jika Valid: format {nik}{jam}{menit}{tanggal}{bulan}{in_out:1}
+        # Jika Error: format {rfid_mentah}{jam}{menit}{tanggal}{bulan}{in_out:1}
         now = datetime.datetime.now()
         raw_in_out = str(payload.get("in_out") or payload.get("type") or "").strip()
         reader_source = str(payload.get("reader") or "Web Kiosk UI")
@@ -230,9 +231,11 @@ class ConnectorRequestHandler(http.server.SimpleHTTPRequestHandler):
             in_out = "1"
 
         in_out_label = "MASUK (IN)" if in_out == "1" else "KELUAR (OUT)"
-        logger.info(f"[Scan Diproses] ID: '{identifier}' | Mode: {in_out_label} ({in_out}) | Reader: {reader_source}")
+        logger.info(f"[Scan Diproses] ID: '{identifier}' | Mode: {in_out_label} ({in_out}) | Valid: {is_valid} | Reader: {reader_source}")
 
-        raw_data = db.generate_raw_data(nik=emp_nik, dt=now, in_out=in_out)
+        # Prefix raw_data: NIK jika valid, atau nomor RFID jika error
+        raw_data_prefix = emp_nik if is_valid else identifier
+        raw_data = db.generate_raw_data(nik=raw_data_prefix, dt=now, in_out=in_out)
         image_filename = f"{raw_data}.jpg"
 
         # Simpan Foto langsung di config.CAPTURES_DIR dengan nama {raw_data}.jpg
@@ -252,27 +255,43 @@ class ConnectorRequestHandler(http.server.SimpleHTTPRequestHandler):
         else:
             file_path.write_bytes(b"")
 
-        # 3. Catat ke MariaDB (Kolom: id, raw_data, image)
         rel_path = f"captures/{image_filename}"
-        db.record_attendance(
-            raw_data=raw_data,
-            image=image_filename,
-            employee_id=emp_id,
-            captured_at=now,
-            status="SUCCESS"
-        )
 
-        logger.info(f"[Absensi BERHASIL] {emp_name} ({in_out_label}) | RAW_DATA: {raw_data} | IMAGE: {image_filename}")
+        # 3. Catat ke MariaDB sesuai kondisi:
+        if is_valid:
+            # Masuk ke tabel 'attendance'
+            db.record_attendance(
+                raw_data=raw_data,
+                image=image_filename,
+                employee_id=emp_id,
+                captured_at=now,
+                status="SUCCESS"
+            )
+            logger.info(f"[Absensi VALID] {emp_name} ({in_out_label}) | RAW_DATA: {raw_data} | IMAGE: {image_filename}")
+            msg = f"Absensi {in_out_label} berhasil dicatat"
+        else:
+            # Masuk ke tabel 'attendance_error'
+            db.record_attendance_error(
+                raw_data=raw_data,
+                image=image_filename,
+                rfid_uid=identifier,
+                captured_at=now
+            )
+            logger.info(f"[Absensi ERROR Dicatat] Kartu: {identifier} ({in_out_label}) | RAW_DATA: {raw_data} | IMAGE: {image_filename}")
+            msg = f"Kartu tidak terdaftar, tercatat di attendance_error"
 
-        # 4. Kembalikan respons sukses ke Kiosk
+        # 4. Kembalikan respons ke Kiosk
         self.send_json(200, {
             "success": True,
-            "message": f"Absensi {in_out_label} berhasil dicatat",
+            "is_valid": is_valid,
+            "attendance_status": "SUCCESS" if is_valid else "ERROR",
+            "message": msg,
             "raw_data": raw_data,
             "image": image_filename,
             "employee_id": emp_id,
             "nik": emp_nik,
             "name": emp_name,
+            "rfid_uid": identifier,
             "in_out": in_out,
             "in_out_label": in_out_label,
             "photo_url": rel_path,

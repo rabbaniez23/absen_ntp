@@ -235,6 +235,71 @@ def record_attendance(raw_data: str, image: str, employee_id: str = None, captur
     return True
 
 
+def record_attendance_error(raw_data: str, image: str, rfid_uid: str = None, captured_at: Optional[datetime.datetime] = None) -> bool:
+    """
+    Menyimpan data kartu/absensi yang TIDAK VALID / ERROR ke tabel MariaDB 'attendance_error'
+    serta mencadangkan ke file data/attendance_error.json.
+    """
+    db_success = False
+    now = captured_at or datetime.datetime.now()
+
+    clean_image = image if image.lower().endswith(".jpg") else f"{raw_data}.jpg"
+    clean_rel_path = f"captures/{clean_image}"
+
+    # 1. Simpan ke MariaDB di tabel attendance_error
+    conn = get_db_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                # Pastikan tabel attendance_error ada
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS `attendance_error` (
+                        `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        `raw_data` VARCHAR(100) NOT NULL,
+                        `image` VARCHAR(255) NOT NULL,
+                        INDEX `idx_attendance_err_raw` (`raw_data`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                """)
+                sql = "INSERT INTO attendance_error (raw_data, image) VALUES (%s, %s)"
+                cursor.execute(sql, (raw_data, clean_image))
+                db_success = True
+                logger.info(f"[Connector DB] Absensi ERROR tersimpan ke MariaDB: raw_data={raw_data}, image={clean_image}")
+        except Exception as err:
+            logger.warning(f"[Connector DB] Gagal menyimpan absensi error ke MariaDB: {err}")
+        finally:
+            conn.close()
+
+    # 2. Cadangkan riwayat error ke data/attendance_error.json
+    try:
+        err_file = config.DATA_DIR / "attendance_error.json"
+        records = []
+        if err_file.exists():
+            with open(err_file, "r", encoding="utf-8") as f:
+                try:
+                    records = json.load(f)
+                except Exception:
+                    records = []
+
+        records.append({
+            "id": len(records) + 1,
+            "raw_data": raw_data,
+            "image": clean_image,
+            "rfid_uid": rfid_uid or (raw_data[:-9] if len(raw_data) >= 10 else raw_data),
+            "captured_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+            "image_path": clean_rel_path,
+            "attendance_status": "ERROR",
+            "db_synced": db_success
+        })
+
+        with open(err_file, "w", encoding="utf-8") as f:
+            json.dump(records, f, indent=2)
+
+    except Exception as e:
+        logger.error(f"[Connector DB] Gagal menulis cadangan attendance_error.json: {e}")
+
+    return True
+
+
 def get_all_employees() -> List[Dict[str, Any]]:
     """Mengambil daftar seluruh karyawan aktif."""
     conn = get_db_connection()
@@ -258,3 +323,4 @@ def get_all_employees() -> List[Dict[str, Any]]:
         pass
 
     return []
+

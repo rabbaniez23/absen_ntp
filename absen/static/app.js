@@ -319,10 +319,8 @@ function isCameraReady() {
 }
 
 /**
- * Menangani tap kartu RFID QinHeng:
- * 1. Menampilkan Nama Karyawan & NIK (Nomor RFID disembunyikan).
- * 2. Mengaktifkan panduan lingkaran wajah & hitung mundur 3-2-1.
- * 3. Menjepret frame live stream kamera Logitech C930e dan menyimpan ke MariaDB.
+ * Menangani tap kartu RFID atau input NIK manual:
+ * Seluruh kartu (baik yang terdaftar maupun belum terdaftar) TETAP DI-CAPTURE fotonya.
  */
 async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web Kiosk UI", timingInfo = {}) {
     if (currentState !== AppState.IDLE) {
@@ -335,36 +333,10 @@ async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web 
 
     if (rfidInput) rfidInput.value = "";
 
-    // 1. Cari data karyawan ke backend
-    setApplicationState(AppState.IDENTIFYING, "MENCARI DATA KARYAWAN...");
+    setApplicationState(AppState.IDENTIFYING, "MEMPROSES PRESENSI...");
 
-    try {
-        const response = await fetchWithTimeout(`api/employee?id=${encodeURIComponent(cleanId)}`, {}, 6000);
-        const data = await parseJsonResponse(response);
-
-        if (response.ok && data.success) {
-            const nikDisplay = data.nik || data.employee_id;
-            console.log(`[Presensi] Karyawan ditemukan: ${data.name} (NIK: ${nikDisplay}) | Mode: ${forcedMode || 'Auto'}`);
-            currentEmployeeId = data.employee_id;
-
-            // Tampilkan HANYA Nama Karyawan dan NIK (Nomor RFID disembunyikan demi privasi)
-            if (employeeName) employeeName.textContent = data.name;
-            if (employeeNik) employeeNik.textContent = nikDisplay;
-            if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
-
-            setApplicationState(AppState.EMPLOYEE_FOUND, `KARYAWAN TERDETEKSI: ${data.name.toUpperCase()}`);
-
-            // Langsung jepret foto absensi seketika tanpa jeda hitung mundur
-            processAttendanceScan(cleanId, data, forcedMode, readerName, timingInfo);
-
-        } else {
-            const message = data && data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR";
-            handleErrorAndRecover(message, 2500);
-        }
-    } catch (error) {
-        console.error("[Presensi] Kesalahan pencarian karyawan:", error);
-        handleErrorAndRecover("SERVER BACKEND TIDAK TERHUBUNG", 2500);
-    }
+    // Langsung jalankan proses absensi & capture foto di backend
+    processAttendanceScan(cleanId, null, forcedMode, readerName, timingInfo);
 }
 
 /**
@@ -897,16 +869,24 @@ function displayAttendanceSuccess(data) {
         setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
     }
 
+    const isValid = (data.is_valid !== false) && (data.nik !== "TIDAK VALID");
     const nikDisplay = data.nik || data.employee_id || "-";
     const empName = data.name || "Karyawan";
     const isOut = data.in_out === "0" || (data.in_out_label && data.in_out_label.toUpperCase().includes("KELUAR")) || (data.reader_used && data.reader_used.toLowerCase().includes("sycreader"));
     const typeLabel = isOut ? "KELUAR (OUT)" : "MASUK (IN)";
 
-    console.log(`[Presensi Sukses] ${empName} (NIK: ${nikDisplay}) -> ${typeLabel}`);
+    console.log(`[Presensi Result] ${empName} (NIK: ${nikDisplay}) -> ${typeLabel} | Valid: ${isValid}`);
 
-    if (employeeName) employeeName.textContent = empName;
-    if (employeeNik) employeeNik.textContent = nikDisplay;
-    if (employeeId && employeeId !== employeeNik) employeeId.textContent = nikDisplay;
+    if (employeeName) {
+        employeeName.innerHTML = isValid ? empName : '<span class="text-invalid">TIDAK VALID</span>';
+    }
+    if (employeeNik) {
+        employeeNik.innerHTML = isValid ? nikDisplay : '<span class="text-invalid">TIDAK VALID</span>';
+    }
+    if (employeeId && employeeId !== employeeNik) {
+        employeeId.innerHTML = isValid ? nikDisplay : '<span class="text-invalid">TIDAK VALID</span>';
+    }
+
     if (attendanceDate && data.date) attendanceDate.textContent = data.date;
     if (attendanceTime && data.time) attendanceTime.textContent = data.time;
     if (attendanceType) {
@@ -918,7 +898,7 @@ function displayAttendanceSuccess(data) {
 
     if (capturedPreview && data.photo_url) {
         capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
-        if (isOut) {
+        if (isOut || !isValid) {
             capturedPreview.classList.add("preview-out");
         } else {
             capturedPreview.classList.remove("preview-out");
@@ -926,11 +906,17 @@ function displayAttendanceSuccess(data) {
         capturedPreview.classList.remove("hidden");
     }
 
-    const successMsg = isOut
-        ? `ABSENSI KELUAR (OUT) BERHASIL: ${empName.toUpperCase()}`
-        : `ABSENSI MASUK (IN) BERHASIL: ${empName.toUpperCase()}`;
-
-    setApplicationState(AppState.SUCCESS, successMsg, isOut);
+    if (isValid) {
+        const successMsg = isOut
+            ? `ABSENSI KELUAR (OUT) BERHASIL: ${empName.toUpperCase()}`
+            : `ABSENSI MASUK (IN) BERHASIL: ${empName.toUpperCase()}`;
+        setApplicationState(AppState.SUCCESS, successMsg, isOut);
+    } else {
+        const errorMsg = isOut
+            ? `KARTU TIDAK TERDAFTAR (KELUAR TERCATAT)`
+            : `KARTU TIDAK TERDAFTAR (MASUK TERCATAT)`;
+        setApplicationState(AppState.ERROR, errorMsg, isOut);
+    }
 
     if (window._idleResetTimer) clearTimeout(window._idleResetTimer);
     window._idleResetTimer = setTimeout(() => {
