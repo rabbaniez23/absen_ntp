@@ -138,64 +138,17 @@ function setApplicationState(newState, customMessage = "", isOut = false) {
         }
     }
 
-    if (!statusText) return;
-
     const isIdle = (newState === AppState.IDLE);
     if (btnManualMasuk) btnManualMasuk.disabled = !isIdle;
     if (btnManualKeluar) btnManualKeluar.disabled = !isIdle;
 
-    switch (newState) {
-        case AppState.IDLE:
-            statusText.textContent = "TEMPEL KARTU RFID ATAU MASUKKAN NIK";
-            if (rfidInput) {
-                rfidInput.disabled = false;
-                focusInputField();
-            }
-            break;
+    if (rfidInput) {
+        rfidInput.disabled = !isIdle;
+        if (isIdle) focusInputField();
+    }
 
-        case AppState.IDENTIFYING:
-            statusText.textContent = "MENCARI DATA KARYAWAN...";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        case AppState.EMPLOYEE_FOUND:
-            statusText.textContent = customMessage || "KARTU TERDETEKSI";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        case AppState.CAMERA_READY:
-            statusText.textContent = customMessage || "ARAHKAN WAJAH KE KAMERA";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        case AppState.COUNTDOWN:
-            statusText.textContent = customMessage ? `HITUNG MUNDUR: ${customMessage}` : "HITUNG MUNDUR";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        case AppState.CAPTURING:
-            statusText.textContent = customMessage || "MENGAMBIL FOTO...";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        case AppState.SAVING:
-            statusText.textContent = customMessage || "MENYIMPAN DATA...";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        case AppState.SUCCESS:
-            statusText.textContent = customMessage || "ABSENSI BERHASIL";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        case AppState.ERROR:
-            statusText.textContent = customMessage || "TERJADI KESALAHAN";
-            if (rfidInput) rfidInput.disabled = true;
-            break;
-
-        default:
-            statusText.textContent = customMessage || newState;
-            break;
+    if (statusText) {
+        statusText.textContent = customMessage || newState;
     }
 }
 
@@ -858,56 +811,74 @@ function updateHardwareReaderStatus(readers) {
 }
 
 /**
- * Menampilkan hasil presensi karyawan pada kartu informasi dan status banner.
+ * Menampilkan hasil presensi karyawan pada kartu informasi (Nama, NIK, Tipe, Foto & Kilatan).
  */
 function displayAttendanceSuccess(data) {
     if (!data) return;
 
-    // Deduplikasi ketat: Cegah render ganda dalam rentang 2.5 detik
+    // Deduplikasi ketat: Cegah render ganda dalam rentang 1.5 detik
     const now = Date.now();
     const scanKey = data.scan_id || data.raw_data || `${data.nik || data.employee_id || ''}_${data.time || ''}`;
-    if (scanKey && lastHandledScanId === scanKey && (now - lastHandledScanTime < 2500)) {
+    if (scanKey && lastHandledScanId === scanKey && (now - lastHandledScanTime < 1500)) {
         console.log(`[Presensi] Mengabaikan render ganda untuk scan: ${scanKey}`);
         return;
     }
     lastHandledScanId = scanKey;
     lastHandledScanTime = now;
 
-    // Efek kilatan lampu rana kamera hanya tepat 1 kali
+    // 1. Efek kilatan lampu rana kamera (Shutter Flash)
     if (captureFlash) {
+        captureFlash.classList.remove("flash-active");
+        void captureFlash.offsetWidth; // Force reflow
         captureFlash.classList.add("flash-active");
-        setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
+        setTimeout(() => {
+            if (captureFlash) captureFlash.classList.remove("flash-active");
+        }, 350);
     }
 
-    const isValid = (data.is_valid !== false) && (data.nik !== "TIDAK VALID");
-    const nikDisplay = data.nik || data.employee_id || "-";
-    const empName = data.name || "Karyawan";
+    // 2. Evaluasi Validitas Data
+    const isValid = (data.is_valid !== false) && (data.nik !== "TIDAK VALID") && (data.name !== "TIDAK VALID") && (data.success !== false);
+    const nikDisplay = isValid ? (data.nik || data.employee_id || "-") : "TIDAK VALID";
+    const empName = isValid ? (data.name || "Karyawan") : "TIDAK VALID";
     const isOut = data.in_out === "0" || (data.in_out_label && data.in_out_label.toUpperCase().includes("KELUAR")) || (data.reader_used && data.reader_used.toLowerCase().includes("sycreader"));
-    const typeLabel = isOut ? "KELUAR (OUT)" : "MASUK (IN)";
 
-    console.log(`[Presensi Result] ${empName} (NIK: ${nikDisplay}) -> ${typeLabel} | Valid: ${isValid}`);
+    console.log(`[Presensi UI Render] Nama: ${empName} | NIK: ${nikDisplay} | Mode: ${isOut ? 'KELUAR' : 'MASUK'} | Valid: ${isValid}`);
 
+    // 3. Tampilkan Nama Karyawan
     if (employeeName) {
-        employeeName.innerHTML = isValid ? empName : '<span class="text-invalid">TIDAK VALID</span>';
+        employeeName.innerHTML = isValid
+            ? `<span style="color: #f0f6fc; font-weight: 700;">${empName}</span>`
+            : '<span class="text-invalid">TIDAK VALID</span>';
     }
+
+    // 4. Tampilkan NIK Karyawan
     if (employeeNik) {
-        employeeNik.innerHTML = isValid ? nikDisplay : '<span class="text-invalid">TIDAK VALID</span>';
+        employeeNik.innerHTML = isValid
+            ? `<span style="color: var(--accent); font-weight: 800;">${nikDisplay}</span>`
+            : '<span class="text-invalid">TIDAK VALID</span>';
     }
     if (employeeId && employeeId !== employeeNik) {
-        employeeId.innerHTML = isValid ? nikDisplay : '<span class="text-invalid">TIDAK VALID</span>';
+        employeeId.innerHTML = isValid
+            ? `<span style="color: var(--accent); font-weight: 800;">${nikDisplay}</span>`
+            : '<span class="text-invalid">TIDAK VALID</span>';
     }
 
-    if (attendanceDate && data.date) attendanceDate.textContent = data.date;
-    if (attendanceTime && data.time) attendanceTime.textContent = data.time;
+    // 5. Tampilkan Tipe Presensi (In / Out)
     if (attendanceType) {
         attendanceType.innerHTML = isOut
             ? '<span style="color: #ff7b72; font-weight: 800; font-size: 1.15rem; text-shadow: 0 0 10px rgba(248, 81, 73, 0.4);">🔴 KELUAR (OUT)</span>'
             : '<span style="color: #56d364; font-weight: 800; font-size: 1.15rem; text-shadow: 0 0 10px rgba(86, 211, 100, 0.4);">🟢 MASUK (IN)</span>';
     }
-    if (rfidInput) rfidInput.value = "";
 
-    if (capturedPreview && data.photo_url) {
-        capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
+    // 6. Tanggal dan Jam jika elemen tersedia
+    if (attendanceDate && data.date) attendanceDate.textContent = data.date;
+    if (attendanceTime && data.time) attendanceTime.textContent = data.time;
+
+    // 7. Pratinjau Foto Jepretan Webcam
+    if (capturedPreview) {
+        if (data.photo_url) {
+            capturedPreview.src = getApiUrl(data.photo_url) + "?t=" + Date.now();
+        }
         if (isOut || !isValid) {
             capturedPreview.classList.add("preview-out");
         } else {
@@ -916,18 +887,11 @@ function displayAttendanceSuccess(data) {
         capturedPreview.classList.remove("hidden");
     }
 
-    if (isValid) {
-        const successMsg = isOut
-            ? `ABSENSI KELUAR (OUT) BERHASIL: ${empName.toUpperCase()}`
-            : `ABSENSI MASUK (IN) BERHASIL: ${empName.toUpperCase()}`;
-        setApplicationState(AppState.SUCCESS, successMsg, isOut);
-    } else {
-        const errorMsg = isOut
-            ? `KARTU TIDAK TERDAFTAR (KELUAR TERCATAT)`
-            : `KARTU TIDAK TERDAFTAR (MASUK TERCATAT)`;
-        setApplicationState(AppState.ERROR, errorMsg, isOut);
-    }
+    if (rfidInput) rfidInput.value = "";
 
+    setApplicationState(isValid ? AppState.SUCCESS : AppState.ERROR, "", isOut);
+
+    // 8. Tahan tampilan selama 4 detik sebelum reset kembali ke standby
     if (window._idleResetTimer) clearTimeout(window._idleResetTimer);
     window._idleResetTimer = setTimeout(() => {
         resetToIdle();
@@ -936,11 +900,6 @@ function displayAttendanceSuccess(data) {
 
 function handleHardwareAttendanceEvent(data) {
     if (!data) return;
-    if (data.success === false) {
-        handleErrorAndRecover(data.message ? data.message.toUpperCase() : "KARTU RFID TIDAK TERDAFTAR", 2500);
-        return;
-    }
-
     displayAttendanceSuccess(data);
 }
 
