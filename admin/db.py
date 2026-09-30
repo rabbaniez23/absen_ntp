@@ -104,6 +104,28 @@ def init_database_tables() -> bool:
             except Exception as e:
                 logger.debug(f"[Database] Migrasi kolom nik: {e}")
 
+            # Tabel master kartu RFID fisik (Opsi B: Tabel Khusus RFID Terpisah)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS `rfid_cards` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `rfid_uid` VARCHAR(64) NOT NULL UNIQUE,
+                    `employee_id` VARCHAR(50) DEFAULT NULL,
+                    `card_status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                    `assigned_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_rfid_cards_uid` (`rfid_uid`),
+                    INDEX `idx_rfid_cards_emp` (`employee_id`),
+                    INDEX `idx_rfid_cards_status` (`card_status`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            """)
+            # Migrasi data awal kartu fisik dari employees ke rfid_cards
+            cursor.execute("""
+                INSERT IGNORE INTO `rfid_cards` (`rfid_uid`, `employee_id`, `card_status`)
+                SELECT `rfid_uid`, `employee_id`, 'ACTIVE'
+                FROM `employees`
+                WHERE `rfid_uid` IS NOT NULL AND `rfid_uid` != '';
+            """)
+
             # Tabel riwayat absensi (HANYA 3 KOLOM: id, raw_data, image sesuai arahan pembimbing)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS `attendance` (
@@ -230,23 +252,38 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
         try:
             with conn.cursor() as cursor:
                 placeholders = ", ".join(["%s"] * len(candidate_ids))
-                sql = f"""
-                    SELECT employee_id, nik, name, rfid_uid, is_active
-                    FROM employees
-                    WHERE (rfid_uid IN ({placeholders}) OR employee_id IN ({placeholders}) OR nik IN ({placeholders}))
+
+                # A. Prioritas 1: Cari di tabel terpisah rfid_cards JOIN employees
+                sql_rfid = f"""
+                    SELECT e.employee_id, e.nik, e.name, r.rfid_uid, r.card_status, e.is_active
+                    FROM rfid_cards r
+                    JOIN employees e ON r.employee_id = e.employee_id
+                    WHERE r.rfid_uid IN ({placeholders}) AND r.card_status = 'ACTIVE' AND e.is_active = 1
                     LIMIT 1
                 """
-                params = tuple(candidate_ids * 3)
-                cursor.execute(sql, params)
+                cursor.execute(sql_rfid, tuple(candidate_ids))
                 row = cursor.fetchone()
+
+                # B. Prioritas 2: Cari langsung di tabel employees (berdasarkan NIK, employee_id, atau rfid_uid)
+                if not row:
+                    sql_emp = f"""
+                        SELECT employee_id, nik, name, rfid_uid, is_active
+                        FROM employees
+                        WHERE (employee_id IN ({placeholders}) OR nik IN ({placeholders}) OR rfid_uid IN ({placeholders})) AND is_active = 1
+                        LIMIT 1
+                    """
+                    cursor.execute(sql_emp, tuple(candidate_ids * 3))
+                    row = cursor.fetchone()
+
                 if row:
                     nik_val = row.get("nik") or row["employee_id"]
-                    logger.info(f"[Database] Karyawan ditemukan di MariaDB: {row['name']} (NIK: {nik_val})")
+                    rfid_val = row.get("rfid_uid") or clean_id
+                    logger.info(f"[Database] Karyawan ditemukan di MariaDB: {row['name']} (NIK: {nik_val}, RFID: {rfid_val})")
                     return {
                         "employee_id": row["employee_id"],
                         "nik": nik_val,
                         "name": row["name"],
-                        "rfid_uid": row.get("rfid_uid") or row["employee_id"],
+                        "rfid_uid": rfid_val,
                         "source": "mariadb"
                     }
                 else:
@@ -785,6 +822,17 @@ def add_employee(employee_id: str, name: str, rfid_uid: str, nik: str = None) ->
                     "INSERT INTO employees (employee_id, nik, name, rfid_uid, is_active) VALUES (%s, %s, %s, %s, 1);",
                     (emp_id, clean_nik, emp_name, rfid)
                 )
+
+                # Sinkronkan ke tabel terpisah rfid_cards (Opsi B)
+                try:
+                    cursor.execute("""
+                        INSERT INTO rfid_cards (rfid_uid, employee_id, card_status)
+                        VALUES (%s, %s, 'ACTIVE')
+                        ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), card_status = 'ACTIVE';
+                    """, (rfid, emp_id))
+                except Exception as rfid_err:
+                    logger.debug(f"[Database] Catatan sinkronisasi rfid_cards: {rfid_err}")
+
                 logger.info(f"[Database] Karyawan berhasil ditambahkan ke MariaDB: {emp_name} (NIK: {clean_nik})")
         except Exception as err:
             logger.warning(f"[Database] Gagal menambahkan karyawan ke MariaDB: {err}")
@@ -830,6 +878,10 @@ def delete_employee(employee_id: str) -> tuple:
     if conn:
         try:
             with conn.cursor() as cursor:
+                try:
+                    cursor.execute("UPDATE rfid_cards SET card_status = 'AVAILABLE', employee_id = NULL WHERE employee_id = %s;", (emp_id,))
+                except Exception:
+                    pass
                 cursor.execute("DELETE FROM employees WHERE employee_id = %s;", (emp_id,))
                 logger.info(f"[Database] Karyawan dihapus dari MariaDB: {emp_id}")
         except Exception as err:
@@ -893,6 +945,16 @@ def update_employee(employee_id: str, name: str, nik: str, rfid_uid: str = None,
                         "UPDATE employees SET name = %s, nik = %s, rfid_uid = %s, is_active = %s WHERE employee_id = %s;",
                         (emp_name, clean_nik, rfid, active_val, emp_id)
                     )
+                    # Sinkronkan ke tabel terpisah rfid_cards (Opsi B)
+                    try:
+                        cursor.execute("UPDATE rfid_cards SET card_status = 'REPLACED', employee_id = NULL WHERE employee_id = %s AND rfid_uid != %s;", (emp_id, rfid))
+                        cursor.execute("""
+                            INSERT INTO rfid_cards (rfid_uid, employee_id, card_status)
+                            VALUES (%s, %s, 'ACTIVE')
+                            ON DUPLICATE KEY UPDATE employee_id = VALUES(employee_id), card_status = 'ACTIVE';
+                        """, (rfid, emp_id))
+                    except Exception as rfid_upd_err:
+                        logger.debug(f"[Database] Sync rfid_cards on update: {rfid_upd_err}")
                 else:
                     cursor.execute(
                         "UPDATE employees SET name = %s, nik = %s, is_active = %s WHERE employee_id = %s;",

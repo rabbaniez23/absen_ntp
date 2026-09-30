@@ -46,9 +46,37 @@ def get_db_connection() -> Optional[Any]:
         return None
 
 
+def ensure_rfid_cards_table(conn):
+    """Memastikan tabel terpisah rfid_cards tersedia dan menyinkronkan data kartu awal."""
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS `rfid_cards` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `rfid_uid` VARCHAR(64) NOT NULL UNIQUE,
+                    `employee_id` VARCHAR(50) DEFAULT NULL,
+                    `card_status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+                    `assigned_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    INDEX `idx_rfid_cards_uid` (`rfid_uid`),
+                    INDEX `idx_rfid_cards_emp` (`employee_id`),
+                    INDEX `idx_rfid_cards_status` (`card_status`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            """)
+            # Sinkronisasi data kartu dari tabel employees jika belum tercatat di rfid_cards
+            cursor.execute("""
+                INSERT IGNORE INTO `rfid_cards` (`rfid_uid`, `employee_id`, `card_status`)
+                SELECT `rfid_uid`, `employee_id`, 'ACTIVE'
+                FROM `employees`
+                WHERE `rfid_uid` IS NOT NULL AND `rfid_uid` != '';
+            """)
+    except Exception as e:
+        logger.debug(f"[Connector DB] Inisialisasi rfid_cards: {e}")
+
+
 def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
     """
-    Mencari data karyawan berdasarkan nomor UID RFID, NIK, atau Employee ID.
+    Mencari data karyawan berdasarkan nomor UID RFID (dari tabel rfid_cards), NIK, atau Employee ID.
     Mendukung variasi awalan reader (seperti dreizehn/13) dan fallback ke employees.json.
     """
     clean_id = (identifier or "").strip()
@@ -73,25 +101,41 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
     conn = get_db_connection()
     if conn:
         try:
+            ensure_rfid_cards_table(conn)
             with conn.cursor() as cursor:
                 placeholders = ", ".join(["%s"] * len(candidate_ids))
-                sql = f"""
-                    SELECT employee_id, nik, name, rfid_uid, is_active
-                    FROM employees
-                    WHERE (rfid_uid IN ({placeholders}) OR employee_id IN ({placeholders}) OR nik IN ({placeholders}))
+
+                # A. Prioritas 1: Cari di tabel terpisah rfid_cards JOIN employees
+                sql_rfid = f"""
+                    SELECT e.employee_id, e.nik, e.name, r.rfid_uid, r.card_status, e.is_active
+                    FROM rfid_cards r
+                    JOIN employees e ON r.employee_id = e.employee_id
+                    WHERE r.rfid_uid IN ({placeholders}) AND r.card_status = 'ACTIVE' AND e.is_active = 1
                     LIMIT 1
                 """
-                params = tuple(candidate_ids * 3)
-                cursor.execute(sql, params)
+                cursor.execute(sql_rfid, tuple(candidate_ids))
                 row = cursor.fetchone()
+
+                # B. Prioritas 2: Cari langsung di tabel employees (berdasarkan NIK, employee_id, atau rfid_uid)
+                if not row:
+                    sql_emp = f"""
+                        SELECT employee_id, nik, name, rfid_uid, is_active
+                        FROM employees
+                        WHERE (employee_id IN ({placeholders}) OR nik IN ({placeholders}) OR rfid_uid IN ({placeholders})) AND is_active = 1
+                        LIMIT 1
+                    """
+                    cursor.execute(sql_emp, tuple(candidate_ids * 3))
+                    row = cursor.fetchone()
+
                 if row:
                     nik_val = row.get("nik") or row["employee_id"]
-                    logger.info(f"[Connector DB] Karyawan ditemukan di MariaDB: {row['name']} (NIK: {nik_val})")
+                    rfid_val = row.get("rfid_uid") or clean_id
+                    logger.info(f"[Connector DB] Karyawan ditemukan di MariaDB: {row['name']} (NIK: {nik_val}, RFID: {rfid_val})")
                     return {
                         "employee_id": row["employee_id"],
                         "nik": nik_val,
                         "name": row["name"],
-                        "rfid_uid": row.get("rfid_uid") or row["employee_id"],
+                        "rfid_uid": rfid_val,
                         "source": "mariadb"
                     }
         except Exception as err:
