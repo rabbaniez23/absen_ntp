@@ -22,10 +22,12 @@
     box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
     width: 100%;
     height: 100vh;
-    overflow: hidden; /* Mencegah scroll pada layar desktop */
+    overflow: hidden;
+    /* Mencegah scroll pada layar desktop */
     background-color: var(--bg-main);
     color: var(--text-primary);
     font-family: var(--font-family);
@@ -65,8 +67,10 @@ html, body {
     box-shadow: none !important;
 }
 
-:fullscreen html, :fullscreen body,
-:-webkit-full-screen html, :-webkit-full-screen body {
+:fullscreen html,
+:fullscreen body,
+:-webkit-full-screen html,
+:-webkit-full-screen body {
     width: 100vw !important;
     height: 100vh !important;
     padding: 0 !important;
@@ -75,11 +79,14 @@ html, body {
 }
 
 @media (max-height: 800px) {
-    html, body {
+
+    html,
+    body {
         height: auto;
         min-height: 100vh;
         overflow-y: auto;
     }
+
     .absen-ntp-container,
     .kiosk-container {
         height: auto;
@@ -114,8 +121,17 @@ html, body {
 }
 
 @keyframes pulseDot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(0.9); }
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.6;
+        transform: scale(0.9);
+    }
 }
 
 .logo-area h1 {
@@ -203,7 +219,8 @@ html, body {
     grid-template-columns: 1.4fr 1fr;
     gap: 22px;
     flex-grow: 1;
-    min-height: 0; /* Mencegah overflow pada child flex */
+    min-height: 0;
+    /* Mencegah overflow pada child flex */
 }
 
 /* Kartu Panel */
@@ -291,13 +308,15 @@ html, body {
     height: 100%;
     object-fit: cover;
     display: block;
-    transform: none; /* Bawaan: Normal (tidak dicerminkan) */
+    transform: none;
+    /* Bawaan: Normal (tidak dicerminkan) */
     transition: transform 0.2s ease-in-out;
 }
 
 #webcamVideo.mirrored,
 .camera-stream.mirrored {
-    transform: scaleX(-1); /* Dicerminkan jika tombol mirror aktif */
+    transform: scaleX(-1);
+    /* Dicerminkan jika tombol mirror aktif */
 }
 
 /* Panduan Posisi Wajah */
@@ -331,8 +350,17 @@ html, body {
 }
 
 @keyframes ovalGlow {
-    0%, 100% { border-color: rgba(63, 185, 80, 0.9); box-shadow: 0 0 15px rgba(63, 185, 80, 0.3); }
-    50% { border-color: rgba(121, 192, 255, 0.9); box-shadow: 0 0 25px rgba(88, 166, 255, 0.4); }
+
+    0%,
+    100% {
+        border-color: rgba(63, 185, 80, 0.9);
+        box-shadow: 0 0 15px rgba(63, 185, 80, 0.3);
+    }
+
+    50% {
+        border-color: rgba(121, 192, 255, 0.9);
+        box-shadow: 0 0 25px rgba(88, 166, 255, 0.4);
+    }
 }
 
 .face-guide-text {
@@ -375,9 +403,20 @@ html, body {
 }
 
 @keyframes countdownPop {
-    0% { transform: scale(0.5); opacity: 0.2; }
-    50% { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(1); opacity: 0.9; }
+    0% {
+        transform: scale(0.5);
+        opacity: 0.2;
+    }
+
+    50% {
+        transform: scale(1.15);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0.9;
+    }
 }
 
 /* Shutter Flash */
@@ -398,8 +437,13 @@ html, body {
 }
 
 @keyframes shutterFlash {
-    0% { opacity: 0.9; }
-    100% { opacity: 0; }
+    0% {
+        opacity: 0.9;
+    }
+
+    100% {
+        opacity: 0;
+    }
 }
 
 /* Captured Freeze Frame Preview */
@@ -576,6 +620,7 @@ html, body {
     background: #141b27;
     border-color: #27354d;
 }
+
 .status-banner.state-idle .status-text {
     color: var(--accent);
 }
@@ -585,6 +630,7 @@ html, body {
     border-color: #388bfd;
     box-shadow: 0 0 16px rgba(56, 139, 253, 0.25);
 }
+
 .status-banner.state-identifying .status-text {
     color: #79c0ff;
 }
@@ -595,6 +641,7 @@ html, body {
     border-color: #238636;
     box-shadow: 0 0 16px rgba(46, 160, 67, 0.25);
 }
+
 .status-banner.state-employee_found .status-text,
 .status-banner.state-camera_ready .status-text {
     color: #3fb950;
@@ -605,6 +652,7 @@ html, body {
     border-color: #d29922;
     box-shadow: 0 0 16px rgba(210, 153, 34, 0.25);
 }
+
 .status-banner.state-countdown .status-text {
     color: #e3b341;
 }
@@ -614,6 +662,7 @@ html, body {
     background: #1f2735;
     border-color: #8b949e;
 }
+
 .status-banner.state-capturing .status-text,
 .status-banner.state-saving .status-text {
     color: #f0f6fc;
@@ -624,6 +673,7 @@ html, body {
     border-color: #3fb950;
     box-shadow: 0 0 24px rgba(63, 185, 80, 0.4);
 }
+
 .status-banner.state-success .status-text {
     color: #56d364;
     font-size: 1.35rem;
@@ -637,6 +687,7 @@ html, body {
     border-color: #f85149 !important;
     box-shadow: 0 0 26px rgba(248, 81, 73, 0.5) !important;
 }
+
 .status-banner.state-success-out .status-text,
 .status-banner.state-out .status-text,
 .status-banner.state-keluar .status-text {
@@ -650,6 +701,7 @@ html, body {
     border-color: #f85149;
     box-shadow: 0 0 20px rgba(248, 81, 73, 0.3);
 }
+
 .status-banner.state-error .status-text {
     color: #f85149;
 }
@@ -661,10 +713,12 @@ html, body {
     font-weight: 700;
     transition: all 0.2s ease;
 }
+
 .mode-select-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
+
 .mode-select-btn:active {
     transform: translateY(0);
 }
@@ -808,19 +862,24 @@ html, body {
 
 /* Responsive Breakpoints for smaller screens or tablets */
 @media (max-width: 992px) {
-    html, body {
+
+    html,
+    body {
         height: auto;
         overflow-y: auto;
     }
+
     .absen-ntp-container,
     .kiosk-container {
         height: auto;
         width: 98vw;
         padding: 16px;
     }
+
     .main-grid {
         grid-template-columns: 1fr;
     }
+
     .camera-viewport {
         aspect-ratio: 4 / 3;
         min-height: 380px;
@@ -844,7 +903,8 @@ html, body {
     }
 }
 
-.form-card, .table-card {
+.form-card,
+.table-card {
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -863,12 +923,14 @@ html, body {
     width: 6px;
     height: 6px;
 }
+
 .form-scrollable-area::-webkit-scrollbar-thumb,
 .gallery-grid::-webkit-scrollbar-thumb,
 .table-wrapper::-webkit-scrollbar-thumb {
     background: var(--card-border);
     border-radius: 4px;
 }
+
 .form-scrollable-area::-webkit-scrollbar-thumb:hover,
 .gallery-grid::-webkit-scrollbar-thumb:hover,
 .table-wrapper::-webkit-scrollbar-thumb:hover {
@@ -1184,7 +1246,10 @@ html, body {
 
 .gallery-thumb-overlay {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(0, 0, 0, 0.45);
     display: flex;
     align-items: center;
@@ -1236,7 +1301,10 @@ html, body {
    ========================================================================== */
 .photo-modal {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(4, 7, 12, 0.88);
     backdrop-filter: blur(8px);
     z-index: 1000;
@@ -1297,4 +1365,3 @@ html, body {
 .photo-modal-close:hover {
     background: rgba(248, 81, 73, 0.4);
 }
-

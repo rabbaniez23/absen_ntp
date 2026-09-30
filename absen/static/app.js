@@ -371,14 +371,6 @@ async function handleEmployeeInput(rawInput, forcedMode = "", readerName = "Web 
  * Menjepret frame kamera dan mencatat absensi ke server backend.
  */
 async function processAttendanceScan(id, empInfo = null, forcedMode = "", readerName = "Web Kiosk UI", timingInfo = {}) {
-    setApplicationState(AppState.CAPTURING, "MENGAMBIL FOTO...");
-
-    // Efek kilatan lampu rana kamera (shutter flash)
-    if (captureFlash) {
-        captureFlash.classList.add("flash-active");
-        setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
-    }
-
     setApplicationState(AppState.SAVING, "MENYIMPAN DATA PRESENSI...");
 
     try {
@@ -881,12 +873,7 @@ window.addEventListener("pagehide", () => {
 });
 
 let lastHandledScanId = null;
-
-function updateHardwareReaderStatus(readers) {
-    if (Array.isArray(readers)) {
-        console.log(`[Hardware Readers] ${readers.length} perangkat aktif terhubung.`);
-    }
-}
+let lastHandledScanTime = 0;
 
 /**
  * Menampilkan hasil presensi karyawan pada kartu informasi dan status banner.
@@ -894,6 +881,17 @@ function updateHardwareReaderStatus(readers) {
 function displayAttendanceSuccess(data) {
     if (!data) return;
 
+    // Deduplikasi ketat: Cegah render ganda dalam rentang 2.5 detik
+    const now = Date.now();
+    const scanKey = data.scan_id || data.raw_data || `${data.nik || data.employee_id || ''}_${data.time || ''}`;
+    if (scanKey && lastHandledScanId === scanKey && (now - lastHandledScanTime < 2500)) {
+        console.log(`[Presensi] Mengabaikan render ganda untuk scan: ${scanKey}`);
+        return;
+    }
+    lastHandledScanId = scanKey;
+    lastHandledScanTime = now;
+
+    // Efek kilatan lampu rana kamera hanya tepat 1 kali
     if (captureFlash) {
         captureFlash.classList.add("flash-active");
         setTimeout(() => captureFlash.classList.remove("flash-active"), 350);
@@ -947,10 +945,6 @@ function handleHardwareAttendanceEvent(data) {
         return;
     }
 
-    const eventKey = data.scan_id || `${data.raw_data || ''}_${data.scan_ts || data.time || ''}_${Date.now()}`;
-    if (lastHandledScanId === eventKey) return;
-    lastHandledScanId = eventKey;
-
     displayAttendanceSuccess(data);
 }
 
@@ -999,8 +993,7 @@ function initializeKioskEvents() {
         console.error("[SSE] Kesalahan inisialisasi EventSource:", e);
     }
 
-    // Polling cadangan (safety fallback) setiap 1.5 detik
-    startPollingFallback();
+    // Polling cadangan hanya aktif jika browser tidak mendukung SSE
 }
 
 /**
