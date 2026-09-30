@@ -816,10 +816,10 @@ function updateHardwareReaderStatus(readers) {
 function displayAttendanceSuccess(data) {
     if (!data) return;
 
-    // Deduplikasi ketat: Cegah render ganda dalam rentang 1.5 detik
+    // Deduplikasi ketat: Cegah render ganda dalam rentang 800ms
     const now = Date.now();
     const scanKey = data.scan_id || data.raw_data || `${data.nik || data.employee_id || ''}_${data.time || ''}`;
-    if (scanKey && lastHandledScanId === scanKey && (now - lastHandledScanTime < 1500)) {
+    if (scanKey && lastHandledScanId === scanKey && (now - lastHandledScanTime < 800)) {
         console.log(`[Presensi] Mengabaikan render ganda untuk scan: ${scanKey}`);
         return;
     }
@@ -833,7 +833,7 @@ function displayAttendanceSuccess(data) {
         captureFlash.classList.add("flash-active");
         setTimeout(() => {
             if (captureFlash) captureFlash.classList.remove("flash-active");
-        }, 350);
+        }, 250);
     }
 
     // 2. Evaluasi Validitas Data
@@ -891,11 +891,11 @@ function displayAttendanceSuccess(data) {
 
     setApplicationState(isValid ? AppState.SUCCESS : AppState.ERROR, "", isOut);
 
-    // 8. Tahan tampilan selama 4 detik sebelum reset kembali ke standby
+    // 8. Jeda cepat 1.2 detik sebelum kembali standby (agar antrean presensi lancar & cepat)
     if (window._idleResetTimer) clearTimeout(window._idleResetTimer);
     window._idleResetTimer = setTimeout(() => {
         resetToIdle();
-    }, 4000);
+    }, 1200);
 }
 
 function handleHardwareAttendanceEvent(data) {
