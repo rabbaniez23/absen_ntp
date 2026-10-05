@@ -67,8 +67,10 @@ class RFIDHardwareManager:
         # Keypad / Numpad Navigasi (NumLock OFF fallback)
         102: '7', 103: '8', 104: '9', 105: '4', 106: '6', 107: '1', 108: '2', 109: '3', 110: '0',
     }
-    ENTER_CODES = {28, 96}  # Enter (28) & Numpad Enter (96) -> Presensi MASUK (IN / Kode: 1)
-    PLUS_CODES = {78, 13}   # Keypad Plus (78) & Equal/Plus (13) -> Presensi KELUAR (OUT / Kode: 0)
+    ENTER_CODES = {28, 96}       # Enter (28) & Numpad Enter (96) -> Presensi MASUK (IN / Kode: 1)
+    PLUS_CODES = {78, 13}        # Keypad Plus (78) & Equal/Plus (13) -> Presensi KELUAR (OUT / Kode: 0)
+    CLEAR_CODES = {74, 55, 12}   # Keypad Minus (74), Keypad Asterisk (55), Top Row Minus (12) -> Clear buffer
+    BACKSPACE_CODES = {98, 181, 53, 14} # Keypad Slash (98/181), Top Row Slash (53), Backspace (14) -> Backspace 1 digit
 
     def __init__(self, on_scan_callback):
         self.on_scan_callback = on_scan_callback
@@ -263,8 +265,21 @@ class RFIDHardwareManager:
                                     if self.on_scan_callback:
                                         self.on_scan_callback(card_uid, "0", "KELUAR (OUT)", f"{reader_name} [Plus-OUT]")
 
+                            # 3. Tombol Minus (-) dan Bintang (*) -> CLEAR INPUT
+                            elif code in self.CLEAR_CODES:
+                                buffer.clear()
+                                logger.info(f"[HARDWARE INPUT] CLEAR buffer ({reader_name})")
+
+                            # 4. Tombol Slash (/) -> BACKSPACE 1 DIGIT
+                            elif code in self.BACKSPACE_CODES:
+                                if buffer:
+                                    buffer.pop()
+                                logger.info(f"[HARDWARE INPUT] BACKSPACE buffer -> {''.join(buffer)} ({reader_name})")
+
+                            # 5. Tombol Angka (0-9) - Maksimal 6 digit untuk NIK
                             elif code in self.LINUX_KEY_MAP:
-                                buffer.append(self.LINUX_KEY_MAP[code])
+                                if len(buffer) < 6:
+                                    buffer.append(self.LINUX_KEY_MAP[code])
                             elif len(buffer) > 40:
                                 buffer.clear()
 

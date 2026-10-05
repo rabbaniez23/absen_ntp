@@ -103,7 +103,7 @@
                         <label for="rfidInput">MASUKKAN NIK</label>
                         <div class="input-wrapper">
                             <span class="input-icon">🔢</span>
-                            <input type="text" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Masukkan NIK" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autofocus>
+                            <input type="text" id="rfidInput" class="absen-ntp-input kiosk-input" placeholder="Masukkan NIK" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" autofocus>
                         </div>
                         <div class="manual-btn-group">
                             <button type="button" id="btnManualMasuk" class="manual-action-btn btn-masuk" title="Tekan Enter atau klik untuk Presensi Masuk">
@@ -120,10 +120,10 @@
 
         <!-- Footer -->
         <footer class="app-footer">
-            <span>&bull; Masukkan NIK atau Tempel RFID [Enter = MASUK, + = KELUAR] &bull; Kamera V4L2 Aktif &bull;</span>
+            <span>&bull; Masukkan NIK (Maks 6 Digit) [Enter = MASUK, + = KELUAR, -/* = CLEAR, / = BACKSPACE] &bull;</span>
         </footer>
     </div>
 
-    <script src="app.js?v=31"></script>
+    <script src="app.js?v=32"></script>
 </body>
 </html>
