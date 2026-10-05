@@ -525,9 +525,9 @@ function initializeInputHandler() {
         });
     }
 
-    // 3. Tangani input angka (Maks 6 Digit), Enter (IN), Plus (OUT), Minus/Bintang (CLEAR), Slash (BACKSPACE)
+    // 3. Tangani input KHUSUS Numpad Samping (Maks 6 Digit)
     if (rfidInput) {
-        // Batasi hanya karakter angka (0-9) dan maksimal 6 digit
+        // Sanitize agar hanya angka dan maks 6 digit
         rfidInput.addEventListener("input", () => {
             let sanitized = rfidInput.value.replace(/[^0-9]/g, "");
             if (sanitized.length > 6) {
@@ -539,10 +539,12 @@ function initializeInputHandler() {
         });
 
         rfidInput.addEventListener("keydown", (event) => {
-            // A. Tombol MINUS (-) atau BINTANG (*) -> CLEAR / HAPUS SEMUA
+            // A. Tombol MINUS (-) atau BINTANG (*) pada Numpad -> CLEAR / HAPUS SEMUA
             if (
-                event.key === "-" || event.code === "NumpadSubtract" || event.key === "Subtract" ||
-                event.key === "*" || event.code === "NumpadMultiply" || event.key === "Multiply"
+                event.code === "NumpadSubtract" || event.code === "NumpadMultiply" ||
+                (event.key === "-" && event.code.startsWith("Numpad")) ||
+                (event.key === "*" && event.code.startsWith("Numpad")) ||
+                event.key === "Subtract" || event.key === "Multiply"
             ) {
                 event.preventDefault();
                 rfidInput.value = "";
@@ -550,11 +552,11 @@ function initializeInputHandler() {
                 return;
             }
 
-            // B. Tombol SLASH (/) atau BACKSPACE -> HAPUS 1 DIGIT TERAKHIR
+            // B. Tombol SLASH (/) pada Numpad -> BACKSPACE / HAPUS 1 DIGIT TERAKHIR
             if (
-                event.key === "/" || event.code === "NumpadDivide" || event.key === "Divide" ||
-                event.key === "Backspace" || event.code === "Backspace" ||
-                event.key === "Delete" || event.code === "NumpadDecimal"
+                event.code === "NumpadDivide" ||
+                (event.key === "/" && (event.code.startsWith("Numpad") || event.code === "NumpadDivide")) ||
+                event.key === "Divide"
             ) {
                 event.preventDefault();
                 rfidInput.value = rfidInput.value.slice(0, -1);
@@ -562,8 +564,8 @@ function initializeInputHandler() {
                 return;
             }
 
-            // C. Tombol ENTER / Numpad Enter -> Presensi MASUK (IN / Kode: 1)
-            if (event.key === "Enter" || event.code === "NumpadEnter" || event.keyCode === 13) {
+            // C. Tombol ENTER pada Numpad -> Presensi MASUK (IN / Kode: 1)
+            if (event.code === "NumpadEnter" || (event.key === "Enter" && event.code.startsWith("Numpad")) || event.key === "Enter") {
                 event.preventDefault();
                 if (currentState !== AppState.IDLE) return;
                 const cleanVal = rfidInput.value.trim().replace(/[^0-9]/g, "").slice(0, 6);
@@ -571,12 +573,12 @@ function initializeInputHandler() {
                     handleErrorAndRecover("SILAKAN MASUKKAN NIK", 2000);
                     return;
                 }
-                handleEmployeeInput(cleanVal, "1", "Keyboard Enter (IN)");
+                handleEmployeeInput(cleanVal, "1", "Numpad Enter (IN)");
                 return;
             }
 
-            // D. Tombol PLUS (+) / Numpad Add -> Presensi KELUAR (OUT / Kode: 0)
-            if (event.key === "+" || event.code === "NumpadAdd" || event.key === "=" || event.keyCode === 107) {
+            // D. Tombol PLUS (+) pada Numpad -> Presensi KELUAR (OUT / Kode: 0)
+            if (event.code === "NumpadAdd" || (event.key === "+" && event.code.startsWith("Numpad")) || event.key === "+") {
                 event.preventDefault();
                 if (currentState !== AppState.IDLE) return;
                 const cleanVal = rfidInput.value.trim().replace(/[^0-9]/g, "").slice(0, 6);
@@ -584,11 +586,11 @@ function initializeInputHandler() {
                     handleErrorAndRecover("SILAKAN MASUKKAN NIK", 2000);
                     return;
                 }
-                handleEmployeeInput(cleanVal, "0", "Keyboard Plus (OUT)");
+                handleEmployeeInput(cleanVal, "0", "Numpad Plus (OUT)");
                 return;
             }
 
-            // E. Tombol Numpad Angka (0-9) - baik NumLock ON maupun OFF
+            // E. Tombol ANGKA KHUSUS NUMPAD (0-9) - baik NumLock ON maupun OFF
             if (event.code && /^Numpad[0-9]$/.test(event.code)) {
                 event.preventDefault();
                 const digit = event.code.replace("Numpad", "");
@@ -599,29 +601,23 @@ function initializeInputHandler() {
                 return;
             }
 
-            // F. Tombol Angka Baris Atas (0-9)
-            if (/^[0-9]$/.test(event.key)) {
-                if (rfidInput.value.length >= 6) {
-                    event.preventDefault();
-                }
-                return;
-            }
-
-            // G. Cegah tombol selain Numpad / sistem (blokir huruf, simbol lain)
+            // F. BLOKIR SEMUA TOMBOL LAIN (Angka Baris Atas, Backspace Keyboard Biasa, Huruf, Simbol Lain)
             if (!["Tab", "F5", "F11", "F12", "NumLock"].includes(event.key)) {
                 event.preventDefault();
             }
         });
     }
 
-    // Tangani input keyboard global (agar seluruh mapping Numpad selalu aktif)
+    // Tangani input keyboard global (Hanya izinkan tombol Numpad samping)
     window.addEventListener("keydown", (event) => {
         if (event.target === rfidInput) return;
 
-        // A. Global MINUS (-) / BINTANG (*) -> CLEAR
+        // A. Global MINUS (-) / BINTANG (*) pada Numpad -> CLEAR
         if (
-            event.key === "-" || event.code === "NumpadSubtract" || event.key === "Subtract" ||
-            event.key === "*" || event.code === "NumpadMultiply" || event.key === "Multiply"
+            event.code === "NumpadSubtract" || event.code === "NumpadMultiply" ||
+            (event.key === "-" && event.code.startsWith("Numpad")) ||
+            (event.key === "*" && event.code.startsWith("Numpad")) ||
+            event.key === "Subtract" || event.key === "Multiply"
         ) {
             event.preventDefault();
             if (currentState === AppState.IDLE && rfidInput && !rfidInput.disabled) {
@@ -632,11 +628,11 @@ function initializeInputHandler() {
             return;
         }
 
-        // B. Global SLASH (/) / BACKSPACE -> BACKSPACE 1 DIGIT
+        // B. Global SLASH (/) pada Numpad -> BACKSPACE 1 DIGIT
         if (
-            event.key === "/" || event.code === "NumpadDivide" || event.key === "Divide" ||
-            event.key === "Backspace" || event.code === "Backspace" ||
-            event.key === "Delete" || event.code === "NumpadDecimal"
+            event.code === "NumpadDivide" ||
+            (event.key === "/" && (event.code.startsWith("Numpad") || event.code === "NumpadDivide")) ||
+            event.key === "Divide"
         ) {
             event.preventDefault();
             if (currentState === AppState.IDLE && rfidInput && !rfidInput.disabled) {
@@ -647,7 +643,7 @@ function initializeInputHandler() {
             return;
         }
 
-        // C. Global Numpad Numbers (0-9)
+        // C. Global Numpad Numbers KHUSUS Samping (0-9)
         if (event.code && /^Numpad[0-9]$/.test(event.code)) {
             event.preventDefault();
             const digit = event.code.replace("Numpad", "");
@@ -661,19 +657,8 @@ function initializeInputHandler() {
             return;
         }
 
-        // D. Global Top Row Numbers (0-9)
-        if (/^[0-9]$/.test(event.key)) {
-            if (currentState === AppState.IDLE && rfidInput && !rfidInput.disabled) {
-                if (rfidInput.value.length >= 6) {
-                    event.preventDefault();
-                }
-                rfidInput.focus();
-            }
-            return;
-        }
-
-        // E. Global ENTER / Numpad Enter -> Masuk
-        if (event.key === "Enter" || event.code === "NumpadEnter" || event.keyCode === 13) {
+        // D. Global ENTER / Numpad Enter -> Masuk
+        if (event.code === "NumpadEnter" || (event.key === "Enter" && event.code.startsWith("Numpad")) || event.key === "Enter") {
             event.preventDefault();
             if (currentState !== AppState.IDLE) return;
             const cleanVal = rfidInput ? rfidInput.value.trim().replace(/[^0-9]/g, "").slice(0, 6) : "";
@@ -681,12 +666,12 @@ function initializeInputHandler() {
                 handleErrorAndRecover("SILAKAN MASUKKAN NIK", 2000);
                 return;
             }
-            handleEmployeeInput(cleanVal, "1", "Keyboard Enter (IN)");
+            handleEmployeeInput(cleanVal, "1", "Numpad Enter (IN)");
             return;
         }
 
-        // F. Global PLUS (+) / Numpad Add -> Keluar
-        if (event.key === "+" || event.code === "NumpadAdd" || event.key === "=" || event.keyCode === 107) {
+        // E. Global PLUS (+) / Numpad Add -> Keluar
+        if (event.code === "NumpadAdd" || (event.key === "+" && event.code.startsWith("Numpad")) || event.key === "+") {
             event.preventDefault();
             if (currentState !== AppState.IDLE) return;
             const cleanVal = rfidInput ? rfidInput.value.trim().replace(/[^0-9]/g, "").slice(0, 6) : "";
@@ -694,7 +679,7 @@ function initializeInputHandler() {
                 handleErrorAndRecover("SILAKAN MASUKKAN NIK", 2000);
                 return;
             }
-            handleEmployeeInput(cleanVal, "0", "Keyboard Plus (OUT)");
+            handleEmployeeInput(cleanVal, "0", "Numpad Plus (OUT)");
             return;
         }
     });

@@ -60,17 +60,15 @@ class RFIDHardwareManager:
     """
 
     LINUX_KEY_MAP = {
-        # Angka Baris Atas Keyboard (Scancode Linux Kernel -> Karakter)
-        2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7', 9: '8', 10: '9', 11: '0',
-        # Keypad / Numpad (NumLock ON)
+        # KHUSUS Keypad / Numpad Sebelah Kanan (NumLock ON)
         71: '7', 72: '8', 73: '9', 75: '4', 76: '5', 77: '6', 79: '1', 80: '2', 81: '3', 82: '0',
-        # Keypad / Numpad Navigasi (NumLock OFF fallback)
+        # KHUSUS Keypad / Numpad Sebelah Kanan (NumLock OFF fallback)
         102: '7', 103: '8', 104: '9', 105: '4', 106: '6', 107: '1', 108: '2', 109: '3', 110: '0',
     }
-    ENTER_CODES = {28, 96}       # Enter (28) & Numpad Enter (96) -> Presensi MASUK (IN / Kode: 1)
-    PLUS_CODES = {78, 13}        # Keypad Plus (78) & Equal/Plus (13) -> Presensi KELUAR (OUT / Kode: 0)
-    CLEAR_CODES = {74, 55, 12}   # Keypad Minus (74), Keypad Asterisk (55), Top Row Minus (12) -> Clear buffer
-    BACKSPACE_CODES = {98, 181, 53, 14} # Keypad Slash (98/181), Top Row Slash (53), Backspace (14) -> Backspace 1 digit
+    ENTER_CODES = {96, 28}       # Numpad Enter (96/28) -> Presensi MASUK (IN / Kode: 1)
+    PLUS_CODES = {78}            # Keypad Plus (78) -> Presensi KELUAR (OUT / Kode: 0)
+    CLEAR_CODES = {74, 55}       # Keypad Minus (74) & Keypad Asterisk (55) -> Clear buffer
+    BACKSPACE_CODES = {98, 181}  # Keypad Slash (98/181) -> Backspace 1 digit
 
     def __init__(self, on_scan_callback):
         self.on_scan_callback = on_scan_callback
