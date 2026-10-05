@@ -153,10 +153,3 @@ nohup /home/debian/www/attendance/venv/bin/python connector.py > /dev/null 2>&1 
 nohup /home/debian/www/attendance/venv/bin/python absen/capture.py > /dev/null 2>&1 &
 nohup /home/debian/www/attendance/venv/bin/python admin/admin.py > /dev/null 2>&1 &
 ```
-
----
-
-## 7. Rencana Kerja Minggu Berikutnya (Next Steps)
-1. Uji coba beban (*load test*) presensi ratusan tap berturut-turut untuk mengevaluasi stabilitas memori service Python dan penyimpanan gambar jepretan kamera.
-2. Penambahan rekapitulasi data kehadiran harian/bulanan otomatis dalam format PDF/Excel di panel Admin.
-3. Evaluasi akhir integrasi hardware dan penyusunan buku petunjuk operasional sistem presensi.
