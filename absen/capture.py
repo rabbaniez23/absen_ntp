@@ -60,15 +60,17 @@ class RFIDHardwareManager:
     """
 
     LINUX_KEY_MAP = {
-        # KHUSUS Keypad / Numpad Sebelah Kanan (NumLock ON)
+        # Angka Standar (Digunakan oleh Hardware RFID Reader USB QinHeng & Sycreader)
+        2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '7', 9: '8', 10: '9', 11: '0',
+        # Keypad / Numpad Sebelah Kanan (NumLock ON)
         71: '7', 72: '8', 73: '9', 75: '4', 76: '5', 77: '6', 79: '1', 80: '2', 81: '3', 82: '0',
-        # KHUSUS Keypad / Numpad Sebelah Kanan (NumLock OFF fallback)
+        # Keypad / Numpad Sebelah Kanan (NumLock OFF fallback)
         102: '7', 103: '8', 104: '9', 105: '4', 106: '6', 107: '1', 108: '2', 109: '3', 110: '0',
     }
-    ENTER_CODES = {96, 28}       # Numpad Enter (96/28) -> Presensi MASUK (IN / Kode: 1)
-    PLUS_CODES = {78}            # Keypad Plus (78) -> Presensi KELUAR (OUT / Kode: 0)
-    CLEAR_CODES = {74, 55}       # Keypad Minus (74) & Keypad Asterisk (55) -> Clear buffer
-    BACKSPACE_CODES = {98, 181}  # Keypad Slash (98/181) -> Backspace 1 digit
+    ENTER_CODES = {96, 28}       # Enter & Numpad Enter -> Presensi MASUK (IN / Kode: 1)
+    PLUS_CODES = {78, 13}        # Keypad Plus & Plus -> Presensi KELUAR (OUT / Kode: 0)
+    CLEAR_CODES = {74, 55}       # Keypad Minus & Keypad Asterisk -> Clear buffer
+    BACKSPACE_CODES = {98, 181}  # Keypad Slash -> Backspace 1 digit
 
     def __init__(self, on_scan_callback):
         self.on_scan_callback = on_scan_callback
@@ -263,21 +265,8 @@ class RFIDHardwareManager:
                                     if self.on_scan_callback:
                                         self.on_scan_callback(card_uid, "0", "KELUAR (OUT)", f"{reader_name} [Plus-OUT]")
 
-                            # 3. Tombol Minus (-) dan Bintang (*) -> CLEAR INPUT
-                            elif code in self.CLEAR_CODES:
-                                buffer.clear()
-                                logger.info(f"[HARDWARE INPUT] CLEAR buffer ({reader_name})")
-
-                            # 4. Tombol Slash (/) -> BACKSPACE 1 DIGIT
-                            elif code in self.BACKSPACE_CODES:
-                                if buffer:
-                                    buffer.pop()
-                                logger.info(f"[HARDWARE INPUT] BACKSPACE buffer -> {''.join(buffer)} ({reader_name})")
-
-                            # 5. Tombol Angka (0-9) - Maksimal 6 digit untuk NIK
                             elif code in self.LINUX_KEY_MAP:
-                                if len(buffer) < 6:
-                                    buffer.append(self.LINUX_KEY_MAP[code])
+                                buffer.append(self.LINUX_KEY_MAP[code])
                             elif len(buffer) > 40:
                                 buffer.clear()
 
