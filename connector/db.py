@@ -248,6 +248,7 @@ def record_attendance(raw_data: str, image: str, employee_id: str = None, captur
                         status
                     ))
 
+                conn.commit()
                 db_success = True
                 logger.info(f"[Connector DB] Absensi tersimpan ke MariaDB: raw_data={raw_data}, image={clean_image}")
         except Exception as err:
@@ -314,6 +315,7 @@ def record_attendance_error(raw_data: str, image: str, rfid_uid: str = None, cap
                 """)
                 sql = "INSERT INTO attendance_error (raw_data, image) VALUES (%s, %s)"
                 cursor.execute(sql, (raw_data, clean_image))
+                conn.commit()
                 db_success = True
                 logger.info(f"[Connector DB] Absensi ERROR tersimpan ke MariaDB: raw_data={raw_data}, image={clean_image}")
         except Exception as err:

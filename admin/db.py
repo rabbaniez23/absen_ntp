@@ -462,6 +462,7 @@ def record_attendance(
                         status
                     ))
 
+                conn.commit()
                 db_success = True
                 logger.info(f"[Database] Absensi tersimpan: raw_data={raw_data}, image={clean_image}")
         except Exception as err:
