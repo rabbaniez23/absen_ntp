@@ -1,158 +1,76 @@
-# 🏢 Sistem Absensi Karyawan (absen_ntp)
+# Absen NTP – Sistem Presensi Karyawan
 
-Sistem Absensi Otomatis berbasis **WebRTC**, **USB Smart Card RFID**, dan arsitektur **Micro-Server Python** (tanpa framework eksternal). Sistem ini dirancang untuk sistem absensi (absen_ntp) yang responsif, berkecepatan tinggi, dan dapat berjalan secara mandiri (*standalone*) di Linux (Debian/Ubuntu/Mint) maupun Windows.
+Sistem presensi karyawan berbasis **Dual RFID Reader**, **kamera V4L2**, dan **Numpad**, yang berjalan sebagai terminal Kiosk di Linux Debian. Ditulis dengan Python murni (pustaka standar + `pymysql`) dan frontend Vanilla HTML/CSS/JS, dengan basis data **MariaDB**.
 
----
-
-## ✨ Fitur Utama
-
-- **WebRTC Camera Capture**:
-  - Live video stream dari webcam (resolusi ideal HD 720p/1080p).
-  - Biometric Face Oval Guide (panduan posisi wajah dinamis).
-  - Shutter flash effect dan hitung mundur otomatis 3-2-1.
-  - Fitur toggle **Mirror Mode** interaktif (Normal vs Mirror) dengan sinkronisasi canvas snapshot.
-- **Dukungan Smart Card RFID (USB HID)**:
-  - Bekerja secara *plug-and-play* dengan USB RFID Reader standar (125 kHz / 13.56 MHz).
-  - Mode *Keyboard Emulation* dengan *auto-focus trapping* cerdas (tahan gangguan sentuhan layar).
-  - Mendeteksi nomor UID kartu secara instan dan memverifikasi identitas karyawan.
-- **Backend Ringan & Zero Framework**:
-  - Dibangun murni menggunakan pustaka standar Python (`http.server`, `urllib`, `json`, `pathlib`).
-  - Tidak memerlukan framework berat seperti Django atau Flask.
-- **Penyimpanan Ganda (MariaDB + JSON Fallback)**:
-  - Terkoneksi langsung ke MariaDB menggunakan parameterized query SQL murni (tanpa ORM) untuk performa maksimal.
-  - Dilengkapi mekanisme **Auto-Fallback ke JSON** jika server database offline, sehingga proses absensi tidak akan pernah terganggu.
-- **Struktur Filesystem Terorganisir**:
-  - Foto disimpan berpartisi berdasarkan tanggal: `captures/TAHUN/BULAN/TANGGAL/`.
-  - Database hanya menyimpan *relatif path* untuk menjaga bobot database tetap ringan dan cepat.
-- **Autostart & Standalone Linux (absen_ntp)**:
-  - Skrip deployment otomatis ke `/opt/employee-attendance`.
-  - Systemd service unit (`attendance-server.service`) dengan auto-restart.
-  - XDG Desktop Entry (`attendance-kiosk.desktop`) untuk meluncurkan Chromium fullscreen saat boot.
+> Dokumentasi lengkap (arsitektur, hardware, histori, troubleshooting) ada di
+> [`laporan_mingguan/konteks_projek_handover.md`](laporan_mingguan/konteks_projek_handover.md).
+> Laporan progres per minggu ada di folder [`laporan_mingguan/`](laporan_mingguan/).
 
 ---
 
-## 📂 Struktur Direktori Proyek
+## Arsitektur: 3 Service Terpisah
+
+| Service | Port | File | Fungsi |
+| :--- | :--- | :--- | :--- |
+| Kiosk | 8000 | `absen/capture.py` | Layar presensi, listener Dual RFID (kernel `/dev/input`), stream & snapshot kamera |
+| Connector | 8002 | `connector.py` → `connector/connector.py` | Validasi karyawan, simpan foto, catat ke MariaDB |
+| Admin | 8001 | `admin/admin.py` | Dashboard riwayat presensi & manajemen karyawan |
+
+Jika database tidak tersambung, connector tetap mencatat ke cadangan JSON di `admin/data/` dan menulis peringatan `DATABASE TIDAK TERSAMBUNG` di log.
+
+## Struktur Direktori
 
 ```text
-absen_ntp/
-├── .gitignore                 # Konfigurasi pengabaian file sampah/cache
-├── README.md                  # Dokumentasi lengkap sistem
-├── config.py                  # Pengaturan jalur direktori & konfigurasi database
-├── db.py                      # Lapisan SQL MariaDB & fallback JSON
-├── server.py                  # HTTP server utama (port 8000)
-├── view_db.py                 # CLI Viewer tabel database di terminal
-├── migrate_json_to_db.py      # Skrip migrasi data riwayat JSON ke MariaDB
-├── requirements.txt           # Dependensi Python murni (pymysql)
-│
-├── static/                    # Frontend Web (absen_ntp)
-│   ├── index.html             # Antarmuka Absensi (absen_ntp)
-│   ├── style.css              # Styling Modern Glassmorphism
-│   └── app.js                 # State machine, WebRTC kamera, & RFID event listener
-│
-├── scripts/                   # Skrip Otomatisasi & Deployment Linux
-│   ├── debian_setup.sh        # Setup user & paket sistem Linux
-│   ├── deploy_debian.sh       # Skrip deploy file ke /opt/
-│   ├── launch_kiosk.sh        # Dedicated Chromium launcher (fullscreen)
-│   ├── setup_autostart.sh     # Konfigurasi systemd & autostart desktop
-│   ├── attendance-server.service # Unit file systemd
-│   └── attendance-kiosk.desktop  # Shortcut autostart browser
-│
-├── sql/                       # Skema Basis Data & Migrasi
-│   ├── schema.sql             # DDL pembuatan tabel employees & attendance
-│   └── import_data.sql        # Skrip impor data awal otomatis
-│
-├── tests/                     # Suite Pengujian Otomatis
-│   └── test_windows_final.py  # 9 pengujian integrasi & end-to-end
-│
-├── data/                      # Master Data & Storage JSON
-│   ├── employees.json         # Data karyawan terdaftar
-│   └── attendance.json        # Log riwayat absensi lokal
-│
-├── captures/                  # Direktori penyimpanan foto webcam
-└── logs/                      # Log aktivitas & akses server
+employee-attendance/
+├── absen/                 # Kiosk (port 8000)
+│   ├── capture.py         # Server Kiosk + listener RFID
+│   ├── camera_v4l2.py     # Akses kamera V4L2 (mmap, MJPEG)
+│   ├── config.py
+│   └── static/            # index.html, app.js, style.css
+├── connector/             # Connector (port 8002)
+│   ├── connector.py
+│   ├── db.py
+│   └── config.py          # DB_HOST default: db2.ntp.id
+├── connector.py           # Launcher connector
+├── admin/                 # Admin (port 8001)
+│   ├── admin.py
+│   ├── db.py
+│   ├── config.py
+│   ├── data/              # employees.json + cadangan JSON presensi
+│   └── static/            # employees.html, style.css
+├── index.php              # Redirect Apache /attendance → Kiosk port 8000
+├── laporan_mingguan/      # Laporan progres & konteks proyek
+└── requirements.txt       # pymysql
 ```
 
----
+## Format `raw_data`
 
-## 🚀 Panduan Memulai Cepat (Quick Start)
+`{NIK 6 digit}{Jam:2}{Menit:2}{Tanggal:2}{Bulan:2}{In/Out:1}`, dengan `1` untuk Masuk dan `0` untuk Keluar.
+Contoh: `210019122421091` berarti NIK 210019 Masuk pada 21/09 pukul 12:24. Foto disimpan dengan nama `{raw_data}.jpg`.
 
-### 1. Persyaratan Sistem
-- Python 3.9+
-- Web browser modern (Google Chrome, Chromium, atau Microsoft Edge)
-- Webcam (USB atau bawaan laptop)
-- *(Opsional)* USB RFID Reader & Server MariaDB / MySQL
+## Menjalankan di Debian (Tanpa sudo)
 
-### 2. Menjalankan di Windows
-
-1. Buka PowerShell / Terminal di folder proyek.
-2. Pasang dependensi database:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Jalankan server:
-   ```bash
-   python server.py
-   ```
-4. Buka browser di alamat:
-   ```text
-   http://localhost:8000
-   ```
-5. Untuk melihat data yang tersimpan di database kapan saja:
-   ```bash
-   python view_db.py
-   ```
-
-### 3. Menjalankan di Linux (Debian / Ubuntu / Mint)
-
-1. Jalankan skrip persiapan awal:
-   ```bash
-   sudo bash scripts/debian_setup.sh
-   ```
-2. Deploy aplikasi ke `/opt/employee-attendance`:
-   ```bash
-   sudo bash scripts/deploy_debian.sh
-   ```
-3. Pasang autostart absen_ntp:
-   ```bash
-   sudo bash scripts/setup_autostart.sh
-   ```
-
----
-
-## 🧪 Menjalankan Pengujian Otomatis (Testing)
-
-Proyek ini telah dilengkapi dengan unit & integration test suite lengkap yang mencakup 9 skenario pengujian:
 ```bash
-python tests/test_windows_final.py
+cd /home/debian/www/attendance
+
+# Sekali saja: pasang pip & pymysql ke venv (venv Debian dibuat tanpa pip)
+curl -sSL https://bootstrap.pypa.io/get-pip.py -o ~/get-pip.py
+venv/bin/python ~/get-pip.py
+venv/bin/python -m pip install -r requirements.txt
+
+# Menjalankan / restart seluruh service
+pkill -9 -f "connector.py" ; pkill -9 -f "capture.py" ; pkill -9 -f "admin.py"
+nohup venv/bin/python connector.py > /dev/null 2>&1 &
+nohup venv/bin/python absen/capture.py > /dev/null 2>&1 &
+nohup venv/bin/python admin/admin.py > /dev/null 2>&1 &
+
+# Cek koneksi database ("database_connected": true)
+curl -s http://127.0.0.1:8002/api/health
 ```
-*(Atau `python3 tests/test_windows_final.py` di Linux)*.
 
----
+| Alamat | Halaman |
+| :--- | :--- |
+| `http://localhost:8000` | Layar Kiosk presensi |
+| `http://localhost:8001/employees.html` | Dashboard admin |
 
-## 📡 Dokumentasi Endpoint API
-
-| Method | Endpoint | Keterangan | Parameter / Body |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/` | Menampilkan antarmuka mesin absensi utama | - |
-| `GET` | `/employees.html` | Halaman web manajemen & pendaftaran karyawan | - |
-| `GET` | `/api/employee?id={ID_OR_RFID}` | Mencari data karyawan berdasarkan ID / UID RFID | Query param `id` |
-| `GET` | `/api/employees` | Mengambil daftar seluruh karyawan terdaftar | - |
-| `POST` | `/api/employees` | Mendaftarkan karyawan baru ke database | JSON: `employee_id`, `name`, `rfid_uid` |
-| `DELETE` | `/api/employees?id={ID}` | Menghapus karyawan dari database | Query param `id` |
-| `POST` | `/api/upload` | Mengunggah foto absensi (.PNG) dan mencatat ke database | `multipart/form-data`: `employee_id`, `image` |
-
----
-
-## 👤 Data Pengujian Default (RFID UID)
-
-| UID RFID | Employee ID | Nama Karyawan | Status |
-| :--- | :--- | :--- | :--- |
-| `983746128` | `EMP001` | Budi Santoso | Aktif |
-| `827364928` | `EMP002` | Andi Wijaya | Aktif |
-
-*Cukup tempelkan kartu RFID atau ketikkan salah satu angka UID di atas lalu tekan Enter untuk menguji alur absensi.*
-
----
-
-## 📄 Lisensi
-Proyek ini dikembangkan untuk kebutuhan operasional sistem absensi cerdas (absen_ntp).
+Log tiap service ada di `absen/logs/kiosk.log`, `connector/logs/connector.log`, dan `admin/logs/admin.log`.

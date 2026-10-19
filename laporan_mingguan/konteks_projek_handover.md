@@ -1,7 +1,7 @@
 # KONTEKS PROYEK LENGKAP & REKAP STATUS SISTEM (HANDOVER DOKUMEN)
 
 > **Untuk AI Asisten Baru:**  
-> Dokumen ini berisi ringkasan arsitektur, histori implementasi, konfigurasi perangkat keras, batasan teknis, dan seluruh pekerjaan yang telah diselesaikan hingga **Minggu Ke-6 (19 Oktober 2026)** untuk sistem presensi karyawan **Absen NTP**. Bacalah dokumen ini dengan seksama sebelum memberikan instruksi atau menulis kode baru.
+> Dokumen ini berisi ringkasan arsitektur, histori implementasi, konfigurasi perangkat keras, batasan teknis, dan seluruh pekerjaan yang telah diselesaikan hingga **Minggu Ke-7 (26 Oktober 2026)** untuk sistem presensi karyawan **Absen NTP**. Bacalah dokumen ini dengan seksama sebelum memberikan instruksi atau menulis kode baru.
 
 ---
 
@@ -98,6 +98,7 @@ $$\text{RAW\_DATA} = \text{\{NIK 6 digit\}} + \text{\{Jam:2\}} + \text{\{Menit:2
 * **Minggu 3:** Pemisahan sistem menjadi 3 service decoupled (`capture.py`, `connector.py`, `admin.py`), integrasi driver Dual-RFID (`1a86:dd01` & `ffff:0035`), udev rules, dan `EVIOCGRAB`.
 * **Minggu 4:** Implementasi skema database relasional Opsi B (`rfid_cards`), penanganan tabel `attendance_error`, optimasi antrian cepat (screen hold 1.2s & debounce 0.7s), dan sinkronisasi real-time dua arah (Dual-Channel SSE + 500ms fast polling).
 * **Minggu 5 & 6:** Pemetaan dedicated Numpad keypad, pembatasan ketat NIK 6 digit, fungsi tombol `-`, `*`, `/`, `Enter`, `+`, serta pemblokiran total keyboard utama dan backspace biasa agar operasional Kiosk terisolasi rapi.
+* **Minggu 7:** Migrasi database dari MariaDB lokal (`127.0.0.1`) ke server terpusat `db2.ntp.id`, pemasangan `pymysql` ke venv tanpa `sudo` (akar masalah kartu TIDAK VALID), peringatan log saat database tidak tersambung, cadangan JSON mengenali kartu RFID, serta perapian laporan ke folder `laporan_mingguan/`.
 * **Pengujian Hardware:** Kamera Logitech C270 (`046d:0825`) pada `/dev/video0` dan Dual RFID telah terverifikasi menyala dan berfungsi normal di mesin fisik Debian.
 
 ---
