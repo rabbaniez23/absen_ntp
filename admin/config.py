@@ -21,7 +21,7 @@ EMPLOYEES_FILE = DATA_DIR / "employees.json"
 LOG_FILE = LOGS_DIR / "admin.log"
 
 # Konfigurasi koneksi MariaDB / MySQL
-DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
+DB_HOST = os.environ.get("DB_HOST", "db2.ntp.id")
 DB_PORT = int(os.environ.get("DB_PORT", 3306))
 DB_USER = os.environ.get("DB_USER", "debian")
 DB_PASSWORD = os.environ.get("DB_PASSWORD", "dreizehn")

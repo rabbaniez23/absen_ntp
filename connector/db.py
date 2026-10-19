@@ -147,9 +147,17 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
     try:
         if config.EMPLOYEES_FILE.exists():
             with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
-                employees = json.load(f)
+                raw_employees = json.load(f)
 
-            for emp in employees:
+            employees_list = []
+            if isinstance(raw_employees, list):
+                employees_list = raw_employees
+            elif isinstance(raw_employees, dict):
+                employees_list = raw_employees.get("employees", []) or list(raw_employees.values())
+
+            for emp in employees_list:
+                if not isinstance(emp, dict):
+                    continue
                 emp_id = str(emp.get("employee_id", "")).strip().lower()
                 emp_nik = str(emp.get("nik", "")).strip().lower()
                 emp_rfid = str(emp.get("rfid_uid", "")).strip().lower()
@@ -158,10 +166,10 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
                     cand_lower = cand.lower()
                     if cand_lower in [emp_id, emp_nik, emp_rfid]:
                         return {
-                            "employee_id": emp["employee_id"],
-                            "nik": emp.get("nik") or emp["employee_id"],
-                            "name": emp["name"],
-                            "rfid_uid": emp.get("rfid_uid") or emp["employee_id"],
+                            "employee_id": emp.get("employee_id"),
+                            "nik": emp.get("nik") or emp.get("employee_id"),
+                            "name": emp.get("name", "Karyawan"),
+                            "rfid_uid": emp.get("rfid_uid") or emp.get("employee_id"),
                             "source": "json"
                         }
     except Exception as ex:
