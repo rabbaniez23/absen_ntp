@@ -528,6 +528,13 @@ def run_server():
         print(f"   URL Admin  : http://localhost:{config.PORT}/employees.html")
         print(f"   Database   : {config.DB_NAME}@{config.DB_HOST}")
         print("=" * 60)
+
+        # Cek koneksi database sekali saat start agar masalah langsung terlihat di log
+        startup_conn = db.get_db_connection()
+        if startup_conn:
+            startup_conn.close()
+            logger.info(f"[Startup] Database MariaDB tersambung: {config.DB_NAME}@{config.DB_HOST}:{config.DB_PORT}")
+
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

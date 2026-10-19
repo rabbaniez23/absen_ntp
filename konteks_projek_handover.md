@@ -104,6 +104,23 @@ $$\text{RAW\_DATA} = \text{\{NIK 6 digit\}} + \text{\{Jam:2\}} + \text{\{Menit:2
 
 ## 6. Prosedur Operasional di Terminal Debian (Cheat Sheet)
 
+### A. Persiapan Virtual Environment (Sekali Saja, Tanpa sudo)
+Venv di Debian dibuat **tanpa `pip`** (modul `ensurepip` tidak tersedia tanpa paket `python3-venv`). Jika `venv/bin/pip` tidak ada, pasang pip secara manual lalu pasang dependensi:
+
+```bash
+cd /home/debian/www/attendance
+curl -sSL https://bootstrap.pypa.io/get-pip.py -o ~/get-pip.py
+venv/bin/python ~/get-pip.py
+venv/bin/python -m pip install -r requirements.txt
+
+# Verifikasi pymysql terpasang di venv
+venv/bin/python -c "import pymysql; print('pymysql OK')"
+```
+
+> ⚠️ **Wajib dicek setiap kali venv dibuat ulang atau pindah mesin.** Tanpa `pymysql`, ketiga service **tidak tersambung ke database sama sekali** dan diam-diam memakai cadangan JSON (`admin/data/*.json`). Gejalanya: tap kartu yang sudah terdaftar dianggap TIDAK VALID dan riwayat tidak masuk ke database.
+
+### B. Menjalankan & Mengelola Service
+
 ```bash
 # Direktori Kerja
 cd /home/debian/www/attendance
@@ -121,9 +138,26 @@ nohup /home/debian/www/attendance/venv/bin/python admin/admin.py > /dev/null 2>&
 ps aux | grep -E "connector\.py|capture\.py|admin\.py" | grep -v grep
 ```
 
+### C. Troubleshooting Koneksi Database
+Database produksi: **MariaDB di `db2.ntp.id`** (lihat `connector/config.py` dan `admin/config.py`).
+
+```bash
+# 1. Cek apakah connector tersambung ke database ("database_connected": true)
+curl -s http://127.0.0.1:8002/api/health
+
+# 2. Cari peringatan koneksi database di log
+grep -E "DATABASE TIDAK TERSAMBUNG|Startup|kendala|Gagal" connector/logs/connector.log | tail -n 20
+grep -E "DATABASE TIDAK TERSAMBUNG|Startup" admin/logs/admin.log | tail -n 10
+```
+
+* Saat start, connector & admin menulis `[Startup] Database MariaDB tersambung: ...` jika koneksi berhasil.
+* Jika gagal, log menampilkan `DATABASE TIDAK TERSAMBUNG: <alasan>` (maksimal sekali per menit agar log tidak banjir).
+* Saat database mati, cadangan JSON tetap mengenali **NIK maupun nomor kartu RFID** dari `admin/data/employees.json`, sehingga absensi tetap berjalan. Record yang tersimpan saat database mati ditandai `"db_synced": false` dan **tidak otomatis** dikirim ke database.
+
 ---
 
 ## 7. Catatan Penting untuk AI Berikutnya:
 1. **Jangan gunakan `sudo`** saat memberikan perintah terminal ke user, gunakan path interpreter virtual environment `/home/debian/www/attendance/venv/bin/python`.
 2. **Jangan merusak pemetaan tombol Numpad**, karena tata letak tombol sudah disepakati bersama pembimbing lapangan.
 3. Selalu pertahankan arsitektur multi-service decoupled dan kemurnian kode (bebas dependensi berat).
+4. **Jika muncul gejala "kartu terdaftar tapi TIDAK VALID" atau "riwayat tidak masuk database"**, cek dulu lingkungan sebelum mengubah kode: `venv/bin/python -c "import pymysql"` dan `curl -s http://127.0.0.1:8002/api/health` (lihat bagian 6C). Kasus 19 Oktober 2026 penyebabnya adalah `pymysql` belum terpasang di venv, bukan bug di kode.

@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -23,10 +24,23 @@ import config
 
 logger = logging.getLogger("AttendanceConnector")
 
+# Waktu terakhir peringatan "database tidak tersambung" ditulis ke log
+_last_db_warning = 0.0
+
+
+def warn_db_unavailable(reason: str) -> None:
+    """Menulis peringatan database tidak tersambung ke log, maksimal sekali per menit agar log tidak banjir."""
+    global _last_db_warning
+    now = time.time()
+    if now - _last_db_warning >= 60:
+        _last_db_warning = now
+        logger.warning(f"[Connector DB] DATABASE TIDAK TERSAMBUNG: {reason}. Sementara memakai cadangan JSON.")
+
 
 def get_db_connection() -> Optional[Any]:
     """Membuka dan mengembalikan koneksi aktif ke MariaDB."""
     if not HAVE_PYMYSQL or pymysql is None:
+        warn_db_unavailable("modul pymysql belum terpasang di venv (jalankan: venv/bin/python -m pip install -r requirements.txt)")
         return None
     try:
         connection = pymysql.connect(
@@ -42,7 +56,7 @@ def get_db_connection() -> Optional[Any]:
         )
         return connection
     except Exception as err:
-        logger.debug(f"[Connector DB] Gagal terhubung ke basis data: {err}")
+        warn_db_unavailable(f"gagal terhubung ke {config.DB_HOST}:{config.DB_PORT} ({err})")
         return None
 
 
@@ -149,27 +163,35 @@ def lookup_employee(identifier: str) -> Optional[Dict[str, Any]]:
             with open(config.EMPLOYEES_FILE, "r", encoding="utf-8") as f:
                 raw_employees = json.load(f)
 
+            # Pasangan (nomor RFID dari key, data karyawan)
             employees_list = []
             if isinstance(raw_employees, list):
-                employees_list = raw_employees
+                employees_list = [(None, emp) for emp in raw_employees]
             elif isinstance(raw_employees, dict):
-                employees_list = raw_employees.get("employees", []) or list(raw_employees.values())
+                if isinstance(raw_employees.get("employees"), list):
+                    employees_list = [(None, emp) for emp in raw_employees["employees"]]
+                else:
+                    # Format admin/data/employees.json: { "<rfid_uid>": {employee_id, nik, name} }
+                    employees_list = list(raw_employees.items())
 
-            for emp in employees_list:
+            for rfid_key, emp in employees_list:
                 if not isinstance(emp, dict):
+                    continue
+                if emp.get("is_active") is False:
                     continue
                 emp_id = str(emp.get("employee_id", "")).strip().lower()
                 emp_nik = str(emp.get("nik", "")).strip().lower()
-                emp_rfid = str(emp.get("rfid_uid", "")).strip().lower()
+                emp_rfid = str(emp.get("rfid_uid") or rfid_key or "").strip().lower()
 
                 for cand in candidate_ids:
                     cand_lower = cand.lower()
                     if cand_lower in [emp_id, emp_nik, emp_rfid]:
+                        logger.info(f"[Connector DB] Karyawan ditemukan di cadangan JSON: {emp.get('name')} (NIK: {emp.get('nik')})")
                         return {
                             "employee_id": emp.get("employee_id"),
                             "nik": emp.get("nik") or emp.get("employee_id"),
                             "name": emp.get("name", "Karyawan"),
-                            "rfid_uid": emp.get("rfid_uid") or emp.get("employee_id"),
+                            "rfid_uid": emp.get("rfid_uid") or rfid_key or emp.get("employee_id"),
                             "source": "json"
                         }
     except Exception as ex:

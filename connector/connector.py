@@ -310,6 +310,13 @@ def run_connector():
         print(f"   Database     : MariaDB ({config.DB_HOST}:{config.DB_PORT})")
         print(f"   Captures Dir : {config.CAPTURES_DIR}")
         print("=" * 65)
+
+        # Cek koneksi database sekali saat start agar masalah langsung terlihat di log
+        startup_conn = db.get_db_connection()
+        if startup_conn:
+            startup_conn.close()
+            logger.info(f"[Startup] Database MariaDB tersambung: {config.DB_NAME}@{config.DB_HOST}:{config.DB_PORT}")
+
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

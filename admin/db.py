@@ -9,6 +9,7 @@ import datetime
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -22,7 +23,20 @@ except ImportError:
 
 import config
 
-logger = logging.getLogger("AttendanceServer")
+# Memakai logger yang sama dengan admin.py agar pesan database ikut tercatat di logs/admin.log
+logger = logging.getLogger("AdminServer")
+
+# Waktu terakhir peringatan "database tidak tersambung" ditulis ke log
+_last_db_warning = 0.0
+
+
+def warn_db_unavailable(reason: str) -> None:
+    """Menulis peringatan database tidak tersambung ke log, maksimal sekali per menit agar log tidak banjir."""
+    global _last_db_warning
+    now = time.time()
+    if now - _last_db_warning >= 60:
+        _last_db_warning = now
+        logger.warning(f"[Database] DATABASE TIDAK TERSAMBUNG: {reason}. Sementara memakai cadangan JSON.")
 
 
 def get_db_connection() -> Optional[Any]:
@@ -31,6 +45,7 @@ def get_db_connection() -> Optional[Any]:
     Mengembalikan None jika pymysql belum terpasang atau database offline.
     """
     if not HAVE_PYMYSQL or pymysql is None:
+        warn_db_unavailable("modul pymysql belum terpasang di venv (jalankan: venv/bin/python -m pip install -r requirements.txt)")
         return None
     try:
         connection = pymysql.connect(
@@ -46,7 +61,7 @@ def get_db_connection() -> Optional[Any]:
         )
         return connection
     except Exception as err:
-        logger.debug(f"[Database] Gagal terhubung ke basis data: {err}")
+        warn_db_unavailable(f"gagal terhubung ke {config.DB_HOST}:{config.DB_PORT} ({err})")
         return None
 
 
