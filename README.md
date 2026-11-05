@@ -74,3 +74,43 @@ curl -s http://127.0.0.1:8002/api/health
 | `http://localhost:8001/employees.html` | Dashboard admin |
 
 Log tiap service ada di `absen/logs/kiosk.log`, `connector/logs/connector.log`, dan `admin/logs/admin.log`.
+
+## Mengakses Database (MariaDB `db2.ntp.id`)
+
+Masuk ke database dengan program `mysql` dari mesin Kiosk. Password akan diminta setelah perintah dijalankan (sama dengan pengaturan `DB_PASSWORD`).
+
+```bash
+mysql -h db2.ntp.id -u debian -p debian
+```
+
+Setelah prompt berubah menjadi `MariaDB [debian]>`, jalankan perintah berikut satu per satu:
+
+```sql
+-- Bukti tersambung ke server database (bukan ke mesin Kiosk)
+SELECT @@hostname, DATABASE(), NOW();
+
+-- Daftar tabel
+SHOW TABLES;
+
+-- Data karyawan & kartu RFID
+SELECT employee_id, nik, name, rfid_uid, is_active FROM employees;
+SELECT * FROM rfid_cards;
+
+-- 10 presensi valid terakhir
+SELECT * FROM attendance ORDER BY id DESC LIMIT 10;
+
+-- 10 tap kartu tidak valid / belum terdaftar terakhir
+SELECT * FROM attendance_error ORDER BY id DESC LIMIT 10;
+
+-- Keluar dari database
+exit
+```
+
+Jika program `mysql` tidak tersedia, gunakan Python dari venv (ganti isi `SHOW TABLES` dengan query lain sesuai kebutuhan):
+
+```bash
+cd /home/debian/www/attendance
+venv/bin/python -c "import sys; sys.path.insert(0,'connector'); import config,pymysql; c=pymysql.connect(host=config.DB_HOST,user=config.DB_USER,password=config.DB_PASSWORD,database=config.DB_NAME).cursor(); c.execute('SHOW TABLES'); [print(r) for r in c.fetchall()]"
+```
+
+Perintah di atas hanya membaca data. Hindari `UPDATE`, `DELETE`, atau `DROP` langsung di database produksi tanpa persetujuan pembimbing.
